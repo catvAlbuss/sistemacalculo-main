@@ -109,9 +109,54 @@ export function comparar(ag, ing, {espejo = false} = {}) {
   return {prec, exh, f1: f1(prec, exh), espejo: mejor.esp, alineado: a};
 }
 
+// ---------------------------------------------------------------- cuadros: rejilla y contenido por celda
+//
+// La F1 de arriba compara el cuadro entero a 10 cm: la rejilla (líneas largas) pesa ~40 % y basta
+// que las filas o columnas tengan otro alto/ancho para que todo el contenido quede corrido aunque
+// cada sección esté bien dibujada. Además el ingeniero a veces parte un cuadro en varios (uno por
+// lámina) y el del agente, completo, pierde precisión contra cada parte. Por eso, para los cuadros
+// se informan también:
+//  - rejilla: F1 de las líneas largas (> 1.2 u) solas, con la misma alineación;
+//  - contenido: cada celda del ingeniero (bajo el nombre de su tipo: PL1, C1, pa…) contra la celda
+//    del agente que mejor se le parece, alineadas por el nombre (±0.3 u); cuenta lo que hay debajo
+//    del nombre (sección, estribos, varillas, despiece), sin la rejilla ni los textos.
+const NOMBRE_TIPO = /^(C|CT|PL|P|COL|pa|p[a-z])-?\d{0,2}[A-Z]?$/;
+function celdasDe(ents, factor = 1) {
+  const E = escalar(ents, factor);
+  const nombres = E.filter((e) => e.tipo === 'texto' && NOMBRE_TIPO.test(String(e.texto ?? '').trim()) && !/^P$/.test(String(e.texto).trim()));
+  if (!nombres.length) return [];
+  // Fila de nombres: la más poblada (mismo y ±0.3).
+  const filas = [];
+  for (const n of nombres) { const f = filas.find((x) => Math.abs(x.y - n.centro.y) < 0.3); if (f) f.n.push(n); else filas.push({y: n.centro.y, n: [n]}); }
+  const fila = filas.sort((a, b) => b.n.length - a.n.length)[0].n.sort((a, b) => a.centro.x - b.centro.x);
+  const geo = E.filter((e) => e.tipo !== 'texto');
+  const pts = muestrear(geo.filter((e) => e.tipo === 'circulo' || !(e.puntos ?? []).some((q, i, ps) => i && Math.hypot(q.x - ps[i - 1].x, q.y - ps[i - 1].y) > 1.2)), 'cuadro');
+  return fila.map((n, i) => {
+    const izq = i ? (fila[i - 1].centro.x + n.centro.x) / 2 : n.centro.x - (fila[1] ? (fila[1].centro.x - n.centro.x) / 2 : 1.5);
+    const der = i < fila.length - 1 ? (fila[i + 1].centro.x + n.centro.x) / 2 : n.centro.x + (i ? (n.centro.x - fila[i - 1].centro.x) / 2 : 1.5);
+    return {nombre: String(n.texto).trim(), x: n.centro.x, y: n.centro.y, puntos: pts.filter((p) => p.x >= izq && p.x < der && p.y < n.centro.y - 0.2).map((p) => ({x: p.x - n.centro.x, y: p.y - n.centro.y}))};
+  });
+}
+function celdaF1(ag, ing) {
+  if (!ag.length || !ing.length) return 0;
+  const gI = rejilla(ing), gA = rejilla(ag);
+  let mejor = 0;
+  for (let dx = -0.3; dx <= 0.3001; dx += 0.05) for (let dy = -0.3; dy <= 0.3001; dy += 0.05) mejor = Math.max(mejor, f1(cubiertos(ag, gI, dx, dy), cubiertos(ing, gA, -dx, -dy)));
+  return mejor;
+}
+export function compararCuadro(primsAgente, pieza) {
+  const entsAg = entidadesDe(primsAgente ?? []), entsIng = pieza.entidades ?? [], k = pieza.dibujo?.factor ?? 1;
+  const largas = (ents, factor) => muestrear(escalar(ents, factor).filter((e) => e.tipo !== 'texto' && e.tipo !== 'circulo' && (e.puntos ?? []).some((q, i, ps) => i && Math.hypot(q.x - ps[i - 1].x, q.y - ps[i - 1].y) > 1.2)), 'cuadro');
+  const rej = comparar(largas(entsAg, 1), largas(entsIng, k));
+  const cAg = celdasDe(entsAg, 1), cIng = celdasDe(entsIng, k);
+  const contenido = cIng.length ? cIng.reduce((s, c) => s + Math.max(0, ...cAg.map((a) => celdaF1(a.puntos, c.puntos))), 0) / cIng.length : null;
+  return {rejilla: rej.f1, contenido, celdas: cIng.length};
+}
+
 // Cortes de cimiento de la plantilla del despacho (lo que el agente copia sin biblioteca), con su
 // número, origen local y escala dentro de la plantilla (para poner los adaptados en su lugar).
 export function cortesDeLaPlantilla(dbPlantilla) {
+  if (!dbPlantilla) return []; // modo adaptativo: no hay plantilla fija de la que copiar cortes
   const {items} = aplanarModelo(dbPlantilla.tables.blockTable.modelSpace.newIterator().toArray());
   const {piezas} = extraerPiezas(items);
   return piezas.filter((p) => p.tipo === 'corte_cimiento').map((p) => {
@@ -167,7 +212,14 @@ async function main() {
     // Detalles del agente por tipo, con y sin biblioteca.
     const agente = {};
     for (const t of tipos) {
-      if (t === 'corte_cimiento') {
+      if (t === 'corte_cimiento' && !puntosPlantilla.length) {
+        // Modo adaptativo: sin biblioteca, el corte generado con los datos del proyecto.
+        const ds = det.filter((d) => d.tipo === t);
+        agente[t] = {
+          sin: ds.map((d) => ({titulo: d.titulo, puntos: puntosDePrimitivas(d.generador ?? d.primitivas, t)})),
+          con: ds.map((d) => ({titulo: d.titulo, puntos: puntosDePrimitivas(d.primitivas, t), biblioteca: d.biblioteca})),
+        };
+      } else if (t === 'corte_cimiento') {
         const adaptados = det.filter((d) => d.tipo === t && d.origen === 'biblioteca');
         agente[t] = {
           sin: puntosPlantilla.map((c) => ({titulo: c.titulo, puntos: c.puntos})),
@@ -189,8 +241,15 @@ async function main() {
       const espejo = pieza.tipo === 'escalera';
       const mejorDe = (lista) => lista.map((d) => ({d, ...comparar(d.puntos, ing, {espejo})})).sort((x, y) => y.f1 - x.f1)[0];
       const con = mejorDe(a.con), sin = conBiblioteca ? mejorDe(a.sin) : con;
+      // Cuadros: rejilla y contenido por celda, con el mejor cuadro del agente para cada medida.
+      let cuadro = null;
+      if (/^cuadro/.test(pieza.tipo)) {
+        const delTipo = det.filter((d) => d.tipo === pieza.tipo);
+        const medidas = delTipo.map((d) => compararCuadro(d.primitivas, pieza));
+        cuadro = {rejilla: Math.max(0, ...medidas.map((m) => m.rejilla)), contenido: medidas.some((m) => m.contenido !== null) ? Math.max(0, ...medidas.map((m) => m.contenido ?? 0)) : null};
+      }
       resultados.push({tipo: pieza.tipo, pieza: pieza.archivo, titulo: pieza.titulo, f1: con.f1, prec: con.prec, exh: con.exh, con: con.d.titulo, adaptado: con.d.biblioteca?.pieza ?? null,
-        sin: {f1: sin.f1, prec: sin.prec, exh: sin.exh, con: sin.d.titulo}});
+        sin: {f1: sin.f1, prec: sin.prec, exh: sin.exh, con: sin.d.titulo}, ...(cuadro ? {cuadro} : {})});
       if (png) {
         let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
         for (const q of [...ing, ...con.alineado]) { x0 = Math.min(x0, q.x); x1 = Math.max(x1, q.x); y0 = Math.min(y0, q.y); y1 = Math.max(y1, q.y); }
@@ -215,7 +274,12 @@ async function main() {
       resumen[t].porProyecto[g] = {f1: prom(xs.map((x) => x.f1)), f1Sin: prom(xs.map((x) => x.sin.f1)), precision: prom(xs.map((x) => x.prec)), exhaustividad: prom(xs.map((x) => x.exh)), emparejados: xs.length, delIngeniero: todos.filter((x) => x.grupo === g).length, adaptados: xs.filter((x) => x.adaptado).length};
     }
     const v = resumen[t];
-    console.log(`  ${t}: ${v.f1 ?? '—'} %${conBiblioteca ? ` (sin biblioteca ${v.f1Sin ?? '—'} %; ${v.adaptados} adaptados)` : ''} · precisión ${v.precision ?? '—'} %, exhaustividad ${v.exhaustividad ?? '—'} % (${v.emparejados}/${v.delIngeniero} con par)`);
+    if (/^cuadro/.test(t)) {
+      const cs = med.filter((x) => x.cuadro);
+      v.rejilla = prom(cs.map((x) => x.cuadro.rejilla));
+      v.contenido = prom(cs.filter((x) => x.cuadro.contenido !== null).map((x) => x.cuadro.contenido));
+    }
+    console.log(`  ${t}: ${v.f1 ?? '—'} %${conBiblioteca ? ` (sin biblioteca ${v.f1Sin ?? '—'} %; ${v.adaptados} adaptados)` : ''} · precisión ${v.precision ?? '—'} %, exhaustividad ${v.exhaustividad ?? '—'} % (${v.emparejados}/${v.delIngeniero} con par)${v.contenido !== undefined ? ` · rejilla ${v.rejilla ?? '—'} %, contenido por celda ${v.contenido ?? '—'} %` : ''}`);
     for (const [g, w] of Object.entries(v.porProyecto)) console.log(`      ${g}: ${w.f1 ?? '—'} %${conBiblioteca ? ` (sin ${w.f1Sin ?? '—'} %; ${w.adaptados} adaptados)` : ''} (${w.emparejados}/${w.delIngeniero})`);
   }
   if (salidaJson) writeFileSync(salidaJson, JSON.stringify({fecha: new Date().toISOString(), biblioteca: conBiblioteca ? {excluir: excluirModo} : null, resumen, filas}, null, 1));

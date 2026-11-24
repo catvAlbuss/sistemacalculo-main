@@ -23,34 +23,70 @@ const r4 = (v) => Math.round(v * 10000) / 10000;
 const pt = (x, y) => [r4(x), r4(y)];
 const rect = (layer, x0, y0, x1, y1) => pline(layer, [pt(x0, y0), pt(x1, y0), pt(x1, y1), pt(x0, y1)], true);
 
-// Niveles de la arquitectura: el mayor "N.F.T." (fondo de techo) entre 2.2 y 6 m.
-export function alturaDesdeArquitectura(items) {
-  const valores = [];
+// Niveles escritos en la arquitectura, con cuántas veces aparece cada valor: N.P.T. (piso
+// terminado), N.F.T. (fondo de techo) y N.T.T. (techo terminado). "NPT= +3.65", "N.P.T: +3.35",
+// "N.F.T: +12.97m", "NTT=+10.65". Solo valores con signo + (los -3.20 de un sótano no son pisos).
+const PATRON_NIVEL = {
+  npt: /N\.?\s*P\.?\s*T\.?\s*[=:]?\s*\+\s*(\d+(?:[.,]\d+)?)/i,
+  nft: /N\.?\s*F\.?\s*T\.?\s*[:=]?\s*\+?\s*(\d+(?:[.,]\d+)?)/i,
+  ntt: /N\.?\s*T\.?\s*T\.?\s*[:=]?\s*\+?\s*(\d+(?:[.,]\d+)?)/i,
+};
+export function textosDeNivel(items) {
+  const r = {npt: new Map(), nft: new Map(), ntt: new Map()};
   for (const it of items) {
     if (it.tipo !== "texto") continue;
-    const m = /N\.?\s*F\.?\s*T\.?\s*[:=]?\s*\+?\s*(\d+(?:[.,]\d+)?)/i.exec(it.texto); // "N.F.T: +3.25", "NFT= + 5.91m"
-    if (m) valores.push(Number(m[1].replace(",", ".")));
+    for (const [k, re] of Object.entries(PATRON_NIVEL)) {
+      const m = re.exec(it.texto ?? "");
+      if (!m) continue;
+      const v = Math.round(Number(m[1].replace(",", ".")) * 100) / 100;
+      if (Number.isFinite(v)) r[k].set(v, (r[k].get(v) ?? 0) + 1);
+    }
   }
-  const utiles = valores.filter((v) => v >= 2.2 && v <= 6);
-  return utiles.length ? Math.max(...utiles) : 3;
+  return r;
+}
+// Los valores que la arquitectura repite (los pisos se rotulan en cada vista y en los cortes);
+// los que salen una o dos veces son descansos de escalera, graderías o desniveles.
+const frecuentes = (mapa) => {
+  const max = Math.max(0, ...mapa.values());
+  return [...mapa].filter(([, n]) => n >= Math.max(3, max * 0.2)).map(([v]) => v).sort((a, b) => a - b);
+};
+
+// Base del módulo: si TODOS los N.P.T. frecuentes son un solo valor alto (el módulo está sobre una
+// plataforma: "N.P.T: +3.35" en todo el plano y nada más), los niveles se cuentan desde ahí, como
+// el ingeniero (su NPN ±0.00 es ese piso). Con un +0.15 o varios pisos no se desplaza nada.
+function baseDelModulo(niveles) {
+  const npt = frecuentes(niveles.npt);
+  return npt.length === 1 && npt[0] >= 1 ? npt[0] : 0;
+}
+
+// Techo de un nivel (TECHO NFP del pórtico, sobre el piso del módulo): el mayor N.F.T. entre 2.2 y
+// 10 m; si no hay, el N.T.T. (techo terminado) en ese rango; si tampoco, 3 m.
+export function alturaDesdeArquitectura(items) {
+  const n = textosDeNivel(items);
+  const base = baseDelModulo(n);
+  const enRango = (mapa) => [...mapa.keys()].map((v) => v - base).filter((v) => v >= 2.2 && v <= 10);
+  const nft = enRango(n.nft), ntt = enRango(n.ntt);
+  // El N.F.T. más alto dentro de 6 m (el fondo de techo de la planta); más alto, el de una nave.
+  const bajos = nft.filter((v) => v <= 6);
+  if (bajos.length) return Math.max(...bajos);
+  if (nft.length) return Math.min(...nft);
+  if (ntt.length) return Math.min(...ntt);
+  return 3;
 }
 
 // Niveles de un edificio de n pisos: el piso de cada nivel superior (NPT +3.65 del módulo 9)
-// y el techo (NPT +7.15). Un nivel superior está al menos 2.2 m sobre el anterior.
+// y el techo (NPT +7.15). Un nivel superior está al menos 2.2 m sobre el anterior y se rotula
+// varias veces (los N.P.T. sueltos son descansos o desniveles).
 // ocultos(): textos de capas apagadas o congeladas, solo si los visibles no alcanzan (en el
-// módulo 9 los NPT del 2do nivel y del techo están en capas congeladas). Si tampoco están,
-// cada piso repite la altura del primero. fuente dice de dónde salió, para avisar.
+// módulo 9 los NPT del 2do nivel y del techo están en capas congeladas). Si tampoco están, el
+// techo es el N.F.T. sobre el último piso y, si no hay, cada piso repite la altura del primero.
+// fuente dice de dónde salió, para avisar.
 export function nivelesDesdeArquitectura(items, niveles = 1, ocultos = () => []) {
   const primero = alturaDesdeArquitectura(items);
   if (niveles <= 1) return {entrepisos: [], techo: primero, fuente: "visible"};
   const pisosDe = (lista) => {
-    const valores = [];
-    for (const it of lista) {
-      if (it.tipo !== "texto") continue;
-      const m = /N\.?\s*P\.?\s*T\.?\s*[=:]?\s*\+\s*(\d+(?:[.,]\d+)?)/i.exec(it.texto);
-      if (m) valores.push(Number(m[1].replace(",", ".")));
-    }
-    const unicos = [...new Set(valores.filter((v) => v >= 2.2 && v <= 4.5 * niveles).map((v) => Math.round(v * 100) / 100))].sort((a, b) => a - b);
+    const n = textosDeNivel(lista);
+    const unicos = frecuentes(n.npt).filter((v) => v >= 2.2 && v <= 4.5 * niveles);
     const pisos = [];
     for (const v of unicos) if (v - (pisos.at(-1) ?? 0) >= 2.2) pisos.push(v);
     return pisos;
@@ -63,7 +99,11 @@ export function nivelesDesdeArquitectura(items, niveles = 1, ocultos = () => [])
   if (pisos.length < niveles - 1) fuente = "supuesta";
   const entrepisos = [];
   for (let n = 1; n < niveles; n++) entrepisos.push(pisos[n - 1] ?? (entrepisos.at(-1) ?? 0) + primero);
-  const techo = pisos[niveles - 1] ?? entrepisos.at(-1) + primero;
+  // Techo sin N.P.T. propio: el N.F.T. (o N.T.T.) entre 2.2 y 6 m sobre el último piso.
+  const ultimo = entrepisos.at(-1);
+  const n = textosDeNivel(items);
+  const sobre = (mapa) => [...mapa.keys()].filter((v) => v - ultimo >= 2.2 && v - ultimo <= 6).sort((a, b) => a - b)[0];
+  const techo = pisos[niveles - 1] ?? sobre(n.nft) ?? sobre(n.ntt) ?? ultimo + primero;
   return {entrepisos, techo, fuente};
 }
 
@@ -171,7 +211,12 @@ export function planoPortico({eje, columnas, altura = 3, espesorLosa = 0.2, viga
   prim.push(text(L.CIMIENTO, pt((xa + xb) / 2, -df - fz / 2), CRITERIOS.concreto.falsaZapata.toUpperCase(), h * 0.42));
   // Relleno compactado entre la platea y el cimiento corrido.
   prim.push(line(L.NIVELES, pt(xa, nfc), pt(xb, nfc)));
-  if (platea && baseCol < nfc - 0.15) prim.push(text(L.NIVELES, pt((xa + xb) / 2, (baseCol + nfc) / 2), CRITERIOS.terreno.relleno, Math.min(h * 0.3, ((xb - xa) * 0.9) / (CRITERIOS.terreno.relleno.length * 0.6))));
+  // En el paño más ancho entre columnas, sin cruzar ninguna (visto en el visor: cruzaba columnas).
+  if (platea && baseCol < nfc - 0.15) {
+    const panos = lista.slice(0, -1).map((x, i) => ({a: x.s1, b: lista[i + 1].s0})).sort((p, q) => (q.b - q.a) - (p.b - p.a));
+    const pano = panos[0] ?? {a: xa, b: xb};
+    prim.push(text(L.NIVELES, pt((pano.a + pano.b) / 2, (baseCol + nfc) / 2), CRITERIOS.terreno.relleno, Math.min(h * 0.3, ((pano.b - pano.a) * 0.9) / (CRITERIOS.terreno.relleno.length * 0.6))));
+  }
   // Terreno natural (NTN).
   prim.push(line(L.NIVELES, pt(xa - 1.2, 0), pt(xb + 1.2, 0)));
 
@@ -313,7 +358,8 @@ export function planoPortico({eje, columnas, altura = 3, espesorLosa = 0.2, viga
       if (b - a < 0.2) continue;
       for (const xx of posicionesEstribos(V.distribucion, b - a)) prim.push(line(L.ESTRIBOS, pt(a + xx, z - vh + rec * 0.6), pt(a + xx, z - rec * 0.6)));
     }
-    const xm = (lista[0].s1 + (lista[1]?.s0 ?? xb)) / 2;
+    // En el paño más ancho entre columnas y columnetas: el rótulo no cruza ninguna.
+    const xm = ancho ? (ancho.a + ancho.b) / 2 : (lista[0].s1 + (lista[1]?.s0 ?? xb)) / 2;
     prim.push(text(L.VIGAS, pt(xm, z - vh - h * 0.55), `${nombreViga} (${viga.b.toFixed(2)}x${vh.toFixed(2)}) · LOSA E=${Math.round(e * 100)}CM`, h * 0.4));
   });
 
@@ -376,7 +422,7 @@ export function planoPortico({eje, columnas, altura = 3, espesorLosa = 0.2, viga
   prim.push(text(L.ESTRIBOS, pt(sx + viga.b + 0.12, sy + h * 0.2), `${armado.barras}Ø${armado.barra}\\P${textoEstribos(V.estribo, V.distribucion)}`, h * 0.28, 0, "izq"));
 
   notas.push(`Recubrimiento: ${Math.round(V.recubrimiento * 100)} cm`);
-  prim.push(text(L.LAMINA, pt(xa - alero - 1.2, -df - fz * 0.6), `Recubrimiento: ${Math.round(V.recubrimiento * 100)} cm · f'c = ${CRITERIOS.concreto.columnas} kg/cm²`, h * 0.38, 0, "izq"));
+  prim.push(text(L.LAMINA, pt(xa - alero - 1.2, yc - 0.95), `Recubrimiento: ${Math.round(V.recubrimiento * 100)} cm · f'c = ${CRITERIOS.concreto.columnas} kg/cm²`, h * 0.38, 0, "izq"));
   return {
     columnas: lista.length, dosAguas, cumbrera: dosAguas ? r4(H) : null, vanos: vanosDibujados, niveles: pisos.length, modelo,
     // Geometría del pórtico en su marco local (x desde la primera columna, y desde ±0.00): es el
@@ -393,7 +439,7 @@ export function planoPortico({eje, columnas, altura = 3, espesorLosa = 0.2, viga
       primitivas: prim,
       // Caja de las burbujas de ejes: la lámina ubica el pórtico donde el ingeniero puso el suyo.
       ejes: {x0: lista[0].sn - rb, y0: yB - rb, x1: lista.at(-1).sn + rb, y1: yB + rb},
-      marco: {x0: xa - alero - 1.3, y0: yc - 0.8, x1: xv + 0.45, y1: yB + rb + 0.1},
+      marco: {x0: xa - alero - 1.3, y0: yc - 1.1, x1: xv + 0.45, y1: yB + rb + 0.1},
       h, notas,
     },
   };

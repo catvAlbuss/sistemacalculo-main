@@ -11,7 +11,7 @@
 
 import {L, line, text} from "../cad/primitives.js";
 import {planoCimentacion, planoCimientoCorrido, planoTabiqueria, escalerasEnPlanta} from "../planos/cimentacionPlano.js";
-import {predimensionarEscalera, detalleEscalera} from "../planos/escaleraPlano.js";
+import {predimensionarEscalera, detalleEscalera, detallesEscaleraPorTramo} from "../planos/escaleraPlano.js";
 import {direccionPrincipal} from "../planos/aligeradoPlano.js";
 import {planoAligerado, seccionViga} from "../planos/aligeradoPlano.js";
 import {cuadroColumnas, cuadroColumnetas} from "./cuadroColumnas.js";
@@ -26,7 +26,7 @@ import {CRITERIOS} from "../criterios/criteriosEstructurales.js";
 import {componerPaqueteLaminas} from "./componerPaquete.js";
 import {notasTecnicas} from "./formatoDespacho.js";
 import {corteCimientoCorrido} from "./corteCimiento.js";
-import {detalleTipicoAligerado} from "./detallesTipicos.js";
+import {detalleTipicoAligerado, detalleEmpalmesGanchos} from "./detallesTipicos.js";
 
 const r4 = (v) => Math.round(v * 10000) / 10000;
 const MESES = ["ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO", "JULIO", "AGOSTO", "SETIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"];
@@ -176,7 +176,12 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
   const conAlero = estructura.techoDosAguas === true || pendienteAnotada(items) || items.some((it) => it.tipo === "texto" && /\balero|\bPTE\s*=?\s*\d|cumbrera/i.test(it.texto ?? ""));
   const alero = conAlero ? null : 0;
   const ali = planoAligerado({lectura, items, k, espesorFijo: estructura.espesorLosa ?? null, losaMaciza: estructura.losaMaciza ?? Number(estructura.niveles) >= 2, volados, alero, tipoCimentacion: cim.tipo});
-  const cuadro = cuadroColumnas(lectura.columnas);
+  const cuadro = cuadroColumnas(lectura.columnas, {niveles: Math.max(1, Number(estructura.niveles) || 1)}); // en NIVEL, los pisos que cubre
+  // Con placas y columnas, el ingeniero hace dos cuadros: "CUADRO DE PLACAS" y "CUADRO DE COLUMNAS"
+  // (así en 35 de los 44 cuadros de la biblioteca); el cuadro completo queda para el metrado.
+  const placasPlanta = lectura.columnas.filter((c) => c.clase === "placa"), columnasPlanta = lectura.columnas.filter((c) => c.clase !== "placa");
+  const cuadrosSeparados = placasPlanta.length && columnasPlanta.length
+    ? [cuadroColumnas(columnasPlanta, {niveles: Math.max(1, Number(estructura.niveles) || 1)}), cuadroColumnas(placasPlanta, {niveles: Math.max(1, Number(estructura.niveles) || 1)})] : null;
   const nNiveles = Math.max(1, Number(estructura.niveles) || 1);
   const {entrepisos, techo: altura, fuente: fuenteNiveles} = nivelesDesdeArquitectura(items, nNiveles, estructura.textosOcultos ?? (() => []));
   const altura0 = altura;
@@ -234,13 +239,16 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
       const altura = (altura0 - entrepisos[0]) / Math.max(1, nNiveles - 1) || entrepisos[0];
       const dim = predimensionarEscalera(esc, altura);
       const d = detalleEscalera(dim, {nombre: dim.nTramos > 1 ? "TRAMOS I Y II" : "TRAMO I"});
-      const dEsc = bibliotecaDetalles ? detalleDesdeBiblioteca("escalera", {...dim, nombre: dim.nTramos > 1 ? "TRAMOS I Y II" : "TRAMO I"}, bibliotecaDetalles) : null;
-      extras.push(dEsc ? {...dEsc.contenido, notas: d.contenido.notas} : d.contenido);
-      detallesLocales.push({tipo: "escalera", titulo: (dEsc ?? d).contenido.titulo, unidades: "m", primitivas: (dEsc ?? d).contenido.primitivas, ...(dEsc ? {biblioteca: dEsc.biblioteca, generador: d.contenido.primitivas} : {})});
+      // Un detalle por tramo (TRAMO I, TRAMO II…) con sus descansos, como el ingeniero. La pieza de
+      // la biblioteca no se usa aquí: medido, adaptada (44 %) queda por debajo del tramo generado (63 %).
+      for (const t of detallesEscaleraPorTramo(dim, esc)) {
+        extras.push(t.contenido);
+        detallesLocales.push({tipo: "escalera", titulo: t.contenido.titulo, unidades: "m", primitivas: t.contenido.primitivas});
+      }
       escalera = {...dim, tramosPorNivel: dim.nTramos, niveles: nNiveles - 1, porTramo: d.modelo};
     }
   }
-  const cuadroCtas = cuadroColumnetas([...(lectura.columnetas ?? []), ...columnetasExtra]); // ya traen su código (pa, pb…) del cimiento corrido
+  const cuadroCtas = cuadroColumnetas([...(lectura.columnetas ?? []), ...columnetasExtra], {niveles: nNiveles}); // ya traen su código (pa, pb…) del cimiento corrido
   const pendiente = pendienteDesdeArquitectura(items);
   const vanos = vanosDesdeArquitectura(items, k);
   // Sección de las vigas: la del aligerado (la misma que se metra). En cada pórtico, la de las
@@ -282,14 +290,14 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
   const porticosDibujo = dibujados.map((i) => porticos[i]);
   const similares = dibujados.filter((i) => representante.get(i).length).map((i) => `${nombreDe(i)} (igual a ${representante.get(i).join(", ")})`);
   const contenidos = {
-    cimentacion: cim.contenido, cimiento: cc.contenido, aligerado: sinLosa ? null : ali.contenido, cuadroColumnas: cuadro.contenido, cuadroColumnetas: cuadroCtas?.contenido,
+    cimentacion: cim.contenido, cimiento: cc.contenido, aligerado: sinLosa ? null : ali.contenido, cuadroColumnas: (cuadrosSeparados?.[0] ?? cuadro).contenido, cuadroPlacas: cuadrosSeparados?.[1].contenido ?? null, cuadroColumnetas: cuadroCtas?.contenido,
   };
   // Cuadros con la rejilla del despacho y las filas de este proyecto (detalleBiblioteca.js).
-  for (const [tipo, clave, gen] of [["cuadro_columnas", "cuadroColumnas", cuadro], ["cuadro_columnetas", "cuadroColumnetas", cuadroCtas]]) {
+  for (const [tipo, clave, gen] of [["cuadro_columnas", "cuadroColumnas", cuadrosSeparados?.[0] ?? cuadro], ["cuadro_columnas", "cuadroPlacas", cuadrosSeparados?.[1]], ["cuadro_columnetas", "cuadroColumnetas", cuadroCtas]]) {
     if (!gen?.contenido) continue;
     const b = bibliotecaDetalles ? detalleDesdeBiblioteca(tipo, {generado: gen.contenido.primitivas, niveles: nNiveles}, bibliotecaDetalles) : null;
     if (b) contenidos[clave] = b.contenido;
-    detallesLocales.push({tipo, titulo: tipo === "cuadro_columnas" ? "CUADRO DE COLUMNAS" : "CUADRO DE COLUMNETAS", unidades: "lamina", primitivas: contenidos[clave].primitivas, ...(b ? {biblioteca: b.biblioteca, generador: gen.contenido.primitivas} : {})});
+    detallesLocales.push({tipo, titulo: clave === "cuadroPlacas" ? "CUADRO DE PLACAS" : tipo === "cuadro_columnas" ? "CUADRO DE COLUMNAS" : "CUADRO DE COLUMNETAS", unidades: "lamina", primitivas: contenidos[clave].primitivas, ...(b ? {biblioteca: b.biblioteca, generador: gen.contenido.primitivas} : {})});
   }
   // Cortes de cimiento corrido: sin biblioteca, los de la plantilla (origen "plantilla", sin
   // primitivas aquí); con ella, el corte del despacho más parecido con el cimiento de este
@@ -302,9 +310,9 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
     const b = bibliotecaDetalles ? detalleDesdeBiblioteca("corte_cimiento", destinoCorte, bibliotecaDetalles) : null;
     // Sin pieza del despacho (modo adaptativo): el corte se dibuja con los datos de este proyecto.
     const dato = (cc.cortesDetalle ?? []).find((c) => c.numero === numero) ?? {};
-    const g = !b && adaptativa ? corteCimientoCorrido({numero, ancho: cc.ancho, alto: CRITERIOS.cimientoCorrido.alto, espesorMuro: dato.espesorMuro, exterior: dato.exterior ?? numero !== 3, conPuerta: dato.conPuerta ?? numero === 1, npt: CRITERIOS.terreno.npt}) : null;
+    const g = adaptativa ? corteCimientoCorrido({numero, ancho: cc.ancho, alto: CRITERIOS.cimientoCorrido.alto, espesorMuro: dato.espesorMuro, exterior: dato.exterior ?? numero !== 3, conPuerta: dato.conPuerta ?? numero === 1, npt: CRITERIOS.terreno.npt}) : null;
     if (b) cortesAdaptados.push(b.contenido); else if (g) cortesAdaptados.push(g);
-    detallesLocales.push({tipo: "corte_cimiento", numero, titulo: `CORTE ${numero}-${numero}`, unidades: "m", origen: b ? "biblioteca" : g ? "generado con los datos del proyecto" : "plantilla", primitivas: b?.contenido.primitivas ?? g?.primitivas ?? [], ...(b ? {biblioteca: b.biblioteca} : {})});
+    detallesLocales.push({tipo: "corte_cimiento", numero, titulo: `CORTE ${numero}-${numero}`, unidades: "m", origen: b ? "biblioteca" : g ? "generado con los datos del proyecto" : "plantilla", primitivas: b?.contenido.primitivas ?? g?.primitivas ?? [], ...(b ? {biblioteca: b.biblioteca, ...(g ? {generador: g.primitivas} : {})} : {})});
     const lugar = b && (bibliotecaDetalles.cortesPlantilla ?? []).find((c) => c.numero === numero);
     if (lugar) cortesColocados.push({lugar, primitivas: transformar(b.contenido.primitivas, (x, y) => [lugar.origen.x + x * lugar.escala, lugar.origen.y + y * lugar.escala], lugar.escala)});
   }
@@ -337,8 +345,11 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
       ...extras.map((contenido, i) => ({id: `extra${i}`, tipo: tipoExtra(contenido), contenido, titulado: true})),
       ...porticosDibujo.map((p, i) => ({id: `portico${i + 1}`, tipo: 'portico', contenido: p.contenido, nominal: 1, titulado: true})),
       {id: 'cuadroColumnas', tipo: 'cuadroColumnas', contenido: contenidos.cuadroColumnas, nominal: 1},
+      {id: 'cuadroPlacas', tipo: 'cuadroColumnas', contenido: contenidos.cuadroPlacas, nominal: 1},
       {id: 'cuadroColumnetas', tipo: 'cuadroColumnetas', contenido: contenidos.cuadroColumnetas, nominal: 1},
       {id: 'notas', tipo: 'notas', contenido: notas, nominal: 1},
+      // Empalmes y ganchos estándar del despacho (E.060), como en sus especificaciones técnicas.
+      {id: 'empalmes', tipo: 'cuadroEmpalmes', contenido: detalleEmpalmesGanchos(), nominal: 1, titulado: true},
       // El cuadro de columnas también en las láminas de pórticos (si cabe), como el ingeniero.
       {id: 'cuadroColumnas', tipo: 'cuadroColumnas', contenido: contenidos.cuadroColumnas, nominal: 1, repetible: true},
     ].filter((c) => c.contenido);
@@ -409,15 +420,16 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
         if (colocadas.length) secciones.push({titulo: contenido.titulo, tipo: espacio.tipo, lamina: codigo, entidades: colocadas.length});
         if (!espacio.titulado) continue;
         ubicaciones.push({titulo: contenido.titulo, lamina: codigo, espacio: espacio.id, escala: s, caja: cajaDibujo(colocadas)});
-        const esc = `1/${Math.round(50 / s)}`;
-        escalas.add(esc);
+        // Tablas y detalles típicos sin dibujo a escala (empalmes y ganchos): "SIN ESCALA", como el ingeniero.
+        const esc = contenido.sinEscala ? "SIN ESCALA" : `1/${Math.round(50 / s)}`;
+        if (!contenido.sinEscala) escalas.add(esc);
         const pos = espacio.titulo;
         const titulo = `${proyecto} - ${contenido.titulo}`;
         const largo = anchoTexto(titulo, pos.alto);
         prim.push(...mover(aplicarEstilo([
           text(L.TITULO, [pos.x, pos.y], titulo, pos.alto, 0, "izq"),
           line(L.TITULO, [pos.x, pos.y - pos.alto * 0.35], [pos.x + largo, pos.y - pos.alto * 0.35]),
-          text(L.TITULO, [pos.x, pos.y - pos.alto * 1.6], `ESC: ${esc}`, pos.alto * 0.7, 0, "izq"),
+          text(L.TITULO, [pos.x, pos.y - pos.alto * 1.6], `${contenido.sinEscala ? "" : "ESC: "}${esc}`, pos.alto * 0.7, 0, "izq"),
         ])));
       }
     }
@@ -519,7 +531,7 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
     // Detalles (cortes de cimiento, escalera, cuadros) en coordenadas locales: metros (cortes y
     // escalera) o unidades de lámina (cuadros); con biblioteca, la pieza usada y el dibujo del generador.
     detallesLocales,
-    porticosLocales: porticos.map((p) => ({eje: p.modelo?.eje, titulo: p.contenido?.titulo, primitivas: p.contenido?.primitivas ?? [], ...(p.biblioteca ? {biblioteca: p.biblioteca, generador: p.generador?.primitivas ?? []} : {})})),
+    porticosLocales: porticos.map((p) => ({eje: p.modelo?.eje, titulo: p.contenido?.titulo, primitivas: p.contenido?.primitivas ?? [], geometria: p.geometria ?? null, ...(p.biblioteca ? {biblioteca: p.biblioteca, generador: p.generador?.primitivas ?? []} : {})})),
     // Modelo estructural de lo dibujado: de aquí sale el metrado (metrado/metrado.js).
     modelo: {
       proyecto, niveles: nNiveles, entrepisos, techo: altura, losaTecho: sinLosa ? false : losaTecho,

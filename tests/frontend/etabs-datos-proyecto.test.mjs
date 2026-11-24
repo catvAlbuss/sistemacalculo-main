@@ -83,23 +83,23 @@ test('chat tool datos_proyecto saves what the engineer dictates into the panel a
   assert.match(consulta.mensaje, /^Datos del proyecto: Hz 0\.60 m/);
 });
 
-test('columneta schedule: sections at the largest standard scale that fits, ".20" dimensions and one bar callout per face', async () => {
+test('columneta schedule: sections at 1/25 like the 37 schedules of the office, ".20" dimensions and one bar callout per face', async () => {
   const {cuadroColumnetas} = await import('../../resources/js/ingenieria/laminas/cuadroColumnas.js');
   const r = cuadroColumnetas([{codigo: 'pa', b: 0.2, h: 0.13}, {codigo: 'pb', b: 0.65, h: 0.13}, {codigo: 'pc', b: 0.13, h: 0.22}]);
   const textos = r.contenido.primitivas.filter((p) => p.type === 'text').map((p) => p.text ?? p.texto ?? p.value);
   const escala = r.filas[0].escala;
-  assert.ok(['1/10', '1/15', '1/20', '1/25'].includes(escala), escala);
+  assert.equal(escala, '1/25', 'the office draws every columneta schedule at 1/25');
   assert.ok(textos.includes(escala), 'header shows the real scale');
   for (const t of ['.20', '.13', '.65', '.22']) assert.ok(textos.includes(t), `missing dimension "${t}"`);
   const llamadas = r.contenido.primitivas.filter((p) => p.type === 'text' && p.align === 'izq' && /Ø3\/8"$/.test(p.value)).map((p) => p.value);
   // Como el ingeniero: una llamada "2Ø3/8"" por cada par de varillas (pa 2, pb 6, pc 3).
   assert.deepEqual(llamadas, Array(11).fill('2Ø3/8"'), 'one "2Ø3/8"" callout per bar pair');
   // Callouts stay inside the section row of the schedule.
-  const H = 2.9, yFila = H - (0.36 + 0.3 + 1.5) * H / 2.9;
+  const H = 2.9, yFila = H - (0.5 + 0.4 + 1.4) * H / 2.9;
   assert.ok(r.contenido.primitivas.filter((p) => p.type === 'text' && p.align === 'izq').every((p) => p.at[1] > yFila), 'callouts above the reinforcement row');
   assert.deepEqual(r.filas.map((f) => f.refuerzo), ['4Ø3/8"', '12Ø3/8"', '6Ø3/8"'], 'like the engineer: pa 4Ø, pb 12Ø, pc 6Ø');
-  // Larger than the old fixed 1/25 when there is room.
-  assert.notEqual(cuadroColumnetas([{codigo: 'pa', b: 0.2, h: 0.13}]).filas[0].escala, '1/25');
+  // Same scale with a single columneta (the header says the real scale).
+  assert.equal(cuadroColumnetas([{codigo: 'pa', b: 0.2, h: 0.13}]).filas[0].escala, '1/25');
 });
 
 test('columneta schedule with the 6 sizes of module 14: nothing overlaps, every callout inside its own cell', async () => {
@@ -109,8 +109,9 @@ test('columneta schedule with the 6 sizes of module 14: nothing overlaps, every 
   const r = cuadroColumnetas(medidas.map(([b, h], i) => ({codigo: `p${'abcdefg'[i]}`, b, h})));
   assert.equal(r.filas.length, 7);
   assert.ok(['1/10', '1/15', '1/20', '1/25', '1/30'].includes(r.filas[0].escala), `sections still readable: ${r.filas[0].escala}`);
-  const W = 11.9, c0 = W * 0.075, c1 = W * 0.1;
-  const H = 2.9, yTop = H - (0.36 + 0.3) * H / 2.9, yBot = yTop - 1.5 * H / 2.9;
+  // Office format: label columns of 1.0 and 1.3, cells as wide as their columneta needs.
+  const W = r.contenido.marco.x1, c0 = 1.0, c1 = 1.3;
+  const H = 2.9, yTop = H - (0.5 + 0.4) * H / 2.9, yBot = yTop - 1.4 * H / 2.9;
   // Cell borders: the vertical lines of the table between types (cells have different widths).
   const bordes = [c0 + c1, ...r.contenido.primitivas.filter((p) => p.type === 'line' && p.a[0] === p.b[0] && p.a[0] > c0 + c1 + 0.01 && p.b[1] === 0).map((p) => p.a[0]).sort((a, b) => a - b), W];
   assert.equal(bordes.length, 8);

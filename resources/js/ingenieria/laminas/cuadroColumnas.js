@@ -49,8 +49,7 @@ export function alasDeSeccion(contorno) {
   return [ala1, ala2];
 }
 
-// Varillas: esquinas de cada estribo (sin repetir) y, si faltan, al centro de los
-// lados más largos.
+// Varillas: esquinas de cada estribo (sin repetir) y las que faltan repartidas en los lados.
 export function varillasDeSeccion(alas, n, rec) {
   const puntos = [];
   const lados = [];
@@ -60,10 +59,28 @@ export function varillasDeSeccion(alas, n, rec) {
     for (const p of q) if (!puntos.some((o) => Math.hypot(o.x - p.x, o.y - p.y) < 0.04)) puntos.push(p);
     q.forEach((a, j) => lados.push({a, b: q[(j + 1) % q.length]}));
   }
-  lados.sort((p, q) => Math.hypot(q.b.x - q.a.x, q.b.y - q.a.y) - Math.hypot(p.b.x - p.a.x, p.b.y - p.a.y));
-  for (let j = 0; puntos.length < n && j < lados.length; j++) {
-    const m = {x: (lados[j].a.x + lados[j].b.x) / 2, y: (lados[j].a.y + lados[j].b.y) / 2};
-    if (!puntos.some((o) => Math.hypot(o.x - m.x, o.y - m.y) < 0.06)) puntos.push(m);
+  // Las que faltan, repartidas a lo largo de los lados según su largo (como el ingeniero dibuja
+  // las 22 varillas de una placa, no solo las esquinas y el centro de cada lado).
+  const largo = (l) => Math.hypot(l.b.x - l.a.x, l.b.y - l.a.y);
+  for (let intento = 0; puntos.length < n && intento < 6; intento++) {
+    const faltan = n - puntos.length, total = lados.reduce((s, l) => s + largo(l), 0) || 1;
+    const cuota = lados.map((l) => (faltan * largo(l)) / total);
+    const k = cuota.map(Math.floor);
+    cuota.map((c, j) => [c - Math.floor(c), j]).sort((x, y) => y[0] - x[0]).slice(0, faltan - k.reduce((s, v) => s + v, 0)).forEach(([, j]) => k[j]++);
+    const antes = puntos.length;
+    lados.forEach((l, j) => {
+      const existentes = puntos.filter((o) => {
+        const t = ((o.x - l.a.x) * (l.b.x - l.a.x) + (o.y - l.a.y) * (l.b.y - l.a.y)) / (largo(l) ** 2 || 1);
+        const d = Math.abs((o.x - l.a.x) * (l.b.y - l.a.y) - (o.y - l.a.y) * (l.b.x - l.a.x)) / (largo(l) || 1);
+        return d < 0.02 && t > 0.02 && t < 0.98;
+      }).length;
+      const m = k[j] + existentes;
+      for (let i = 1; i <= m && puntos.length < n; i++) {
+        const q = {x: l.a.x + ((l.b.x - l.a.x) * i) / (m + 1), y: l.a.y + ((l.b.y - l.a.y) * i) / (m + 1)};
+        if (!puntos.some((o) => Math.hypot(o.x - q.x, o.y - q.y) < 0.045)) puntos.push(q);
+      }
+    });
+    if (puntos.length === antes) break;
   }
   return puntos;
 }
@@ -126,11 +143,11 @@ export function cierresAlternados(ejes) {
   return out;
 }
 
-// Título como lo pone el ingeniero: "CUADRO DE COLUMNAS", "CUADRO DE PLACA" o
-// "CUADRO DE PLACA Y COLUMNA" según lo que haya en la planta.
+// Título como lo pone el ingeniero: "CUADRO DE COLUMNA(S)", "CUADRO DE PLACA(S)" o
+// "CUADRO DE PLACA Y COLUMNA" según los tipos del cuadro.
 export function tituloDelCuadro(secciones) {
-  const placas = secciones.some((c) => c.clase === "placa"), columnas = secciones.some((c) => c.clase !== "placa");
-  return placas && columnas ? "CUADRO DE PLACA Y COLUMNA" : placas ? "CUADRO DE PLACA" : "CUADRO DE COLUMNAS";
+  const placas = secciones.filter((c) => c.clase === "placa").length, columnas = secciones.length - placas;
+  return placas && columnas ? "CUADRO DE PLACA Y COLUMNA" : placas ? (placas > 1 ? "CUADRO DE PLACAS" : "CUADRO DE PLACA") : columnas === 1 ? "CUADRO DE COLUMNA" : "CUADRO DE COLUMNAS";
 }
 
 // Medidas como en el cuadro del ingeniero: L y T con su espesor (1.00x0.60x0.30m),
@@ -165,46 +182,70 @@ export function cotasDeContorno(contorno, S, {separacion, alto, capa = L.COTAS_E
   return lados.flatMap(({a, b}) => cota(capa, S(a), S(b), -s * separacion, alto, cotaCortaCol(Math.hypot(b.x - a.x, b.y - a.y))));
 }
 
-export function cuadroColumnas(columnas, {ancho = 12, alto = 6, escala = 2} = {}) {
+// Formato del despacho (medido en los 44 cuadros de columnas de la biblioteca): secciones a la
+// escala real que dice el encabezado (1/25), una celda por tipo tan ancha como su sección pide
+// (mínimo 2.2 unidades de lámina), columnas de rótulos de 1.4 y 2.1, filas de título 0.83,
+// nombres 0.68, sección ≥ 2.25, refuerzo 0.87 y despiece ≥ 1.55; las placas alargadas se dibujan
+// de pie (lado largo vertical), como el ingeniero. En NIVEL van los pisos que cubre ("1° Piso",
+// "2° Piso"…). Unidades de lámina (1 = 1 m a 1/50).
+export const FORMATO_CUADRO_COLUMNAS = {c0: 1.4, c1: 2.1, titulo: 0.83, nombres: 0.68, seccion: 2.25, refuerzo: 0.87, despiece: 1.55, celdaMin: 2.2, margenCelda: 1.3, margenFila: 1.2};
+
+// Rectángulo alargado (placa) girado 90° alrededor de su centro: el lado largo queda vertical.
+export function dePie(c) {
+  const pts = limpiar(c.contorno);
+  const xs = pts.map((p) => p.x), ys = pts.map((p) => p.y);
+  const w = Math.max(...xs) - Math.min(...xs), h = Math.max(...ys) - Math.min(...ys);
+  if (pts.length !== 4 || w <= h * 1.5) return c;
+  const g = (p) => ({x: c.x - (p.y - c.y), y: c.y + (p.x - c.x)});
+  return {...c, contorno: c.contorno.map(g)};
+}
+
+export function cuadroColumnas(columnas, {escala = 2, niveles = 1} = {}) {
   const tipos = [];
   for (const c of columnas) {
     const t = tipos.find((x) => x.tipo === c.tipo);
-    if (t) t.cantidad++; else tipos.push({tipo: c.tipo, muestra: c, cantidad: 1});
+    if (t) t.cantidad++; else tipos.push({tipo: c.tipo, muestra: dePie(c), cantidad: 1});
   }
   tipos.sort((a, b) => a.tipo.localeCompare(b.tipo, "es", {numeric: true}));
-  const C = CRITERIOS.columnas;
-  const W = ancho, H = alto;
-  const c0 = W * 0.105, c1 = W * 0.175, wTipo = (W - c0 - c1) / Math.max(1, tipos.length);
-  const filas = [0.8, 0.65, 2.15, 0.85, 1.55].map((f) => (f * H) / 6);
+  const C = CRITERIOS.columnas, F = FORMATO_CUADRO_COLUMNAS;
+  const medida = (c) => { const xs = c.contorno.map((p) => p.x), ys = c.contorno.map((p) => p.y); return {w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys)}; };
+  const fs = escala; // la escala del encabezado, sin achicar
+  const anchos = tipos.map((t) => Math.max(F.celdaMin, medida(t.muestra).w * fs + F.margenCelda));
+  const altoSeccion = Math.max(F.seccion, ...tipos.map((t) => medida(t.muestra).h * fs + F.margenFila));
+  const c0 = F.c0, c1 = F.c1;
+  const W = c0 + c1 + anchos.reduce((s, w) => s + w, 0);
+  const filas = [F.titulo, F.nombres, altoSeccion, F.refuerzo, F.despiece];
+  const H = filas.reduce((s, f) => s + f, 0);
   const y = [H]; filas.forEach((f) => y.push(y.at(-1) - f)); // y[0]=H … y[5]=0
-  const hT = H / 6; // altura de referencia de textos
+  const inicios = anchos.map((_, i) => c0 + c1 + anchos.slice(0, i).reduce((s, w) => s + w, 0));
+  const hT = 1; // altura de referencia de textos (la del cuadro de 6 de alto del módulo XIV)
   const out = [];
   // Marco y líneas.
-  out.push(pline(L.LAMINA, [[0, 0], [W, 0], [W, H], [0, H]], true));
-  out.push(line(L.LAMINA, [0, y[1]], [W, y[1]]));
-  out.push(line(L.LAMINA, [c0 + c1, y[2]], [W, y[2]]));
-  out.push(line(L.LAMINA, [0, y[3]], [W, y[3]]));
-  out.push(line(L.LAMINA, [0, y[4]], [W, y[4]]));
-  out.push(line(L.LAMINA, [c0, y[0]], [c0, y[4]]));
-  out.push(line(L.LAMINA, [c0 + c1, y[1]], [c0 + c1, 0]));
-  for (let i = 1; i < tipos.length; i++) out.push(line(L.LAMINA, [c0 + c1 + i * wTipo, y[1]], [c0 + c1 + i * wTipo, 0]));
+  out.push(pline(L.LAMINA, [[0, 0], [r4(W), 0], [r4(W), r4(H)], [0, r4(H)]], true));
+  out.push(line(L.LAMINA, [0, r4(y[1])], [r4(W), r4(y[1])]));
+  out.push(line(L.LAMINA, [c0 + c1, r4(y[2])], [r4(W), r4(y[2])]));
+  out.push(line(L.LAMINA, [0, r4(y[3])], [r4(W), r4(y[3])]));
+  out.push(line(L.LAMINA, [0, r4(y[4])], [r4(W), r4(y[4])]));
+  out.push(line(L.LAMINA, [c0, r4(y[0])], [c0, r4(y[4])]));
+  out.push(line(L.LAMINA, [c0 + c1, r4(y[1])], [c0 + c1, 0]));
+  for (let i = 1; i < tipos.length; i++) out.push(line(L.LAMINA, [r4(inicios[i]), r4(y[1])], [r4(inicios[i]), 0]));
   // Rótulos fijos.
   out.push(...renglones(["ESCALA", `1/${Math.round(50 / escala)}`], c0 / 2, (y[0] + y[1]) / 2, c0 * 0.85, hT * 0.2));
-  out.push(text(L.LAMINA, [c0 + (W - c0) / 2, (y[0] + y[1]) / 2], tituloDelCuadro(tipos.map((t) => t.muestra)), hT * 0.38));
-  out.push(...renglones(["NIVEL", "1° Piso"], c0 / 2, y[1] - (y[1] - y[3]) * 0.3, c0 * 0.85, hT * 0.28));
-  out.push(...renglones(["CONCRETO", "f'c (kg/cm²)"], c0 + c1 / 2, y[1] - (y[1] - y[3]) * 0.22, c1 * 0.88, hT * 0.24));
-  out.push(text(L.LAMINA, [c0 + c1 / 2, y[3] + (y[1] - y[3]) * 0.3], String(CRITERIOS.concreto.columnas), hT * 0.32));
+  out.push(text(L.LAMINA, [r4(c0 + (W - c0) / 2), r4((y[0] + y[1]) / 2)], tituloDelCuadro(tipos.map((t) => t.muestra)), Math.min(hT * 0.38, (W - c0) * 0.8 / Math.max(1, anchoTexto(tituloDelCuadro(tipos.map((t) => t.muestra)), 1) * HOLGURA_VISOR))));
+  const pisos = Array.from({length: Math.max(1, niveles)}, (_, i) => `${i + 1}° Piso`);
+  out.push(...renglones(["NIVEL", ...pisos], c0 / 2, y[1] - (y[1] - y[3]) * (pisos.length > 2 ? 0.4 : 0.3), c0 * 0.85, hT * 0.28));
+  out.push(...renglones(["CONCRETO", "f'c (kg/cm²)"], c0 + c1 / 2, y[1] - (y[1] - y[2]) / 2, c1 * 0.88, hT * 0.24));
+  out.push(text(L.LAMINA, [r4(c0 + c1 / 2), r4((y[2] + y[3]) / 2)], String(CRITERIOS.concreto.columnas), hT * 0.32));
   out.push(...renglones(["Refuerzo", "y estribaje"], c0 + c1 / 2, (y[3] + y[4]) / 2, c1 * 0.88, hT * 0.24));
   out.push(...renglones(["DESPIECE DE", "ESTRIBOS"], (c0 + c1) / 2, (y[4] + y[5]) / 2, (c0 + c1) * 0.85, hT * 0.3));
 
   const resumen = tipos.map((t, i) => {
     const c = t.muestra, ref = refuerzoMinimo(c.area);
-    const x0 = c0 + c1 + i * wTipo, xm = x0 + wTipo / 2;
-    out.push(text(L.LAMINA, [xm, (y[1] + y[2]) / 2], t.tipo, hT * 0.42));
-    // Sección a escala, centrada en su celda (un poco a la izquierda para el rótulo de varillas).
-    // Algo menor que antes: alrededor van las cotas de la sección.
-    const fs = Math.min(escala, (wTipo * 0.5) / Math.max(c.b, c.h, 0.2), ((y[2] - y[3]) * 0.6) / Math.max(c.b, c.h, 0.2));
-    const cx = xm - wTipo * 0.08, cy = (y[2] + y[3]) / 2;
+    const x0 = inicios[i], wTipo = anchos[i], xm = x0 + wTipo / 2;
+    out.push(text(L.LAMINA, [r4(xm), r4((y[1] + y[2]) / 2)], t.tipo, Math.min(hT * 0.42, wTipo * 0.3)));
+    // Sección a la escala del encabezado, centrada en su celda (un poco a la izquierda para el
+    // rótulo de varillas); alrededor van las cotas de la sección.
+    const cx = xm - Math.min(wTipo * 0.08, 0.25), cy = (y[2] + y[3]) / 2;
     const S = (p) => [r4(cx + (p.x - c.x) * fs), r4(cy + (p.y - c.y) * fs)];
     out.push(pline(L.COLUMNAS, c.contorno.map(S), true));
     // Acero como el detalle del ingeniero: estribo a doble línea con dobleces y ganchos a 135°,
@@ -216,11 +257,9 @@ export function cuadroColumnas(columnas, {ancho = 12, alto = 6, escala = 2} = {}
     for (const q of ejes) out.push(...estriboDetallado(q, S, {de, db}));
     const varillas = varillasDeSeccion(alas, ref.n, C.recubrimiento + de + db / 2);
     for (const p of varillas) out.push(varilla(p, db, S, fs));
-    // Medidas de la sección (".40", ".25"), como el ingeniero.
     out.push(...cotasDeContorno(c.contorno, S, {separacion: hT * 0.16, alto: hT * 0.15}));
-    // Llamadas en abanico, como el expediente: las varillas de la mitad de arriba a una etiqueta
-    // arriba a la derecha y las de abajo a otra abajo ("6Ø5/8"" y "2Ø5/8""); si todas quedan
-    // de un lado, una sola. El texto termina dentro de su celda.
+    // Llamadas en abanico: las varillas de la mitad de arriba a una etiqueta arriba a la derecha
+    // y las de abajo a otra abajo; el texto termina dentro de su celda.
     const hL = hT * 0.14, xFinL = r4(x0 + wTipo * 0.97);
     const grupos = [varillas.filter((p) => p.y >= c.y), varillas.filter((p) => p.y < c.y)].filter((g) => g.length);
     const yMin = Math.min(...c.contorno.map((p) => S(p)[1])), yMax = Math.max(...c.contorno.map((p) => S(p)[1]));
@@ -234,7 +273,6 @@ export function cuadroColumnas(columnas, {ancho = 12, alto = 6, escala = 2} = {}
     const n = alas.length;
     const dims = medidasDeSeccion(c);
     const estribaje = textoEstribos(C.estribo, C.distribucionPorSeccion ? C.distribucionPorSeccion(c) : C.distribucion, n);
-    // Cuatro renglones que caben en la columna: medidas, varillas y estribaje partido.
     const [e1, e2] = estribaje.split(/,\s*(?=Rto)/);
     out.push(...renglones([dims, ref.texto, e2 ? `${e1},` : e1, e2 ?? ""], xm, (y[3] + y[4]) / 2, wTipo * 0.9, hT * 0.15));
     // Despiece: cada estribo suelto, uno al lado del otro.
@@ -246,26 +284,23 @@ export function cuadroColumnas(columnas, {ancho = 12, alto = 6, escala = 2} = {}
       const ex = x0 + ancho1 * (j + 0.5), ey = (y[4] + y[5]) / 2;
       const SE = (p) => [r4(ex + (p.x - m.x) * f), r4(ey + (p.y - m.y) * f)];
       out.push(...estriboDetallado(ejes[j], SE, {de, db}));
-      // Medidas del estribo (".18" x ".32"), como el despiece del ingeniero.
       out.push(...cotasDeContorno(q, SE, {separacion: hT * 0.14, alto: hT * 0.14}));
     });
     return {tipo: t.tipo, cantidad: t.cantidad, dimensiones: dims, refuerzo: ref.texto, estribos: estribaje, varillas: varillas.length};
   });
-  return {filas: resumen, contenido: {primitivas: out, marco: {x0: 0, y0: 0, x1: W, y1: H}, h: hT, notas: []}};
+  return {filas: resumen, contenido: {primitivas: out, marco: {x0: 0, y0: 0, x1: r4(W), y1: r4(H)}, h: hT, notas: []}};
 }
 
 // Cuadro de columnetas con el formato del expediente: una columna por código (pa, pb…)
 // con la sección, sus medidas (".20", ".13"), varillas de 3/8" con su llamada en cada
 // cara ("2Ø3/8\""), estribo de 1/4" con gancho, y el refuerzo y estribaje.
-// Las secciones van a la mayor escala estándar que entra en las celdas (1/10, 1/15,
-// 1/20 o 1/25), la misma para todas, y el encabezado dice cuál. Unidades de lámina
-// (1 = 1 m a 1/50).
-const ESCALAS_DETALLE = [10, 15, 20, 25, 30, 40, 50];
+// Las secciones van a 1/25, la escala de todos los cuadros de columnetas del despacho, y el
+// encabezado lo dice. Unidades de lámina (1 = 1 m a 1/50).
 // El visor dibuja algo más ancho que la estimación de anchoTexto: margen para no encimar.
 const HOLGURA_VISOR = 1.15;
 const cotaCorta = (v) => v.toFixed(2).replace(/^0(?=\.)/, "");
 
-export function cuadroColumnetas(columnetas, {ancho = 11.9, alto = 2.9} = {}) {
+export function cuadroColumnetas(columnetas, {alto = 2.9, niveles = 1} = {}) {
   const tipos = [];
   for (const c of columnetas) {
     if (!c.codigo) continue;
@@ -275,35 +310,30 @@ export function cuadroColumnetas(columnetas, {ancho = 11.9, alto = 2.9} = {}) {
   if (!tipos.length) return null;
   tipos.sort((a, b) => a.codigo.localeCompare(b.codigo));
   const CT = CRITERIOS.columnetas;
-  const W = ancho, H = alto;
-  const c0 = W * 0.075, c1 = W * 0.1, disponible = W - c0 - c1;
-  const filas = [0.36, 0.3, 1.5, 0.74].map((f) => (f * H) / 2.9);
+  const H = alto;
+  // Formato del despacho (37 cuadros de columnetas de la biblioteca): rótulos de 1.0 y 1.3,
+  // filas de título 0.5, códigos 0.4, sección 1.4 y refuerzo 0.6 (en 2.9 de alto), secciones a
+  // 1/25 como dice su encabezado y celdas según el largo de la columneta (mínimo 1.6).
+  const c0 = 1.0, c1 = 1.3;
+  const filas = [0.5, 0.4, 1.4, 0.6].map((f) => (f * H) / 2.9);
   const y = [H]; filas.forEach((f) => y.push(y.at(-1) - f));
   const hT = H / 2.9 * 0.3;
   const CT0 = CRITERIOS.columnetas;
   const medidas = tipos.map((t) => ({b: Math.max(t.muestra.b, t.muestra.h), h: Math.min(t.muestra.b, t.muestra.h)}));
   // Cada celda se reparte sin encimar nada: margen | llamadas "2Ø3/8\"" | sección | cota | margen.
-  // Como en el cuadro del ingeniero, las celdas no son iguales: la de una columneta larga
-  // (pb .65) es más ancha. La letra de cotas y llamadas es la del refuerzo; baja solo si
-  // las llamadas apiladas (una por par de varillas) no entran en el alto de la fila o si
-  // hay tantos tipos que las partes fijas no dejan lugar a las secciones.
+  // La letra de cotas y llamadas baja solo si las llamadas apiladas (una por par de varillas)
+  // no entran en el alto de la fila.
   const filaSeccion = y[2] - y[3];
   const maxPares = Math.max(...medidas.map((m) => CT0.varillasPorCara(m.b)));
   const fijoDe = (h) => h * 0.8 + anchoTexto(`2Ø${CT0.barra}`, h) * HOLGURA_VISOR + h * 1.2 + h * 2.6;
-  let hc = Math.min(hT * 0.45, (filaSeccion * 0.86) / (maxPares * 1.7));
-  hc = Math.min(hc, (hc * 0.6 * disponible) / (tipos.length * fijoDe(hc)));
+  const hc = Math.min(hT * 0.4, (filaSeccion * 0.86) / (maxPares * 1.7));
   const margen = hc * 0.4;
   const anchoLlamada = anchoTexto(`2Ø${CT0.barra}`, hc) * HOLGURA_VISOR;
   const anchoCota = hc * 2.6;
   const fijo = fijoDe(hc);
-  const libreY = filaSeccion - hc * 3.4;
-  // Escala común: la mayor estándar con la que entran todas las secciones a lo ancho y a lo alto.
-  const entra = (f) => medidas.reduce((s, m) => s + fijo + m.b * f, 0) <= disponible && medidas.every((m) => m.h * f <= libreY);
-  const den = ESCALAS_DETALLE.find((d) => entra(50 / d)) ?? ESCALAS_DETALLE.at(-1);
-  const fs = 50 / den;
-  // Ancho de cada celda: su parte fija + su sección; lo que sobra se reparte por igual.
-  const sobra = Math.max(0, disponible - medidas.reduce((s, m) => s + fijo + m.b * fs, 0));
-  const anchos = medidas.map((m) => fijo + m.b * fs + sobra / medidas.length);
+  const den = 25, fs = 50 / den;
+  const anchos = medidas.map((m) => Math.max(fijo + m.b * fs, 1.6, 2.4 * m.b + 1.1));
+  const W = c0 + c1 + anchos.reduce((s, w) => s + w, 0);
   const inicios = anchos.map((_, i) => c0 + c1 + anchos.slice(0, i).reduce((s, w) => s + w, 0));
   const out = [];
   out.push(pline(L.LAMINA, [[0, 0], [W, 0], [W, H], [0, H]], true));
@@ -314,7 +344,7 @@ export function cuadroColumnetas(columnetas, {ancho = 11.9, alto = 2.9} = {}) {
   const ajusta = (lineas, x, yc, ancho, hMax) => renglones(lineas, x, yc, ancho / HOLGURA_VISOR, hMax);
   out.push(...ajusta(["ESCALA", `1/${den}`], c0 / 2, (y[0] + y[1]) / 2, c0 * 0.8, hT * 0.42));
   out.push(text(L.LAMINA, [c0 + (W - c0) / 2, (y[0] + y[1]) / 2], "CUADRO DE COLUMNETAS", Math.min(hT * 0.85, (W - c0) * 0.8 / (anchoTexto("CUADRO DE COLUMNETAS", 1) * HOLGURA_VISOR))));
-  out.push(...ajusta(["NIVEL", "1° Piso"], c0 / 2, (y[1] + y[3]) / 2, c0 * 0.8, hT * 0.55));
+  out.push(...ajusta(["NIVEL", ...Array.from({length: Math.max(1, niveles)}, (_, i) => `${i + 1}° Piso`)], c0 / 2, (y[1] + y[3]) / 2, c0 * 0.8, hT * 0.55));
   out.push(...ajusta(["CONCRETO", "f'c (kg/cm²)"], c0 + c1 / 2, y[1] - (y[1] - y[2]) * 0.5 - hT * 0.55, c1 * 0.84, hT * 0.45));
   out.push(text(L.LAMINA, [c0 + c1 / 2, (y[2] + y[3]) / 2 - hT * 0.6], String(CRITERIOS.concreto.columnetas), hT * 0.7));
   out.push(...ajusta(["Refuerzo y", "estribaje"], c0 + c1 / 2, (y[3] + y[4]) / 2, c1 * 0.84, hT * 0.48));
@@ -365,7 +395,7 @@ export function cuadroColumnetas(columnetas, {ancho = 11.9, alto = 2.9} = {}) {
     out.push(...renglones([refuerzo, renglon2, renglon3], xm, (y[3] + y[4]) / 2, (wTipo * 0.9) / HOLGURA_VISOR, hT * 0.36));
     return {codigo: t.codigo, cantidad: t.cantidad, medida: `${hh.toFixed(2)}x${b.toFixed(2)}`, refuerzo, estribos: estribaje, escala: `1/${den}`};
   });
-  return {filas: resumen, contenido: {primitivas: out, marco: {x0: 0, y0: 0, x1: W, y1: H}, h: hT, notas: []}};
+  return {filas: resumen, contenido: {primitivas: out, marco: {x0: 0, y0: 0, x1: r4(W), y1: r4(H)}, h: hT, notas: []}};
 }
 
 const anchoAprox = (s) => [...String(s)].reduce((a, ch) => a + (/[A-Z0-9@]/.test(ch) ? 0.68 : /[ .,:;'"]/.test(ch) ? 0.3 : 0.55), 0) * 0.55;

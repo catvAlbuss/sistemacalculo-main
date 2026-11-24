@@ -145,8 +145,13 @@ export function rotuloDespacho(marco) {
     });
     top = bot;
   }
-  return {caja: {x0: X0 - g, y0: marco.y, x1: marco.x1, y1: Y0 + H + g}, lineas, etiquetas, campos};
+  // Sello sobre el rótulo: lo que el agente entrega es una propuesta que el ingeniero revisa y firma.
+  const ys0 = Y0 + H + 0.12 * f, ys1 = ys0 + 0.5 * f;
+  lineas.push(...[[[X0, ys0], [X1, ys0]], [[X1, ys0], [X1, ys1]], [[X1, ys1], [X0, ys1]], [[X0, ys1], [X0, ys0]]].map(([a, b]) => ({...line(L.LAMINA, a, b), color: 1})));
+  etiquetas.push({...text(L.LAMINA, [(X0 + X1) / 2, (ys0 + ys1) / 2], SELLO_PROPUESTA, 0.2 * f), color: 1});
+  return {caja: {x0: X0 - g, y0: marco.y, x1: marco.x1, y1: ys1 + g}, lineas, etiquetas, campos};
 }
+export const SELLO_PROPUESTA = "PROPUESTA – REQUIERE REVISIÓN";
 
 // Especificaciones técnicas y resumen de parámetros sísmicos con los datos del proyecto.
 // Lo que falta se escribe "POR DEFINIR" (nunca el valor de otro proyecto).
