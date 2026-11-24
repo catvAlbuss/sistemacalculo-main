@@ -20,7 +20,7 @@ import {leerCache} from './volcar-planos.mjs';
 import {paresDelManifiesto} from './pares-entrenamiento.mjs';
 import {existsSync} from 'node:fs';
 import {CASOS} from '../../resources/js/ingenieria/aprendizaje/casosAprendidos.js';
-import {lecturasDe, plantaArquitectura, plantaEstructura, compararColumnasF1} from './evaluar-lectura.mjs';
+import {compararPar} from './evaluar-lectura.mjs';
 import {cargarPlantillaAdaptativa} from './plantilla.mjs';
 
 const args = process.argv.slice(2);
@@ -85,7 +85,7 @@ for (const par of pares) {
   CASOS.push(...(conPropio ? TODOS_LOS_CASOS : casosSin(par)));
   const ca = leerCache(par.rutaArquitectura), ce = leerCache(par.rutaEstructura);
   if (!ca || !ce) { console.log(`${par.id}: sin caché`); continue; }
-  const lect = compararColumnasF1(plantaArquitectura(lecturasDe(ca.items))?.lectura, plantaEstructura(lecturasDe(ce.items))?.lectura);
+  const lect = compararPar(ca.items, ce.items) ?? {f1: 0, arq: 0, est: 0, tp: 0, misma: 0, faltan: [], sobran: [], distintas: [], nombresMal: []};
   const ref = referencia(ce.items);
   let r, error = null;
   const t0 = Date.now();

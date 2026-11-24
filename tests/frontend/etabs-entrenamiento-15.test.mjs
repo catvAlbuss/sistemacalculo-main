@@ -104,7 +104,7 @@ const pares = join(PLANOS, 'estructuras', 'pares.json');
 const hayCache = existsSync(pares) && existsSync(join(PLANOS, 'cache'));
 // F1 promedio de columnas de un proyecto del manifiesto (lectura de la arquitectura vs. la estructura).
 async function f1DelProyecto(grupo) {
-  const {lecturasDe, plantaArquitectura, plantaEstructura, compararColumnasF1} = await import('../../scripts/agente/evaluar-lectura.mjs');
+  const {compararPar} = await import('../../scripts/agente/evaluar-lectura.mjs');
   const {leerCache} = await import('../../scripts/agente/volcar-planos.mjs');
   const {paresDelManifiesto} = await import('../../scripts/agente/pares-entrenamiento.mjs');
   const lista = paresDelManifiesto(join(PLANOS, 'estructuras'), JSON.parse(readFileSync(pares, 'utf8')), existsSync).filter((p) => p.grupo === grupo);
@@ -112,7 +112,9 @@ async function f1DelProyecto(grupo) {
   for (const p of lista) {
     const a = leerCache(p.rutaArquitectura), e = leerCache(p.rutaEstructura);
     if (!a || !e) continue;
-    f1s.push(compararColumnasF1(plantaArquitectura(lecturasDe(a.items))?.lectura, plantaEstructura(lecturasDe(e.items))?.lectura).f1);
+    // Sin la planta de ese módulo en el expediente de estructuras (ILO 11 trae el módulo I), no se compara.
+    const r = compararPar(a.items, e.items);
+    if (r) f1s.push(r.f1);
   }
   return {f1s, promedio: f1s.length ? f1s.reduce((s, x) => s + x, 0) / f1s.length : null};
 }
