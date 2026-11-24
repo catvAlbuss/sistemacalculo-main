@@ -113,14 +113,17 @@
           <div v-if="run.fotos.length" class="ag-thumbs"><img v-for="(f, j) in run.fotos" :key="j" :src="f" alt="Foto adjunta" /></div>
         </div>
         <div class="ag-work">
-          <ol v-if="run.pasos.length" class="ag-steps">
+          <details v-if="run.pasos.length && !run.vivo" class="ag-activity">
+          <summary>Ver actividad</summary>
+          <ol class="ag-steps">
             <li v-for="(p, j) in run.pasos" :key="j" :class="`is-${p.estado}`">
               <span class="ag-step-ic"><svg viewBox="0 0 24 24"><path :d="ICON[p.icono] || ICON.chispa" /></svg></span>
               <span class="ag-step-txt">{{ p.titulo }}</span>
               <span class="ag-step-t">{{ p.estado === "ok" ? "✓" : p.estado === "error" ? "✕" : "–" }} {{ p.seg }}</span>
             </li>
           </ol>
-          <div v-if="run.vivo" class="ag-thinking"><span class="ag-shimmer">{{ run.vivo }}</span></div>
+          </details>
+          <div v-if="run.vivo" class="ag-thinking" role="status" aria-live="polite"><span class="ag-shimmer">{{ run.vivo }}</span></div>
           <p v-if="run.respuesta" class="ag-answer">{{ run.respuesta }}</p>
           <ul v-if="run.avisos.length" class="ag-notes">
             <li v-for="(a, j) in run.avisos" :key="j"><svg viewBox="0 0 24 24"><path :d="ICON.aviso" /></svg>{{ a }}</li>
@@ -154,6 +157,10 @@
         <button v-else type="button" class="ag-send is-stop" aria-label="Detener" :disabled="!controller" @click="cancel"><svg viewBox="0 0 24 24"><path :d="ICON.detener" /></svg></button>
       </div>
       <p class="ag-compose-help">Puedes adjuntar fotos o pegar una captura con Ctrl+V.</p>
+      <label v-if="puedeVerPlano" class="ag-compose-help ag-ver-plano">
+        <input type="checkbox" :checked="verPlano" @change="cambiarVerPlano($event.target.checked)" />
+        El agente puede enviar imágenes del plano abierto al motor de IA para revisarlo.
+      </label>
     </form>
 
     <!-- Datos del proyecto: al pedir el plano llegan llenos (lo guardado y lo que propone el agente). -->
@@ -550,6 +557,10 @@ const getContext = () => {
   ctx.nombreDocumento = () => { databaseActual(); return documento?.fileName || documento?.docTitle || ''; };
   ctx.referenciaActual = () => referenciaDelDocumento(ctx.nombreDocumento(), undefined, ctx.memoria?.estructura?.titulo);
   ctx.pedirDatos = ({faltan, sugeridos, vista, consultas, informes}) => { databaseActual(); return abrirDatos("pedido", {faltan, sugeridos, vista, consultas, informes}); };
+  // mirar_plano: el agente ve el dibujo como imagen (solo con motor con visión y si el ingeniero
+  // no lo desactivó en este proyecto; el aviso está bajo el cuadro de texto).
+  Object.defineProperty(ctx, "permitirImagenes", {get: () => Boolean(settings.value.vision && verPlano.value), configurable: true});
+  ctx.rasterizar = svgAJpeg;
   ctx.ultimoEnvioAprendizaje = null;
   ctx.registrarAprendizaje = async (evento) => {
     const resultado = await registrarEvento(evento);
@@ -672,6 +683,30 @@ onMounted(async () => {
 });
 onBeforeUnmount(() => { desmontado = true; quitarEscucha?.(); revisionPlano.activar(null); lecturaId++; });
 
+// ---- El agente mira el plano: SVG del dibujo → JPEG para el motor con visión ----
+const CLAVE_VER_PLANO = "novacad.agente.verPlano";
+const verPlano = ref((() => { try { return localStorage.getItem(CLAVE_VER_PLANO) !== "0"; } catch { return true; } })());
+const puedeVerPlano = computed(() => Boolean(settings.value?.vision));
+function cambiarVerPlano(valor) {
+  verPlano.value = Boolean(valor);
+  try { localStorage.setItem(CLAVE_VER_PLANO, verPlano.value ? "1" : "0"); } catch { /* solo esta sesión */ }
+}
+async function svgAJpeg(svg, lado = 1600, calidad = 0.85) {
+  const url = URL.createObjectURL(new Blob([svg], {type: "image/svg+xml"}));
+  try {
+    const img = await new Promise((ok, mal) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => mal(new Error("No pude convertir el dibujo en imagen.")); i.src = url; });
+    const k = Math.min(1, lado / Math.max(img.width || lado, img.height || lado));
+    const c = Object.assign(document.createElement("canvas"), {width: Math.round((img.width || lado) * k), height: Math.round((img.height || lado) * k)});
+    const g = c.getContext("2d");
+    g.fillStyle = "#fff";
+    g.fillRect(0, 0, c.width, c.height);
+    g.drawImage(img, 0, 0, c.width, c.height);
+    return c.toDataURL("image/jpeg", calidad);
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
 // ---- Fotos de observaciones: comprimidas en el navegador antes de enviarlas ----
 const fileRef = ref(null);
 const adjuntos = ref([]);
@@ -785,6 +820,8 @@ async function cerrarRun(run, steps, reply, inicio, ctx) {
 // Acción directa: la herramienta corre en el navegador, sin el modelo de IA.
 async function ejecutar(herramienta, args = {}, pedido = herramienta) {
   if (busy.value) return;
+  // Las acciones del cliente siguen el mismo ciclo de IA que una instrucción escrita.
+  if (motorListo.value) return send(pedido, {herramienta, args});
   const run = nuevoRun(pedido);
   busy.value = true;
   const inicio = performance.now();
@@ -819,7 +856,7 @@ Análisis: ${analisis}`;
 }
 
 // Pedido libre: va al modelo de IA del servidor, que elige las herramientas.
-async function send(text = draftText.value) {
+async function send(text = draftText.value, accionSolicitada = null) {
   const value = text.trim() || (adjuntos.value.length ? "Revisa estas observaciones" : "");
   if (!value || busy.value || !motorListo.value) return;
   const fotos = adjuntos.value.splice(0);
@@ -843,11 +880,12 @@ async function send(text = draftText.value) {
     const guardada = fotos.length ? guardarObservacion(value, fotos, ctx) : Promise.resolve(false);
     ctx.ultimoEnvioAprendizaje = null;
     const out = await runAgent({
-      text: value, imagenes: fotos.map((f) => f.url), history, settings: settings.value, context: ctx, signal: controller.value.signal,
-      onStep: (step) => { anotarPaso(run, step, marca); marca = performance.now(); run.vivo = "Preparando la respuesta…"; },
+      text: value, imagenes: fotos.map((f) => f.url), history, accionSolicitada, settings: settings.value, context: ctx, signal: controller.value.signal,
+      onProgress: ({mensaje}) => { run.vivo = mensaje; },
+      onStep: (step) => { anotarPaso(run, step, marca); marca = performance.now(); },
     });
     await cerrarRun(run, out.steps, out.steps.some((s) => s.result?.cancelado) ? "No dibujé el plano: cancelaste los datos del proyecto." : out.reply, inicio, ctx);
-    if (fotos.length) run.avisos.unshift((await guardada) ? `Guardé ${fotos.length} foto(s) como observación para entrenar al agente.` : "No pude guardar las fotos como observación; inténtalo de nuevo.");
+    if (fotos.length) run.avisos.unshift((await guardada) ? `Guardé ${fotos.length} imagen(es) como referencia del proyecto.` : "No pude guardar las imágenes de referencia; inténtalo de nuevo.");
   } catch (error) {
     run.respuesta = error?.name === "AbortError" ? "Pedido detenido." : error?.message ?? String(error);
   } finally {
@@ -1066,6 +1104,8 @@ async function exportarMetrado() {
 .is-ok .ag-step-t { color:#22c55e; }
 .is-error .ag-step-t { color:#ef4444; }
 .ag-thinking { padding:4px 0 2px;font-size:12.5px; }
+.ag-activity { margin:0 0 8px; }
+.ag-activity summary { cursor:pointer;color:var(--pr-muted);font-size:12px;padding:4px 0; }
 .ag-shimmer { background:linear-gradient(90deg,var(--pr-muted) 0%,var(--pr-text) 50%,var(--pr-muted) 100%);background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:ag-shine 1.6s linear infinite; }
 .ag-answer { margin:0;font-size:13px;line-height:1.55;white-space:pre-wrap; }
 .ag-notes { list-style:none;margin:10px 0 0;padding:0;display:grid;gap:6px; }
@@ -1088,6 +1128,8 @@ async function exportarMetrado() {
 
 .ag-compose { flex:none;padding:12px;border-top:1px solid var(--pr-line); }
 .ag-compose-help { margin:7px 4px 0;color:var(--pr-muted);font-size:10.5px;line-height:1.4; }
+.ag-ver-plano { display:flex;align-items:flex-start;gap:6px;cursor:pointer; }
+.ag-ver-plano input { margin:1px 0 0;flex:none; }
 .ag-attach { display:flex;gap:6px;margin-bottom:8px; }
 .ag-chip-img { position:relative; }
 .ag-chip-img img { width:52px;height:52px;object-fit:cover;border-radius:8px;border:1px solid var(--pr-line); }

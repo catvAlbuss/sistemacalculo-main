@@ -3,6 +3,8 @@
 // que sabe del proyecto abierto. No dibujan nada; dejan registro en la memoria de la sesión.
 
 import {estadoDeSesion} from "../estadoAgente.js";
+import {analizarProyecto} from "../analisisIngenieria.js";
+import {svgDeCaja, zonaAMirar} from "../vistaImagen.js";
 
 const limpio = (t, n) => String(t ?? "").replace(/\s+/g, " ").trim().slice(0, n);
 
@@ -50,6 +52,34 @@ export const INTERACCION_SKILLS = [
     async run(_args, ctx) {
       const texto = estadoDeSesion(ctx ?? {}).split("\n").slice(1).map((l) => l.replace(/^- /, "• ")).join("\n");
       return {ok: true, mensaje: texto};
+    },
+  },
+  {
+    name: "analizar_proyecto",
+    description: "Revisión de ingeniería del proyecto abierto: datos que faltan (zona, suelo, categoría, niveles, Hz, Df), luces y espesor de losa, peralte de vigas, columnas chicas para su área tributaria, placas por dirección, torsión, planta alargada, confinamiento y pendientes de las láminas. Devuelve hallazgos con nivel (alto/medio/info), norma y la herramienta que lo resuelve. Úsalo antes de decidir y después de leer o dibujar, para recomendar como ingeniero.",
+    parameters: {type: "object", properties: {}},
+    async run(_args, ctx) {
+      const r = analizarProyecto(ctx ?? {});
+      if (ctx?.memoria) ctx.memoria.ultimoAnalisis = {riesgos: r.riesgos, temas: r.hallazgos.filter((x) => x.nivel !== "info").map((x) => x.tema)};
+      return r;
+    },
+  },
+  {
+    name: "mirar_plano",
+    description: "Mira una zona del dibujo como imagen (necesita motor con visión): una lámina que generaste (para verificar encimados, faltantes o cosas fuera de lugar) o una vista de la arquitectura (para entender ambientes, escaleras, vacíos). La imagen te llega en el siguiente mensaje: descríbela con criterio de ingeniero y compárala con lo que debería tener.",
+    parameters: {type: "object", properties: {
+      que: {type: "string", description: "Título o número de la vista, o 'lámina' para la última lámina generada"},
+    }},
+    async run(args, ctx) {
+      if (ctx?.permitirImagenes === false) return {ok: false, error: "El envío de imágenes del plano al motor de IA está desactivado en este proyecto."};
+      if (typeof ctx?.rasterizar !== "function") return {ok: false, error: "Este motor o pantalla no puede convertir el dibujo en imagen."};
+      const zona = zonaAMirar(ctx, args?.que);
+      if (!zona) return {ok: false, error: "No hay una vista ni lámina que mirar en el plano abierto."};
+      const {items} = ctx.readPlan();
+      const {svg, objetos} = svgDeCaja(items, zona.caja);
+      if (!objetos) return {ok: false, error: `La zona "${zona.titulo}" está vacía.`};
+      const imagen = await ctx.rasterizar(svg);
+      return {ok: true, mensaje: `Miré "${zona.titulo}" (${zona.origen}, ${objetos} objetos).`, imagen};
     },
   },
 ];

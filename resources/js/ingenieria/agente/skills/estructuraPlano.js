@@ -7,7 +7,7 @@ import {leerVista} from "../../lectura/lectorPlano.js";
 import {laminaEstructuras} from "../../laminas/laminaEstructuras.js";
 import {laminasConPlantilla} from "../../laminas/laminasPlantilla.js";
 import {CAMPOS_TECNICOS, datosTecnicos, parametrosSismicos} from "../../criterios/datosProyecto.js";
-import {cajaTexto, seEncima, desencimarTextos} from "../../laminas/cajasTexto.js";
+import {cajaTexto, seEncima, desencimarTextos, planearSeparacion} from "../../laminas/cajasTexto.js";
 import {rasgosDeArquitectura, geometriaDeLecturas, integrarGeometriaAprendida, proponer, textoPropuesta, casosDeUso, DECISIONES, nivelDeTitulo, nombreVisible} from "../../aprendizaje/casos.js";
 import {CASOS, EVENTOS_USO} from "../../aprendizaje/casosAprendidos.js";
 import {registrarEvento, eventosDeUso, rasgosParaGuardar} from "../../aprendizaje/registro.js";
@@ -201,7 +201,14 @@ function guardarDatos(args, ctx) {
   // Datos que el modelo agregó sin que el usuario los dijera: no se guardan (se avisa).
   const inventados = Object.keys(todos).filter((k) => !dichoPorElUsuario(todos[k], ctx));
   const dados = Object.fromEntries(Object.entries(todos).filter(([k]) => !inventados.includes(k)));
-  if (ctx?.memoria) ctx.memoria.avisoInventados = inventados.length ? `No usé ${inventados.map((k) => ETIQUETA[k] ?? k).join(", ")}: no los indicaste en tu pedido.` : null;
+  // Solo se avisa si el motor propuso un valor DISTINTO al guardado en Datos del proyecto (si es el
+  // mismo, no cambia nada y el aviso confundía: "no usé Hz…" cuando la lámina sí usa el Hz guardado).
+  const guardadosAntes = ctx?.datosProyecto?.() ?? {};
+  const igual = (a, b) => { const x = Number(String(a).replace(",", ".")), y = Number(String(b ?? "").replace(",", ".")); return String(b ?? "").trim() !== "" && Number.isFinite(x) && Number.isFinite(y) ? Math.abs(x - y) < 1e-9 : String(a).trim().toLowerCase() === String(b ?? "").trim().toLowerCase(); };
+  const distintos = inventados.filter((k) => !igual(todos[k], guardadosAntes[k]));
+  if (ctx?.memoria) ctx.memoria.avisoInventados = distintos.length
+    ? `El motor propuso ${distintos.map((k) => `${ETIQUETA[k] ?? k} = ${todos[k]}`).join(", ")} sin que lo dijeras; no lo apliqué y usé lo de Datos del proyecto. Si es correcto, dímelo y lo guardo.`
+    : null;
   if (!Object.keys(dados).length) return {guardados: [], invalidos: []};
   const t = datosTecnicos(dados);
   const validos = Object.fromEntries(Object.keys(dados).filter((k) => t[k] !== null).map((k) => [k, String(t[k])]));
@@ -209,7 +216,7 @@ function guardarDatos(args, ctx) {
   return {guardados: Object.keys(validos), invalidos: t.invalidos};
 }
 
-const ETIQUETA = {hz: "Hz", df: "Df", zona: "zona", suelo: "suelo", categoria: "categoría", niveles: "niveles"};
+const ETIQUETA = {hz: "Hz", df: "Df", zona: "zona", suelo: "suelo", categoria: "categoría", niveles: "niveles", normaE030: "E.030"};
 function textoDatos(datos) {
   const t = datosTecnicos(datos), p = parametrosSismicos(t);
   const tiene = CAMPOS_TECNICOS.filter((c) => t[c.campo] !== null).map((c) => `${ETIQUETA[c.campo]} ${c.campo === "hz" || c.campo === "df" ? `${t[c.campo].toFixed(2)} m` : t[c.campo]}`);
@@ -264,7 +271,11 @@ export const ESTRUCTURA_SKILLS = [
           ? `- Pendientes del paquete actual: ${ctx.memoria.paqueteLaminas.pendientes?.join('; ') || 'sin pendientes registrados; esta revisión no valida el cálculo estructural'}.`
           : `- Aún no dibujo: ${AUN_NO_DIBUJA.join("; ")}.`,
       ];
-      return {ok: true, mensaje: lineas.join("\n"), encimados: despues, corregidos};
+      return {ok: true, mensaje: lineas.join("\n"), encimados: despues, corregidos,
+        pendientes: [...faltanDatos.map((n) => `Dato técnico: ${n}`), ...faltanRotulo.map((n) => `Rótulo: ${n}`),
+          ...(despues ? [`Textos encimados: ${despues} pares`] : []), ...(ctx.memoria.paqueteLaminas?.pendientes ?? [])],
+        alcance: ['encimados de texto', 'datos técnicos', 'rótulo', 'pendientes registrados del paquete'],
+        validacionEstructural: false};
     },
   },
   {
@@ -881,13 +892,18 @@ async function generarLaminas(args, ctx, {e, guardados, invalidos, quitadas}) {
         const z = r.zona;
         const lista = (xs) => (xs.length > 1 ? `${xs.slice(0, -1).join(", ")} y ${xs.at(-1)}` : xs[0] ?? "");
         ctx.draw(r.primitivas, `Agente: láminas ${lista(r.laminas.map((l) => l.codigo))} de estructuras`, {unitsPerMeter: k, zoom: {x0: z.x0 * k, y0: z.y0 * k, x1: z.x1 * k, y1: z.y1 * k}});
-        // Control de calidad antes de entregar: ningún texto encima de otro.
+        // Control de calidad antes de entregar: ningún texto encima de otro. Primero se REUBICAN
+        // los rótulos de elementos al hueco libre más cercano (lámina ordenada, no solo con la letra
+        // achicada); lo que no se pueda mover, recién ahí, se achica.
         const textosAgente = () => (ctx.entidadesDelAgente?.() ?? []).filter((x) => /^(M?TEXT)$/i.test(String(x.dxfTypeName)));
-        const encimados = textosEncimados(textosAgente());
-        if (encimados && ctx.modificar) {
+        if (textosEncimados(textosAgente()) && ctx.moverEntidades) {
+          const {moves} = planearSeparacion(textosAgente());
+          if (moves.length) ctx.moverEntidades("Agente: ordenar los rótulos de la lámina", moves.map((m) => ({id: m.entidad.objectId, dx: m.dx, dy: m.dy})));
+        }
+        if (textosEncimados(textosAgente()) && ctx.modificar) {
           ctx.modificar("Agente: separar textos encimados", textosAgente().map((x) => x.objectId), (abiertas) => desencimarTextos(abiertas).achicados);
           const quedan = textosEncimados(textosAgente());
-          if (quedan) extra.push(`Quedan ${quedan} pares de textos muy juntos; revísalos o pídeme "corrige los encimados".`);
+          if (quedan) extra.push(`Quedan ${quedan} pares de textos muy juntos; revísalos o pídeme "ordena la lámina".`);
         }
         const s = r.resumen;
         // Resumen para el ingeniero (lo que lee en el chat): lo esencial en pocas líneas. El

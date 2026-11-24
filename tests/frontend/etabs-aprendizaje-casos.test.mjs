@@ -280,5 +280,13 @@ test('project data the model invents is not saved: only what the engineer wrote'
   // Un modelo chico agrega zona, suelo y Hz que nadie dijo.
   const r = await SKILLS.find((s) => s.name === 'datos_proyecto').run({df: 2.5, hz: 0.6, zona: 3, suelo: 'S2'}, ctx);
   assert.deepEqual(guardados, [{df: '2.5'}]);
-  assert.ok(r.avisos.some((a) => /No usé Hz, zona, suelo: no los indicaste en tu pedido/.test(a)), r.avisos.join(' | '));
+  assert.ok(r.avisos.some((a) => /El motor propuso Hz = 0\.6, zona = 3, suelo = S2 sin que lo dijeras; no lo apliqué/.test(a)), r.avisos.join(' | '));
+});
+
+test('no warning when the model repeats the values already saved in the project data', async () => {
+  const ctx = createDrawingContext({getDatabase: () => null, dm, getProjectData: () => ({hz: '0.60', df: '2.50', zona: '3'}), setProjectData: () => {}});
+  ctx.memoria ??= {};
+  ctx.memoria.ultimoPedido = 'genera el plano de estructuras';
+  await SKILLS.find((s) => s.name === 'datos_proyecto').run({hz: 0.6, df: 2.5, zona: 3}, ctx);
+  assert.equal(ctx.memoria.avisoInventados, null, 'same values as saved: nothing to warn');
 });

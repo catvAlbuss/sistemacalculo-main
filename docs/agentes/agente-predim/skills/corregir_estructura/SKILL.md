@@ -12,7 +12,7 @@ Anota una corrección del ingeniero a una decisión de la estructura propuesta (
 
 | Parámetro | Tipo | Descripción |
 |---|---|---|
-| `decision` | string (cimentacion, cimientoCorrido, hz, df, losa, espesorLosa, losaDeTecho, mallaCimentacion, fcColumnas, fcColumnetas, estribos, columnasComoArquitectura) | Qué decisión corrige |
+| `decision` | string (cimentacion, cimientoCorrido, hz, df, losa, espesorLosa, losaDeTecho, techoDosAguas, mallaCimentacion, fcColumnas, fcColumnetas, estribos, columnasComoArquitectura) | Qué decisión corrige |
 | `valor` | string | El valor correcto, como lo dijo el ingeniero (ej. 'maciza', '0.20', 'zapatas', 'no') |
 | `motivo` | string | Opcional: el motivo, solo si el ingeniero lo dijo |
 

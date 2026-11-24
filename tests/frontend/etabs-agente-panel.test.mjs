@@ -14,7 +14,7 @@ const noop = () => {};
 const eventos = Array.from({length: 19}, (_, i) => ({evento_id: i, clave: 'cimentacion', valor: 'platea', propuesto: 'zapatas', rasgos: {niveles: 0, placas: false}}));
 async function panel(overrides = {}) {
   const state = {
-    busy: false, estadoTono: 'ok', estadoTexto: 'Disponible', ICON: {}, runs: [],
+    busy: false, controller: null, estadoTono: 'ok', estadoTexto: 'Disponible', ICON: {}, runs: [],
     vistaAgente: 'asistente', revision: {activa: true, sinPermiso: false, cargando: false, error: '', eventos, revisando: {}, errores: {}},
     lectura: {estado: 'vacio'}, verLectura: false, ESTADO_LECTURA: {},
     verMenu: false, CAPACIDADES: [], adjuntos: [], draftText: '', motorListo: true,
@@ -78,4 +78,15 @@ test('collapsed plan keeps status and problem count visible without listing ever
   assert.match(html, /1 por resolver/);
   assert.match(html, /Ver detalles del plano/);
   assert.doesNotMatch(html, /ag-views/);
+});
+
+test('the client sees creating progress while internal tool activity stays collapsed', async () => {
+  const run = {pedido: 'Crear módulo VIII', respuesta: '', fotos: [], pasos: [{titulo: 'Consulta interna de referencias', estado: 'ok', icono: 'chispa', seg: '1 s'}], avisos: [], opciones: [], siguientes: [], vivo: 'Creando tu proyecto…'};
+  const creating = await panel({busy: true, runs: [run]});
+  assert.match(creating, /role="status"/);
+  assert.match(creating, /Creando tu proyecto/);
+  assert.doesNotMatch(creating, /Consulta interna de referencias/);
+  const done = await panel({busy: false, runs: [{...run, vivo: '', respuesta: 'Proyecto comprobado.'}]});
+  assert.match(done, /<details[^>]*class="ag-activity"[^>]*>/);
+  assert.doesNotMatch(done, /<details[^>]*class="ag-activity"[^>]*open/);
 });

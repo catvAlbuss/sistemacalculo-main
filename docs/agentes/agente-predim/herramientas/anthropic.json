@@ -216,6 +216,7 @@
             "losa",
             "espesorLosa",
             "losaDeTecho",
+            "techoDosAguas",
             "mallaCimentacion",
             "fcColumnas",
             "fcColumnetas",
@@ -399,6 +400,43 @@
   {
     "name": "estado_proyecto",
     "description": "Resume lo que el agente sabe del proyecto abierto: lo leído, lo propuesto, lo decidido por el ingeniero, lo pendiente y el siguiente paso. Úsalo si preguntan '¿en qué vamos?', '¿qué falta?', '¿qué decidiste?'.",
+    "input_schema": {
+      "type": "object",
+      "properties": {}
+    }
+  },
+  {
+    "name": "analizar_proyecto",
+    "description": "Revisión de ingeniería del proyecto abierto: datos que faltan (zona, suelo, categoría, niveles, Hz, Df), luces y espesor de losa, peralte de vigas, columnas chicas para su área tributaria, placas por dirección, torsión, planta alargada, confinamiento y pendientes de las láminas. Devuelve hallazgos con nivel (alto/medio/info), norma y la herramienta que lo resuelve. Úsalo antes de decidir y después de leer o dibujar, para recomendar como ingeniero.",
+    "input_schema": {
+      "type": "object",
+      "properties": {}
+    }
+  },
+  {
+    "name": "mirar_plano",
+    "description": "Mira una zona del dibujo como imagen (necesita motor con visión): una lámina que generaste (para verificar encimados, faltantes o cosas fuera de lugar) o una vista de la arquitectura (para entender ambientes, escaleras, vacíos). La imagen te llega en el siguiente mensaje: descríbela con criterio de ingeniero y compárala con lo que debería tener.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "que": {
+          "type": "string",
+          "description": "Título o número de la vista, o 'lámina' para la última lámina generada"
+        }
+      }
+    }
+  },
+  {
+    "name": "ordenar_lamina",
+    "description": "Ordena las láminas que dibujó el agente SIN rehacerlas ni volver a pedir datos: reubica los rótulos encimados (nombres de viga, códigos, paños) al hueco libre más cercano y achica los que no pueda mover. Úsalo para 'ordena la lámina', 'acomoda los textos', 'está desordenado', 'arregla los encimados'.",
+    "input_schema": {
+      "type": "object",
+      "properties": {}
+    }
+  },
+  {
+    "name": "mejorar_cotas",
+    "description": "Mejora las cotas de las láminas del agente: despeja los rótulos de elementos que tapan las cadenas de cotas y las medidas (mueve los rótulos, no las cotas, que quedan ancladas a su línea). Úsalo para 'mejora las cotas', 'las cotas se ven encimadas', 'no se leen las medidas'.",
     "input_schema": {
       "type": "object",
       "properties": {}

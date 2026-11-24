@@ -28,7 +28,7 @@ test('without analysis enabled (or local engine) direct actions spend no tokens'
   assert.equal(await analizarResultado({text: 'x', steps: [{tool: 'estado_proyecto', result: {ok: true}}], settings: {baseUrl: 'http://127.0.0.1:11434/v1', model: 'qwen3-cad', analizarResultados: true}}), null);
 });
 
-test('the model reasoning after tools is shown as analysis, facts still come from the tools', async () => {
+test('after creating sheets the client receives the tool evidence and the engineer analysis of the model', async () => {
   let ronda = 0;
   const fetchImpl = async () => {
     ronda++;
@@ -37,5 +37,7 @@ test('the model reasoning after tools is shown as analysis, facts still come fro
   };
   const out = await runAgent({text: 'estructura este módulo y dime qué riesgos ves', settings: {...AGENTE_SERVIDOR, rutaDirecta: false}, context: {memoria: {}}, skills: [skillPlano], fetchImpl});
   assert.match(out.reply, /Listo: láminas E-01 y E-02/, 'facts from the tool');
-  assert.match(out.reply, /Análisis: Las láminas usan Hz por defecto/, 'the model reasoning is no longer discarded');
+  // Pedido del usuario: un agente que razona a la vista, no un chatbot que repite herramientas.
+  assert.match(out.reply, /Listo: láminas E-01 y E-02[\s\S]*Análisis: Las láminas usan Hz por defecto/);
+  assert.equal(ronda, 2, 'the motor still receives and analyses the executed result');
 });

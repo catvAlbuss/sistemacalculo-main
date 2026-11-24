@@ -70,8 +70,9 @@ test('guided construction asks stage by stage before drawing, then draws', {time
   const r = spawnSync(process.execPath, ['scripts/agente/probar-construccion.mjs', 'vinchos', 'modulo-08'], {encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, env: {...process.env, NODE_OPTIONS: '--max-old-space-size=8000'}});
   const out = r.stdout ?? '';
   assert.match(out, /Paso 1\/4 · Lectura/);
-  assert.match(out, /¿Qué cimentación uso\?/);
-  assert.ok(out.indexOf('¿Qué cimentación uso?') < out.indexOf('Paso 4/4 · Dibujo'), 'asks before drawing');
+  // La cimentación se pregunta si es dudosa o se decide con proyectos parecidos (y se dice), antes de dibujar.
+  const cim = out.search(/¿Qué cimentación uso\?|Cimentación: (platea|zapatas)/);
+  assert.ok(cim >= 0 && cim < out.indexOf('Paso 4/4 · Dibujo'), 'decides or asks the foundation before drawing');
   assert.match(out, /Listo: láminas E-01/);
 });
 

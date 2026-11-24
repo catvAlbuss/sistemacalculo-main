@@ -176,6 +176,26 @@ export function createDrawingContext({getDatabase, dm, edit, afterDraw, onFounda
       delete this.memoria.lectura;
       return resultado;
     },
+    // Mueve (traslada) entidades existentes en un solo paso de deshacer; el visor las redibuja.
+    // movimientos: [{id, dx, dy}] en metros de dibujo. Devuelve cuántas movió. Igual que
+    // modificar pero con la traslación hecha aquí (usa la misma matriz que copiarPlantilla).
+    moverEntidades(label, movimientos) {
+      const database = getDatabase();
+      if (!database) throw new Error("No hay un dibujo abierto.");
+      const movs = (movimientos ?? []).filter((m) => m && (m.dx || m.dy));
+      if (!movs.length) return 0;
+      const hacer = () => {
+        const tr = database.transactionManager?.currentTransaction?.();
+        const modelSpace = database.tables.blockTable.modelSpace;
+        for (const {id, dx, dy} of movs) {
+          const e = tr ? tr.getObject(id, dm.AcDbOpenMode.kForWrite) : modelSpace.getIdAt(id);
+          e?.transformBy?.(dm.AcGeMatrix3d.makeTranslation(dx, dy, 0));
+        }
+      };
+      if (edit) edit(database, label, hacer); else hacer();
+      delete this.memoria.lectura;
+      return movs.length;
+    },
     // Claves de las láminas del agente presentes en el dibujo, con su cantidad de entidades.
     generaciones() {
       const cuenta = new Map();

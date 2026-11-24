@@ -11,6 +11,7 @@ import {memoriaDelAgente} from "./conocimiento.js";
 import {estadoDeSesion} from "./estadoAgente.js";
 import {datosDelTexto} from "../criterios/ubicacion.js";
 import {limitacionDelPedido} from './contratoDibujo.js';
+import {REVISION_TRAS_ACCION, controlDeEscrituras} from './cicloEjecucion.js';
 
 // memoria: "auto" | "completa" | "corta". En "auto", los modelos grandes o en la nube
 // (ChatGPT, Claude, gpt-oss, >= 14B) reciben la memoria completa del agente
@@ -26,6 +27,8 @@ export const usaServidor = (settings) => String(settings?.baseUrl ?? "").startsW
 const MAX_ROUNDS = 3;
 // Con el motor del servidor el agente planifica, ejecuta y verifica: más pasos por pedido.
 const MAX_ROUNDS_SERVIDOR = 8;
+// Acciones tras las cuales el ejecutor corre la revisión de ingeniería (analizar_proyecto).
+const ANALISIS_TRAS = new Set(['leer_estructura', 'proponer_estructura', 'plano_estructuras', 'construir_estructura', 'datos_proyecto', 'corregir_estructura']);
 const HISTORY_TURNS = 4;
 
 export const SYSTEM_PROMPT = [
@@ -35,7 +38,8 @@ export const SYSTEM_PROMPT = [
   "Láminas de estructuras: plano_estructuras (sin conservar). Paso a paso: construir_estructura; respuesta a su pregunta pendiente: accion=responder. Ejes y columnas: leer_estructura. Vistas: vistas_plano.",
   "Proponer: proponer_estructura. Metrado: metrar_estructura. Corrección del ingeniero: corregir_estructura. Hz, Df, zona, suelo, categoría: datos_proyecto. Encimados: revisar_laminas. Borrar: quitar_laminas. ¿En qué vamos?: estado_proyecto.",
   "Decisión de experto no dicha ni decidida: preguntar_ingeniero (2-4 opciones, recomienda una y di por qué).",
-  "Si el resultado trae 'mensaje', respóndelo tal cual. Nunca digas que algo se hizo si no devolvió ok.",
+  "Revisión de ingeniería (riesgos, luces, secciones): analizar_proyecto. Ver una vista o lámina como imagen: mirar_plano.",
+  "Nunca digas que algo se hizo si no devolvió ok. Los hechos de las herramientas ya los ve el ingeniero: no los copies, interprétalos.",
   "/no_think",
 ].join("\n");
 
@@ -53,12 +57,14 @@ export function promptDelSistema(settings = DEFAULT_AGENT_SETTINGS) {
   const base = SYSTEM_PROMPT.replace("\n/no_think", "");
   const qwen = /qwen/i.test(settings.model ?? "") || settings.sinRazonar === true;
   const instrucciones = usaServidor(settings) ? [
-    "En el chat, analiza el pedido y las capturas con la memoria del despacho. Después de usar herramientas, revisa sus resultados y continúa con las acciones solicitadas. El resultado terminal termina el pedido; la respuesta muestra los hechos devueltos por las herramientas.",
+    "Analiza el pedido y las capturas con la memoria del despacho. Después de generar o metrar, el ejecutor comprueba el resultado y te devuelve la evidencia: examina los pendientes, corrige los problemas que las herramientas permiten resolver y vuelve a comprobar. Un éxito terminal de generación no omite la revisión. Una cancelación, datos faltantes o una decisión humana sí detienen el pedido.",
     "No tienes acceso a ventanas externas de AutoCAD: solo al documento abierto en NovaCad y a las capturas adjuntas. resumen_plano cuenta entidades; no compara visualmente planos. El generador no implementa despiece de barras superiores con longitudes de corte, anclajes o traslapes. No prometas añadirlo regenerando láminas. No borres antes de regenerar: plano_estructuras reemplaza sus láminas tras validar los datos.",
     "revisar_laminas comprueba encimados, rótulo y datos faltantes; NO es una revisión completa de detalles ni un cálculo estructural. Compara las capturas legibles con los criterios y casos aprendidos. Si faltan medidas o detalles, usa preguntar_ingeniero; no inventes medidas, armados ni verificaciones que las herramientas no hicieron.",
+    "PROTOCOLO DE AGENTE (no eres un chatbot ni un menú): 1) ENTIENDE el objetivo y el estado; 2) INVESTIGA antes de responder: analizar_proyecto (revisión de ingeniería con normas), proponer_estructura (lo aprendido del despacho), leer_estructura o mirar_plano (ver la arquitectura o la lámina como imagen); 3) DECIDE como ingeniero senior: lo que la norma o la costumbre validada resuelve, lo resuelves tú y lo dices; lo dudoso lo preguntas con preguntar_ingeniero (2-4 opciones, recomienda una y di por qué); 4) EJECUTA; 5) VERIFICA lo que hiciste (revisar_laminas y mirar_plano sobre la lámina generada: ¿encimados, faltantes, algo fuera de lugar?); 6) CIERRA con criterio: qué hiciste, qué verificaste, riesgos y la siguiente acción que recomiendas. Nunca respondas solo 'listo': aporta lo que un ingeniero vería (luces, secciones, datos supuestos, riesgos sísmicos). Sé proactivo: si ves un problema que nadie pidió revisar, dilo.",
     "Trabaja como agente, no como chat: para un objetivo (estructurar el módulo, terminar o revisar el proyecto) planifica los pasos, ejecuta las herramientas en orden, VERIFICA lo hecho (revisar_laminas después de plano_estructuras; ver_metrado después de metrar_estructura; estado_proyecto para ver lo pendiente), corrige con corregir_estructura o pregunta con preguntar_ingeniero si hace falta una decisión, y cierra con un análisis breve: qué hiciste, qué verificaste, qué riesgos ves y qué recomiendas.",
     "Detente ante una pregunta pendiente o cancelación. Solo afirma cambios que consten en resultados ok de herramientas. Distingue observaciones visuales de verificaciones y cambios ejecutados.",
     "La identidad del documento y vista actuales manda sobre casos aprendidos e historial. No encierres otro proyecto en los módulos XIV/XV. Distingue inventario histórico de láminas realmente generadas, formato observado de papel físico confirmado, y cargas de referencia de datos del proyecto.",
+    "Si no conoces un detalle, consulta las referencias con proponer_estructura y lee la vista actual antes de decidir. No inventes un reentrenamiento de OpenAI: consultar patrones aprendidos no cambia sus pesos. No repitas generación con los mismos argumentos sin una corrección real. Los pendientes y el alcance de revisar_laminas son obligatorios: no presentes esos controles como validación estructural ni omitas lo que no se pudo resolver.",
   ] : [];
   return [base, ...instrucciones, ...(usaMemoriaCompleta(settings) ? ["", memoriaDelAgente()] : []), ...(qwen ? ["/no_think"] : [])].join("\n");
 }
@@ -128,7 +134,8 @@ export function respuestaHonesta(textoModelo, steps) {
   const fallidos = [...ultimo.values()].filter((s) => s.result?.ok === false);
   const hechos = [...ultimo.values()].filter((s) => s.result?.ok !== false && s.result?.mensaje);
   const partes = [];
-  for (const s of fallidos) partes.push(`No pude hacer ${NOMBRES[s.tool] ?? s.tool}: ${s.result.error ?? "error desconocido"}. No se cambió el plano.`);
+  const hayResultadosPrevios = steps.some((s) => s.result?.ok === true && !s.result.sinCambios && !s.result.omitida);
+  for (const s of fallidos) partes.push(`No pude hacer ${NOMBRES[s.tool] ?? s.tool}: ${s.result.error ?? "error desconocido"}. ${hayResultadosPrevios ? 'Los resultados de las acciones completadas se muestran a continuación.' : 'No se cambió el plano.'}`);
   for (const s of hechos) {
     const avisos = (s.result.avisos ?? []).filter(Boolean);
     // Con resumen corto (plano_estructuras): lo esencial, lo que debe confirmar y a lo más 3 avisos.
@@ -162,6 +169,10 @@ export function rutaDirecta(texto) {
   const datos = datosDelTexto(texto);
   if (Object.keys(datos).length && !/\b(genera|dibuja|haz|rehaz|estructura)\b/.test(t)) return {tool: "datos_proyecto", args: datos};
   if (!t || t.length > 160) return null;
+  // Editar lo ya dibujado (sin rehacer ni volver a pedir datos): cotas y orden de la lámina van
+  // antes que "encimados" genérico, para que "las cotas se ven encimadas" sea un arreglo de cotas.
+  if (/\b(mejora|mejorar|acomoda|acomodar|ordena|ordenar|arregla|arreglar)\b.*\bcotas?\b|\bcotas?\b.*\b(encimad|desordenad|tapad|no se leen|ilegibles?)/.test(t)) return {tool: "mejorar_cotas", args: {}};
+  if (/\b(ordena|ordenar|acomoda|acomodar|alinea|alinear)\b.*\b(lamina|laminas|textos|rotulos|dibujo|plano)\b|\bdesordenad/.test(t)) return {tool: "ordenar_lamina", args: {}};
   if (/\bencimad/.test(t)) return {tool: "revisar_laminas", args: /\b(corrige|corregir|separa|arregla|quita)/.test(t) ? {corregir: true} : {}};
   // "¿Por qué platea?", "¿por qué losa maciza?": la explicación de la propuesta, sin costo.
   if (/^[¿]?\s*(por que|porque)\b.*\b(platea|zapatas?|losa|maciza|aligerad\w*|cimentacion|espesor|columnas?|placas?|vigas?|porticos?)\b/.test(t)) return {tool: "proponer_estructura", args: {}};
@@ -194,15 +205,22 @@ function respuestaConAnalisis(textoModelo, steps, analizar = false) {
   // Una narración del modelo no es evidencia de cambios ni de confirmación humana: los hechos
   // salen de las herramientas. Con el motor del servidor, lo que el modelo razonó se muestra
   // aparte, como análisis (antes se descartaba y el agente parecía un menú de comandos).
-  const hechos = respuestaHonesta(steps.length ? '' : textoModelo, steps);
+  // Las imágenes de mirar_plano y la revisión de ingeniería automática son insumo del modelo,
+  // no hechos que se repitan al ingeniero (su contenido lo explica el análisis).
+  const visibles = analizar ? steps.filter((s) => !(s.automatica && s.tool === 'analizar_proyecto') && s.tool !== 'mirar_plano') : steps;
+  const hechos = respuestaHonesta(visibles.length ? '' : textoModelo, visibles);
+  // El agente razona a la vista: con el motor del servidor su análisis (riesgos, criterio y
+  // recomendación) va siempre, también después de crear láminas; solo se quitan las frases que
+  // afirman acciones que no constan en las herramientas.
   const analisis = analizar && steps.length ? soloAnalisis(textoModelo) : "";
-  return analisis ? `${hechos}\n\nAnálisis: ${analisis}` : hechos;
+  if (!analisis) return hechos;
+  return visibles.length ? `${hechos}\n\nAnálisis: ${analisis}` : analisis;
 }
 
 // Del texto del modelo se quitan las frases que afirman acciones o confirmaciones que no constan
 // en las herramientas ("He agregado…", "corregí…", "confirmado por el ingeniero"): el análisis
 // observa, advierte y recomienda; los hechos solo salen de las herramientas.
-const AFIRMA_ACCION = /\b(he|hemos|ya)\s+(agregado|añadido|incluido|generado|corregido|modificado|dibujado|actualizado|eliminado|borrado|cambiado|aplicado|verificado|completado)\b|\b(agregu[ée]|añad[íi]|inclu[íi]|gener[ée]|correg[íi]|modifiqu[ée]|dibuj[ée]|actualic[ée]|elimin[ée]|borr[ée]|cambi[ée]|apliqu[ée]|verifiqu[ée]|complet[ée])\b|confirmad[oa]s?\s+por\s+el\s+ingeniero|aprobad[oa]s?\s+por\s+el\s+ingeniero/i;
+const AFIRMA_ACCION = /\b(he|hemos|ya)\s+(agregado|añadido|incluido|generado|corregido|modificado|dibujado|actualizado|eliminado|borrado|cambiado|aplicado|verificado|completado)\b|\b(agregu[ée]|añad[íi]|inclu[íi]|gener[ée]|correg[íi]|modifiqu[ée]|dibuj[ée]|actualic[ée]|elimin[ée]|borr[ée]|cambi[ée]|apliqu[ée]|verifiqu[ée]|complet[ée])\b|confirmad[oa]s?\s+por\s+el\s+ingeniero|aprobad[oa]s?\s+por\s+el\s+ingeniero|aprobad[oa]s?\s+para\s+obra|despiece\s+complet|list[oa]s?\s+para\s+(obra|construir|construcci|entrega)|cumpl(e|en)\s+(con\s+)?(toda\s+)?la\s+norma|verificad[oa]s?\s+estructuralmente/i;
 export function soloAnalisis(texto) {
   const frases = stripThinking(texto).split(/(?<=[.!?])\s+|\n+/).map((f) => f.trim()).filter(Boolean);
   return frases.filter((f) => !AFIRMA_ACCION.test(f)).join(" ").trim();
@@ -243,8 +261,8 @@ export async function analizarResultado({text, steps, settings, context, fetchIm
   } catch { return null; }
 }
 
-function esperaRespuesta(resultado, context) {
-  return Boolean(resultado?.terminal || resultado?.cancelado || resultado?.opciones?.length
+function esperaRespuesta(resultado, context, revisionDisponible = false) {
+  return Boolean((resultado?.terminal && !(resultado.ok && revisionDisponible)) || resultado?.cancelado || resultado?.opciones?.length
     || context?.memoria?.construccion?.pendiente
     || (context?.memoria?.consultas?.consultas?.length && !context.memoria.consultas.respondidas));
 }
@@ -252,9 +270,13 @@ function esperaRespuesta(resultado, context) {
 // history: [{role: "user"|"assistant", content, imagenes?}] de turnos anteriores.
 // imagenes: fotos del ingeniero como data URL (observaciones). Si el motor ve imágenes van al
 // modelo; si no, solo se avisa que las adjuntó (quedan guardadas como observación).
-export async function runAgent({text, imagenes = [], history = [], settings = DEFAULT_AGENT_SETTINGS, context, skills = SKILLS, fetchImpl = globalThis.fetch?.bind(globalThis), onStep = () => {}, signal}) {
+export async function runAgent({text, imagenes = [], history = [], accionSolicitada, settings = DEFAULT_AGENT_SETTINGS, context, skills = SKILLS, fetchImpl = globalThis.fetch?.bind(globalThis), onStep = () => {}, onProgress = () => {}, signal}) {
   const limitacion = limitacionDelPedido(text, history, context?.memoria ?? {});
-  if (limitacion) return {reply: limitacion, steps: [], usage: {prompt: 0, completion: 0}};
+  if (limitacion && !usaServidor(settings)) return {reply: limitacion, steps: [], usage: {prompt: 0, completion: 0}};
+  if (limitacion) {
+    const consultas = new Set(['resumen_plano', 'buscar_textos', 'leer_estructura', 'vistas_plano', 'proponer_estructura', 'estado_proyecto', 'analizar_proyecto', 'mirar_plano']);
+    skills = skills.filter((s) => consultas.has(s.name));
+  }
   const tools = toolDefinitions(skills);
   // Lo que el usuario escribió: las herramientas solo aceptan datos del proyecto que estén ahí
   // (un modelo chico inventaba "suelo S2, zona 3, Df 2.50" en "genera el plano con platea").
@@ -284,12 +306,22 @@ Análisis: ${analisis}` : hechos, steps: [step], usage: {prompt: 0, completion: 
   // El estado de la sesión va en cada pedido (pocos tokens): el modelo no se pierde entre turnos.
   const estado = context ? estadoDeSesion(context) : "";
   const messages = [{role: "system", content: promptDelSistema(settings)}, ...(estado ? [{role: "system", content: estado}] : []), ...historial, {role: "user", content: contenido}];
+  if (limitacion) messages.splice(1, 0, {role: 'system', content: `Capacidad pendiente de implementación: ${limitacion} Investiga las referencias disponibles para precisar qué falta. Este pedido solo permite consultas; no está permitido modificar el CAD ni afirmar que el detalle se generó.`});
+  if (accionSolicitada && !limitacion) {
+    if (!skills.some((s) => s.name === accionSolicitada.herramienta)) throw new Error('La acción solicitada no está disponible.');
+    messages.splice(1, 0, {role: 'system', content: `El usuario seleccionó una acción del panel: ${JSON.stringify(accionSolicitada)}. Ejecuta esa acción con esos argumentos y continúa comprobando el resultado. No sustituyas sus valores por otros.`});
+  }
   const steps = [];
   const usage = {prompt: 0, completion: 0};
+  const escrituras = controlDeEscrituras();
+  let accionAplicada = false;
+  let analisisPendiente = false, analisisHecho = false;
+  const imagenesDelLote = [];
   const maxRondas = analizar ? MAX_ROUNDS_SERVIDOR : MAX_ROUNDS;
   for (let round = 0; round <= maxRondas; round++) {
     let respuesta;
     try {
+      onProgress({fase: 'pensando', mensaje: 'Preparando tu proyecto…'});
       respuesta = await chatConReintento({settings, messages, tools: round < maxRondas ? tools : undefined, fetchImpl, signal});
     } catch (error) {
       if (!steps.length || error?.name === "AbortError") throw error;
@@ -299,29 +331,93 @@ Análisis: ${analisis}` : hechos, steps: [step], usage: {prompt: 0, completion: 
     usage.prompt += used?.prompt_tokens ?? 0;
     usage.completion += used?.completion_tokens ?? 0;
     const calls = message.tool_calls ?? [];
-    if (!calls.length) return {reply: respuestaConAnalisis(message.content, steps, analizar), steps, usage};
+    if (!calls.length) return {reply: limitacion ? `${steps.length ? `${respuestaHonesta('', steps)}\n\n` : ''}${limitacion}` : respuestaConAnalisis(message.content, steps, analizar), steps, usage};
 
     messages.push({role: "assistant", content: message.content ?? "", tool_calls: calls});
+    const revisiones = new Map();
+    let repeticion = false;
     for (const call of calls) {
       const skill = skills.find((item) => item.name === call.function?.name);
       const args = parseArguments(call.function?.arguments);
+      if (!accionAplicada && skill?.name === accionSolicitada?.herramienta) {
+        Object.assign(args, accionSolicitada.args ?? {});
+        call.function.arguments = JSON.stringify(args);
+        accionAplicada = true;
+      }
+      if (!escrituras.permitir(skill?.name, args)) {
+        const result = {ok: true, sinCambios: true, mensaje: 'No repetí la misma escritura: no hubo una corrección de datos o decisiones que justificara otro dibujo. Queda pendiente resolver la diferencia detectada.'};
+        const step = {tool: skill?.name, args, result};
+        steps.push(step);
+        onStep(step);
+        repeticion = true;
+        break;
+      }
       let result;
       try {
+        onProgress({fase: skill?.name === 'corregir_estructura' ? 'corrigiendo' : 'creando', mensaje: 'Creando tu proyecto…'});
         // Rehacer usa el reemplazo del generador, después de validar las entradas.
         // Una llamada de borrado inventada por el modelo no debe adelantarse a esa validación.
         result = skill?.name === 'quitar_laminas' && !/\b(borra|borrar|elimina|eliminar|quita|quitar|limpia)\b/i.test(text)
           ? {ok: true, omitida: true, sinCambios: true, mensaje: 'No ejecuté un borrado separado: el generador valida los datos antes de reemplazar sus láminas.'}
-          : skill ? await skill.run(args, context) : {ok: false, error: `Herramienta desconocida: ${call.function?.name}`};
+          : skill ? await skill.run(args, context) : {ok: false, terminal: Boolean(limitacion), error: limitacion || `Herramienta desconocida: ${call.function?.name}`};
       } catch (error) {
         result = {ok: false, error: error?.message ?? String(error)};
+      }
+      // Una imagen (mirar_plano) no va en el mensaje de herramienta ni en el historial: se envía
+      // al modelo con visión como mensaje aparte, después de responder todo el lote.
+      if (result?.imagen) {
+        if (settings.vision) imagenesDelLote.push({titulo: result.mensaje, url: result.imagen});
+        result = {...result, imagen: undefined, conImagen: Boolean(settings.vision), ...(settings.vision ? {} : {aviso: "Este motor no tiene visión: no puedo mirar la imagen."})};
       }
       const step = {tool: call.function?.name, args, result};
       steps.push(step);
       onStep(step);
       messages.push({role: "tool", tool_call_id: call.id, content: JSON.stringify(result)});
+      if (analizar && result?.ok && ANALISIS_TRAS.has(skill?.name)) analisisPendiente = true;
+      if (skill?.name === 'analizar_proyecto') analisisHecho = true;
+      escrituras.registrar(skill?.name, result);
+      const revisor = analizar && result?.ok && !result.omitida ? skills.find((s) => s.name === REVISION_TRAS_ACCION[skill?.name]) : null;
       // No ejecutar otras llamadas del mismo lote si una necesita respuesta humana.
-      if (esperaRespuesta(result, context)) return {reply: respuestaHonesta("", steps), steps, usage};
+      if (esperaRespuesta(result, context, Boolean(revisor))) return {reply: respuestaHonesta("", steps), steps, usage};
+      // Una revisión pedida por el modelo satisface la comprobación pendiente del lote.
+      if (result?.ok && !result.omitida) revisiones.delete(skill?.name);
+      if (revisor) revisiones.set(revisor.name, revisor);
     }
+    // Responder primero todas las llamadas del lote antes de añadir otro mensaje assistant.
+    for (const revisor of revisiones.values()) {
+        // Esta comprobación es una obligación del ejecutor, incluso si el modelo olvida pedirla.
+        onProgress({fase: 'verificando', mensaje: 'Comprobando tu proyecto…'});
+        const revisionArgs = revisor.name === 'revisar_laminas' ? {corregir: true} : {};
+        let revision;
+        try { revision = await revisor.run(revisionArgs, context); }
+        catch (error) { revision = {ok: false, error: error?.message ?? String(error)}; }
+        const comprobacion = {tool: revisor.name, args: revisionArgs, result: revision, automatica: true};
+        steps.push(comprobacion);
+        onStep(comprobacion);
+        const id = `revision-${steps.length}`;
+        // Mensajes completos de herramientas: el proveedor recibe evidencia, no una promesa.
+        messages.push({role: 'assistant', content: '', tool_calls: [{id, type: 'function', function: {name: revisor.name, arguments: JSON.stringify(revisionArgs)}}]},
+          {role: 'tool', tool_call_id: id, content: JSON.stringify(revision)});
+        if (revision?.ok === false || esperaRespuesta(revision, context)) return {reply: `${respuestaHonesta('', steps)}\nLa comprobación quedó pendiente; no doy el proyecto por terminado.`, steps, usage};
+    }
+    // Revisión de ingeniería obligatoria (una por pedido) después de leer, proponer o dibujar:
+    // el modelo siempre tiene con qué razonar como ingeniero, aunque olvide pedirla.
+    const analista = analisisPendiente && !analisisHecho ? skills.find((s) => s.name === 'analizar_proyecto') : null;
+    if (analista) {
+      analisisHecho = true;
+      let analisis;
+      try { analisis = await analista.run({}, context); } catch (error) { analisis = {ok: false, error: error?.message ?? String(error)}; }
+      const paso = {tool: analista.name, args: {}, result: analisis, automatica: true};
+      steps.push(paso);
+      onStep(paso);
+      const id = `analisis-${steps.length}`;
+      messages.push({role: 'assistant', content: '', tool_calls: [{id, type: 'function', function: {name: analista.name, arguments: '{}'}}]},
+        {role: 'tool', tool_call_id: id, content: JSON.stringify(analisis)});
+    }
+    for (const img of imagenesDelLote.splice(0)) {
+      messages.push({role: 'user', content: [{type: 'text', text: `Imagen pedida con mirar_plano — ${img.titulo} Analízala con criterio de ingeniero.`}, {type: 'image_url', image_url: {url: img.url, detail: 'high'}}]});
+    }
+    if (repeticion) return {reply: respuestaHonesta('', steps), steps, usage};
     const ronda = steps.slice(-calls.length);
     // El motor del servidor continúa analizando. Las decisiones pendientes pertenecen
     // al ingeniero: no se envía otra ronda que pueda contestarlas por él.
