@@ -4,7 +4,7 @@
 // símbolo de dirección. Devuelve el contenido en coordenadas de la planta.
 
 import {L, line, pline, text, hatch} from "../cad/primitives.js";
-import {primitivasBase, tramosEntreColumnas, envolvente, banda, rotularTramos, murosDelEdificio, escalerasEnPlanta} from "./cimentacionPlano.js";
+import {primitivasBase, tramosEntreColumnas, envolvente, huellaColumnas, banda, rotularTramos, murosDelEdificio, escalerasEnPlanta} from "./cimentacionPlano.js";
 import {CRITERIOS, espesorPorLuz} from "../criterios/criteriosEstructurales.js";
 import {ubicarSinEncimar, cajasDeTextos} from "../laminas/colocarTextos.js";
 import {receta} from "../aprendizaje/recetas.js";
@@ -388,7 +388,7 @@ function partirEscaleras(celdas, escaleras, u, v) {
 export function ambientesDeLosa({lectura, items = [], k = 1}) {
   if ((lectura.columnas?.length ?? 0) < 3) return [];
   const tramos = tramosEntreColumnas(lectura.columnas);
-  const pano = envolvente(lectura.columnas.flatMap((c) => c.contorno));
+  const pano = huellaColumnas(lectura.columnas);
   const alero = CRITERIOS.aligerado.alero;
   const losa = alero > 0 ? desplazarPoligono(pano, alero) : pano;
   const u = direccionPrincipal(lectura.ejes), v = {x: -u.y, y: u.x};
@@ -407,7 +407,7 @@ export function planoAligerado({lectura, items = [], k = 1, espesorFijo = null, 
   // Con volado los ejes pasan su borde (las burbujas quedan fuera de la losa).
   const bordeVolado = (() => {
     if (!volados.length) return [];
-    const pn = envolvente(columnas.flatMap((c) => c.contorno)), ud = direccionPrincipal(lectura.ejes);
+    const pn = huellaColumnas(columnas), ud = direccionPrincipal(lectura.ejes);
     return extenderLosa(desplazarPoligono(pn, CRITERIOS.aligerado.alero), pn, volados, ud, {x: -ud.y, y: ud.x});
   })();
   const base = primitivasBase(lectura.ejes, columnas, {extra: bordeVolado});
@@ -447,7 +447,7 @@ export function planoAligerado({lectura, items = [], k = 1, espesorFijo = null, 
   }
 
   // Losa: la envolvente de las columnas, con alero alrededor.
-  const pano = envolvente(columnas.flatMap((c) => c.contorno));
+  const pano = huellaColumnas(columnas);
   const alero = aleroPedido ?? CRITERIOS.aligerado.alero;
   const u = direccionPrincipal(lectura.ejes), v = {x: -u.y, y: u.x};
   const losa = extenderLosa(alero > 0 ? desplazarPoligono(pano, alero) : pano, pano, volados, u, v);

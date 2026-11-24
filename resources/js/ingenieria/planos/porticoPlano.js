@@ -418,7 +418,9 @@ export function planoPortico({eje, columnas, altura = 3, espesorLosa = 0.2, viga
   const porCara = Math.max(2, Math.ceil(armado.barras / 2));
   const x0b = sx + rec + 0.02, x1b = sx + viga.b - rec - 0.02;
   for (const py of [sy + rec + 0.02, st - rec - 0.02]) for (let i = 0; i < porCara; i++) prim.push(circle(L.ESTRIBOS, pt(x0b + ((x1b - x0b) * i) / (porCara - 1), py), 0.012));
-  prim.push(text(L.VIGAS, pt(sx + viga.b + 0.12, st - h * 0.4), `V-101 ${viga.b.toFixed(2)}x${vh.toFixed(2)}`, h * 0.4, 0, "izq"));
+  // El nombre va encima de la sección y el acero a su derecha: en una viga poco peraltada
+  // (0.40 m) los dos textos a la derecha se pisaban.
+  prim.push(text(L.VIGAS, pt(sx, st + h * 0.3), `V-101 ${viga.b.toFixed(2)}x${vh.toFixed(2)}`, h * 0.4, 0, "izq"));
   prim.push(text(L.ESTRIBOS, pt(sx + viga.b + 0.12, sy + h * 0.2), `${armado.barras}Ø${armado.barra}\\P${textoEstribos(V.estribo, V.distribucion)}`, h * 0.28, 0, "izq"));
 
   notas.push(`Recubrimiento: ${Math.round(V.recubrimiento * 100)} cm`);

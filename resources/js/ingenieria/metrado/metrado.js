@@ -146,7 +146,9 @@ export function metradoEstructuras(modelo, {terminos = {}} = {}) {
   const columnas = modelo.columnas ?? [];
   const areaColumnas = columnas.reduce((s, c) => s + (c.area ?? 0), 0);
   const areaMuros = tramos.reduce((s, t) => s + t.largo * (t.espesor ?? 0.13), 0);
-  const areaInterior = Math.max(0, (platea ? areaPlatea : (modelo.losa?.areaPanos ?? 0)) - areaMuros - areaColumnas);
+  // Sin paños de aligerado (techo liviano o módulo abierto) el piso interior sale de la planta bruta.
+  const areaPlanta = modelo.losa?.areaPanos > 0 ? modelo.losa.areaPanos : (modelo.losa?.areaBruta ?? 0);
+  const areaInterior = Math.max(0, (platea ? areaPlatea : areaPlanta) - areaMuros - areaColumnas);
   const niveles = Math.max(1, modelo.niveles ?? 1);
   const nLosas = (niveles - 1) + (modelo.losaTecho === false ? 0 : 1);
   const altoColumna = (df - hz) + (modelo.techo ?? 3); // de la cara superior de la cimentación al techo
@@ -182,7 +184,7 @@ export function metradoEstructuras(modelo, {terminos = {}} = {}) {
     notas.push(`Relleno con material propio: lo descontado (${m2(-relleno.total)} m³ más que lo excavado) supera la excavación; queda en 0. Revisa la excavación o los elementos descontados.`);
     relleno.total = 0;
   }
-  const interior = `Área interior = ${platea ? "platea" : "paños"} ${m2(platea ? areaPlatea : (modelo.losa?.areaPanos ?? 0))} − muros ${m2(areaMuros)} − columnas ${m2(areaColumnas)} m²`;
+  const interior = `Área interior = ${platea ? "platea" : modelo.losa?.areaPanos > 0 ? "paños" : "planta"} ${m2(platea ? areaPlatea : areaPlanta)} − muros ${m2(areaMuros)} − columnas ${m2(areaColumnas)} m²`;
   const areaInt = (extra = {}) => fila(nombre("areaInterior"), {ancho: areaInterior, termino: "areaInterior", ...extra});
   partidas.push(titulo("02.01.02", "EXCAVACIONES"), excavacion, titulo("02.01.03", "RELLENOS"), relleno,
     partida("02.01.03.05", "RELLENO CON MATERIAL PRESTAMO AFIRMADO Y COMPACTADO", "m3", [areaInt({alto: M.rellenoPrestamo})], `${interior}; espesor ${m2(M.rellenoPrestamo)} (planilla del despacho).`),

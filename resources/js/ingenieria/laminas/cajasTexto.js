@@ -13,11 +13,16 @@ import {L} from "../cad/primitives.js";
 // Rótulos de elementos que SÍ se pueden reubicar (como separarTextos, pero sobre entidades del
 // dibujo): mover un nombre de viga o un código a un hueco no lo descoloca. Los textos fijos
 // (cotas, nombres de eje, niveles, títulos del cuadro) quedan anclados a su geometría.
-const MOVIBLES = new Set([L.TEXTO, L.TEXTO_LOSA, L.LETRAS, L.VIGAS, L.CIMIENTO, L.CODIGOS, L.VIGUETAS, L.COLUMNAS_ID, L.ESTRIBOS, L.VIGAS_CIM, L.PLATEA, L.MUROS_E, L.COBERTURA].filter(Boolean));
+// En la lámina terminada los textos ya están en las capas del despacho (estiloLaminas.js): los
+// rótulos de vigas, cimiento y zapatas van a "Texto", los códigos y números de corte a ".D1 Texto 01",
+// los C1… a "COTAS & TEXTOS", los de losa a "TEXT" y las letras a "Letras". ".D1 Texto" no: también
+// la usan los títulos y las celdas de los cuadros, que no se mueven.
+const MOVIBLES = new Set([L.TEXTO, L.TEXTO_LOSA, L.LETRAS, L.VIGAS, L.CIMIENTO, L.CODIGOS, L.VIGUETAS, L.COLUMNAS_ID, L.ESTRIBOS, L.VIGAS_CIM, L.PLATEA, L.MUROS_E, L.COBERTURA, L.ZAPATAS,
+  "Texto", ".D1 Texto 01", "COTAS & TEXTOS", "TEXT", "Letras"].filter(Boolean));
 const r4 = (v) => Math.round(v * 10000) / 10000;
 // Dos cajas se tocan con una holgura (margen) alrededor.
 const tocan = (a, b, m) => a.x0 < b.x1 + m && a.x1 > b.x0 - m && a.y0 < b.y1 + m && a.y1 > b.y0 - m;
-const trasladar = (c, dx, dy) => ({x0: c.x0 + dx, y0: c.y0 + dy, x1: c.x1 + dx, y1: c.y1 + dy, h: c.h});
+const trasladar = (c, dx, dy) => ({...c, x0: c.x0 + dx, y0: c.y0 + dy, x1: c.x1 + dx, y1: c.y1 + dy});
 const DIRS = [[0, 1], [0, -1], [1, 0], [-1, 0], [1, 1], [1, -1], [-1, 1], [-1, -1]];
 
 // Planea reubicar los rótulos de elementos que se enciman con otro texto, al hueco libre más
@@ -29,20 +34,23 @@ export function planearSeparacion(entidades, factorDe = () => 1, {movibles = MOV
   const esMovible = (t) => movibles.has(String(t.e.layer));
   const colocadas = textos.filter((t) => !esMovible(t)).map((t) => t.caja);
   const moves = [];
+  // Mismo criterio que la revisión (seEncima, con los márgenes de cada renglón): si no, la revisión
+  // cuenta un par "muy junto" que aquí no se mueve.
+  const choca = (a, b, m) => tocan(a, b, m) || seEncima(a, b);
   for (const t of textos.filter(esMovible).sort((a, b) => b.h - a.h)) {
     const holgura = t.h * 0.15;
-    if (!colocadas.some((c) => tocan(t.caja, c, holgura))) { colocadas.push(t.caja); continue; }
+    if (!colocadas.some((c) => choca(t.caja, c, holgura))) { colocadas.push(t.caja); continue; }
     let elegido = null;
     const paso = t.h * 0.6;
     for (let k = 1; k <= 14 && !elegido; k++) for (const [ux, uy] of DIRS) {
       const dx = ux * paso * k, dy = uy * paso * k, prueba = trasladar(t.caja, dx, dy);
-      if (!colocadas.some((c) => tocan(prueba, c, holgura))) { elegido = {dx, dy, caja: prueba}; break; }
+      if (!colocadas.some((c) => choca(prueba, c, holgura))) { elegido = {dx, dy, caja: prueba}; break; }
     }
     if (elegido) { moves.push({entidad: t.e, dx: r4(elegido.dx), dy: r4(elegido.dy)}); colocadas.push(elegido.caja); }
     else colocadas.push(t.caja);
   }
   let quedan = 0;
-  for (let i = 0; i < colocadas.length; i++) for (let j = i + 1; j < colocadas.length; j++) if (tocan(colocadas[i], colocadas[j], 0)) quedan++;
+  for (let i = 0; i < colocadas.length; i++) for (let j = i + 1; j < colocadas.length; j++) if (choca(colocadas[i], colocadas[j], 0)) quedan++;
   return {moves, quedan};
 }
 

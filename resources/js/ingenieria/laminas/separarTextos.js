@@ -5,13 +5,16 @@
 
 import {L} from "../cad/primitives.js";
 import {anchoTexto} from "./rotulo.js";
+// Mismo margen que la medida del visor (cajasTexto.js): si no, dos rótulos que aquí se ven
+// separados aparecen encimados en la lámina (el visor dibuja la letra ~20 % más ancha).
+import {HOLGURA} from "./cajasTexto.js";
 
-const MOVIBLES = new Set([L.TEXTO, L.TEXTO_LOSA, L.LETRAS, L.VIGAS, L.CIMIENTO, L.CODIGOS, L.VIGUETAS, L.COLUMNAS_ID, L.ESTRIBOS, L.VIGAS_CIM, L.LAMINA, L.PLATEA, L.MUROS_E, L.COBERTURA]);
+const MOVIBLES = new Set([L.TEXTO, L.TEXTO_LOSA, L.LETRAS, L.VIGAS, L.CIMIENTO, L.CODIGOS, L.VIGUETAS, L.COLUMNAS_ID, L.ESTRIBOS, L.VIGAS_CIM, L.LAMINA, L.PLATEA, L.MUROS_E, L.COBERTURA, L.ZAPATAS]);
 
 // Caja (alineada a los ejes) de un texto, con su rotación y sus renglones.
 export function cajaTexto(p) {
   const lineas = String(p.value).split("\\P");
-  const w = Math.max(...lineas.map((l) => anchoTexto(l, p.h))), hh = p.h * (1 + (lineas.length - 1) * 1.45);
+  const w = Math.max(...lineas.map((l) => anchoTexto(l, p.h) * HOLGURA)), hh = p.h * (1 + (lineas.length - 1) * 1.45);
   const a = ((p.rot ?? 0) * Math.PI) / 180, c = Math.cos(a), s = Math.sin(a);
   // Esquinas locales: centrado o apoyado a la izquierda en su base.
   const [x0, x1] = p.align === "izq" ? [0, w] : [-w / 2, w / 2];

@@ -238,6 +238,17 @@ export const banda = (layer, a, b, w) => {
   return pline(layer, [pt({x: a.x + n.x, y: a.y + n.y}), pt({x: b.x + n.x, y: b.y + n.y}), pt({x: b.x - n.x, y: b.y - n.y}), pt({x: a.x - n.x, y: a.y - n.y})], true);
 };
 
+// Contorno de la planta desde sus columnas. Con ejes PROPUESTOS (plano sin ejes rotulados) las
+// columnas no forman las esquinas de una grilla: el contorno es el rectángulo que las encierra, no
+// una envolvente con bordes en diagonal que la arquitectura no tiene.
+export function huellaColumnas(columnas = []) {
+  const pts = columnas.flatMap((c) => c.contorno ?? []);
+  if (!columnas.some((c) => c.grillaPropuesta) || pts.length < 3) return envolvente(pts);
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const p of pts) { x0 = Math.min(x0, p.x); y0 = Math.min(y0, p.y); x1 = Math.max(x1, p.x); y1 = Math.max(y1, p.y); }
+  return [{x: x0, y: y0}, {x: x1, y: y0}, {x: x1, y: y1}, {x: x0, y: y1}];
+}
+
 export function envolvente(puntos) {
   const pts = [...puntos].sort((a, b) => a.x - b.x || a.y - b.y);
   const cross = (o, a, b) => (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
@@ -264,7 +275,7 @@ export function planoCimentacion({lectura, items, caja, k = 1, titulo = ""}, opc
   const avisos = [];
   const {zapatas, traslapes, opciones: cargas} = predimensionarZapatas(columnas, {pisos: o.pisos, qadm: o.qadm, cargaMuerta: o.cargaMuerta, cargaViva: o.cargaViva});
   const nodos = columnas.flatMap((c) => c.contorno);
-  const huella = envolvente(nodos);
+  const huella = huellaColumnas(columnas);
   const areaHuella = areaPoligono(huella);
   const areaZapatas = zapatas.reduce((s, z) => s + z.B * z.L, 0);
   let tipo = String(o.tipo).toLowerCase();
@@ -564,7 +575,7 @@ export function planoTabiqueria({lectura, items, k = 1}, {titulo = "PLANO DE TAB
 // cerrados como en el expediente, y los tramos de muro clasificados en exteriores
 // (corte 2-2, o 1-1 si tienen puerta) e interiores (corte 3-3).
 export function murosDelEdificio({columnas, items, k = 1, cerrarPuertas = true}) {
-  const huella = envolvente(columnas.flatMap((c) => c.contorno));
+  const huella = huellaColumnas(columnas);
   const zona = huella.length >= 3 ? desplazarPoligono(huella, 0.15) : huella;
   const enMetros = (p) => ({x: p.x / k, y: p.y / k});
   const geometria = [];
@@ -643,7 +654,7 @@ export function gruposDePeldanos(geometria) {
 // escalera; el descanso se suma alargando la caja 1.20 m en el sentido de la marcha, hasta
 // donde termina la losa. Devuelve [{u0, u1, v0, v1}] en las direcciones u (eje x local) y v.
 export function escalerasEnPlanta({columnas, items, k = 1}, u = {x: 1, y: 0}) {
-  const huella = envolvente(columnas.flatMap((c) => c.contorno));
+  const huella = huellaColumnas(columnas);
   if (huella.length < 3) return [];
   const zona = desplazarPoligono(huella, 0.15);
   const geometria = [];

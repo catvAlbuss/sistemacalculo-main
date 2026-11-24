@@ -52,7 +52,9 @@ export function componerPaqueteLaminas({contenidos, marco, escalaPlanos = 2, rep
   const formato = valido ? marco : formatoDespacho();
   const w = formato.x1 - formato.x0, h = formato.y1 - formato.y0;
   const f = Math.min(w / 41, h / 28.7);
-  const margen = 0.5 * f, sep = 0.6 * f, altoTitulo = 0.25 * f, bandaTitulo = 1.05 * f;
+  // Banda del título algo más alta y título más separado del bloque: los textos del pie del
+  // bloque (N.F.C., niveles) no deben tocarlo.
+  const margen = 0.5 * f, sep = 0.6 * f, altoTitulo = 0.25 * f, bandaTitulo = 1.2 * f;
   const rot = rotuloDespacho({x: 0, y: 0, x1: w, y1: h});
   const rotW = rot.caja.x1 - rot.caja.x0, rotH = rot.caja.y1 - rot.caja.y0;
   const utilW = w - 2 * margen, utilH = h - 2 * margen;
@@ -64,7 +66,7 @@ export function componerPaqueteLaminas({contenidos, marco, escalaPlanos = 2, rep
   const items = contenidos.filter((c) => c?.contenido && c.caja && c.caja.x1 > c.caja.x0 && c.caja.y1 > c.caja.y0).map((c) => {
     const cw = c.caja.x1 - c.caja.x0, ch = c.caja.y1 - c.caja.y0;
     const conTitulo = Boolean(c.titulado && c.contenido.titulo);
-    return {...c, cw, ch, conTitulo, banda: conTitulo ? bandaTitulo : 0, ancho: conTitulo ? anchoTexto(`${proyecto} - ${c.contenido.titulo}`, altoTitulo) * 1.12 : 0};
+    return {...c, cw, ch, conTitulo, banda: conTitulo ? bandaTitulo : 0, ancho: conTitulo ? anchoTexto(`${proyecto} - ${c.contenido.titulo}`, altoTitulo) * 1.3 : 0};
   });
   // Una escala por grupo: plantas juntas, pórticos juntos; lo demás por separado.
   const grupo = (it) => (PLANTAS.has(it.tipo) ? "plantas" : it.tipo === "portico" ? "porticos" : it.tipo === "corte" || it.tipo === "detalleLosa" ? "detalles" : it.id);
@@ -161,7 +163,7 @@ export function componerPaqueteLaminas({contenidos, marco, escalaPlanos = 2, rep
       const dw = it.cw * it.escala, dh = it.ch * it.escala;
       espacios.push({id, tipo: it.tipo, titulado: it.conTitulo, escala: it.escala, extension: it.caja,
         caja: {x: ox + r.x + (r.w - dw) / 2, y: r.y + it.banda, x1: ox + r.x + (r.w + dw) / 2, y1: r.y + r.h},
-        titulo: it.conTitulo ? {x: ox + r.x + Math.max(0, (r.w - Math.max(dw, it.ancho)) / 2), y: r.y + it.banda - 0.45 * f, alto: altoTitulo} : null});
+        titulo: it.conTitulo ? {x: ox + r.x + Math.max(0, (r.w - Math.max(dw, it.ancho)) / 2), y: r.y + it.banda - 0.6 * f, alto: altoTitulo} : null});
       planos[id] = it.contenido;
       tipos.push(it.tipo);
     });

@@ -3,6 +3,7 @@
 
 import {L, line, circle, text, rect} from "../../cad/primitives.js";
 import {detectarColumnas, areasTributarias, deducirEjes, predimensionarZapatas, CARGAS_POR_DEFECTO} from "../../diseno/estructura.js";
+import {ejesDesdeColumnas} from "../../lectura/ejesDeducidos.js";
 import {leerVista} from "../../lectura/lectorPlano.js";
 import {laminaEstructuras} from "../../laminas/laminaEstructuras.js";
 import {laminasConPlantilla} from "../../laminas/laminasPlantilla.js";
@@ -140,6 +141,23 @@ function leerEstructura(ctx, capasTexto, vistaPedida) {
   if (!deteccion.columnas.length) throw new Error("Las capas estructurales no tienen contornos con tamaño de columna (0.10 a 4 m).");
   const columnas = areasTributarias(deteccion.columnas);
   const ejes = deducirEjes(columnas);
+  // Sin burbujas de eje (muchas casas y colegios): se proponen ejes desde las columnas, nombrados
+  // con letras y números, y el plano sigue el mismo camino que uno con ejes. Se avisa al ingeniero.
+  const grilla = capas.length ? null : ejesDesdeColumnas(columnas);
+  if (grilla) {
+    const k = deteccion.escala;
+    const xs = grilla.columnas.map((c) => c.x), ys = grilla.columnas.map((c) => c.y), m = 3;
+    ctx.memoria.avisoVista = `El plano no tiene ejes rotulados: propuse ${grilla.nombres.x.length + grilla.nombres.y.length} ejes desde ${grilla.columnas.length} columnas (${grilla.nombres.x[0]}–${grilla.nombres.x.at(-1)} y ${grilla.nombres.y[0]}–${grilla.nombres.y.at(-1)}). Confírmalos o renómbralos.`;
+    const estructura = {
+      columnas: areasTributarias(grilla.columnas.map((c) => ({...c, id: `${c.tipo} ${c.eje}`}))), escala: k,
+      vista: "planta (ejes propuestos desde las columnas)", titulo: "PLANTA", ejesDeducidos: true,
+      ejesNombrados: grilla.ejes, tipos: grilla.tipos, columnetas: 0, listaColumnetas: [],
+      caja: {x0: (Math.min(...xs) - m) * k, y0: (Math.min(...ys) - m) * k, x1: (Math.max(...xs) + m) * k, y1: (Math.max(...ys) + m) * k},
+      ejes: {x: [], y: []}, descartados: deteccion.descartados, ignorados, capas: [...new Set(columnas.flatMap((c) => c.capas))],
+    };
+    ctx.memoria.estructura = estructura;
+    return estructura;
+  }
   const estructura = {columnas, ejes, escala: deteccion.escala, descartados: deteccion.descartados, ignorados, capas: [...new Set(columnas.flatMap((c) => c.capas))]};
   ctx.memoria.estructura = estructura;
   return estructura;
@@ -891,11 +909,24 @@ async function generarLaminas(args, ctx, {e, guardados, invalidos, quitadas}) {
         if (r.usarPlantilla !== false) for (const c of r.copias ?? []) ctx.insertTemplate(plantilla.db, {x: c.desplazamiento.x * k, y: c.desplazamiento.y * k}, k, c.marco, r.textosPlantilla, c.excluir);
         const z = r.zona;
         const lista = (xs) => (xs.length > 1 ? `${xs.slice(0, -1).join(", ")} y ${xs.at(-1)}` : xs[0] ?? "");
+        // Un mismo texto dos veces en el mismo punto (p. ej. la burbuja de un eje que comparten dos
+        // bloques) se ve como un encimado: se dibuja una sola vez.
+        const vistos = new Set();
+        r.primitivas = r.primitivas.filter((p) => {
+          if (p.type !== "text") return true;
+          const [x, y] = Array.isArray(p.at) ? p.at : [p.at?.x, p.at?.y];
+          if (!Number.isFinite(x) || !Number.isFinite(y)) return true;
+          const clave = `${p.layer}|${p.value}|${Math.round(x * 100)}|${Math.round(y * 100)}|${Math.round(p.h * 1000)}`;
+          if (vistos.has(clave)) return false;
+          vistos.add(clave);
+          return true;
+        });
         ctx.draw(r.primitivas, `Agente: láminas ${lista(r.laminas.map((l) => l.codigo))} de estructuras`, {unitsPerMeter: k, zoom: {x0: z.x0 * k, y0: z.y0 * k, x1: z.x1 * k, y1: z.y1 * k}});
         // Control de calidad antes de entregar: ningún texto encima de otro. Primero se REUBICAN
         // los rótulos de elementos al hueco libre más cercano (lámina ordenada, no solo con la letra
         // achicada); lo que no se pueda mover, recién ahí, se achica.
-        const textosAgente = () => (ctx.entidadesDelAgente?.() ?? []).filter((x) => /^(M?TEXT)$/i.test(String(x.dxfTypeName)));
+        // Las láminas recién dibujadas todavía no tienen la marca (se pone al cerrar la generación).
+        const textosAgente = () => [...(ctx.entidadesDelAgente?.() ?? []), ...(ctx.entidadesNuevas?.() ?? [])].filter((x) => /^(M?TEXT)$/i.test(String(x.dxfTypeName)));
         if (textosEncimados(textosAgente()) && ctx.moverEntidades) {
           const {moves} = planearSeparacion(textosAgente());
           if (moves.length) ctx.moverEntidades("Agente: ordenar los rótulos de la lámina", moves.map((m) => ({id: m.entidad.objectId, dx: m.dx, dy: m.dy})));

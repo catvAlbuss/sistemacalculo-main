@@ -130,6 +130,13 @@ export function createDrawingContext({getDatabase, dm, edit, afterDraw, onFounda
     iniciarGeneracion(clave) {
       this.memoria.antes = {clave, ids: new Set(entities().map((e) => e.objectId))};
     },
+    // Lo dibujado en la generación abierta (aún sin marcar): el control de calidad de la lámina
+    // corre antes de cerrarla y con entidadesDelAgente() no veía ningún texto nuevo.
+    entidadesNuevas() {
+      const antes = this.memoria.antes;
+      if (!antes || !getDatabase()) return [];
+      return entities().filter((e) => !antes.ids.has(e.objectId));
+    },
     cerrarGeneracion(clave) {
       const antes = this.memoria.antes;
       if (antes?.clave !== clave) return 0;
