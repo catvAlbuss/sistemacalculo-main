@@ -181,7 +181,13 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
   // mejoran 12 de 14 plantas de losa de los dos proyectos).
   const conAlero = estructura.techoDosAguas === true || pendienteAnotada(items) || items.some((it) => it.tipo === "texto" && /\balero|\bPTE\s*=?\s*\d|cumbrera/i.test(it.texto ?? ""));
   const alero = conAlero ? null : 0;
-  const ali = planoAligerado({lectura, items, k, espesorFijo: estructura.espesorLosa ?? null, losaMaciza: estructura.losaMaciza ?? Number(estructura.niveles) >= 2, volados, alero, tipoCimentacion: cim.tipo});
+  // Cada losa con la planta del piso que cubre, como el ingeniero: la de entrepiso con la del 2°
+  // nivel y la de techo con la del último (antes ambas copiaban la del 1er nivel). Solo plantas
+  // completas (≥ 60 % de las columnas de la base): una caseta de azotea no es la planta del piso.
+  const nivelesLosa = Math.max(1, Number(estructura.niveles) || 1);
+  const plantaNivel = (n) => (estructura.plantasNiveles ?? []).find((p) => p.nivel === n && (p.lectura?.columnas?.length ?? 0) >= Math.max(2, 0.6 * lectura.columnas.length));
+  const plantaEntrepiso = nivelesLosa > 1 ? plantaNivel(2) : null;
+  const ali = planoAligerado({lectura: plantaEntrepiso?.lectura ?? lectura, items, k: plantaEntrepiso?.k ?? k, espesorFijo: estructura.espesorLosa ?? null, losaMaciza: estructura.losaMaciza ?? Number(estructura.niveles) >= 2, volados, alero, tipoCimentacion: cim.tipo});
   const cuadro = cuadroColumnas(lectura.columnas, {niveles: Math.max(1, Number(estructura.niveles) || 1)}); // en NIVEL, los pisos que cubre
   // Con placas y columnas, el ingeniero hace dos cuadros: "CUADRO DE PLACAS" y "CUADRO DE COLUMNAS"
   // (así en 35 de los 44 cuadros de la biblioteca); el cuadro completo queda para el metrado.
@@ -201,7 +207,8 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
   // (los niveles con la misma tabiquería van en un solo plano: "2° Y 3° PISO").
   const extras = [];
   if (nNiveles > 1 && losaTecho) {
-    const aliT = planoAligerado({lectura, items, k, espesorFijo: estructura.espesorLosa ?? null, losaMaciza: estructura.losaMaciza ?? Number(estructura.niveles) >= 2, conVacios: false, volados, alero, tipoCimentacion: cim.tipo});
+    const plantaTecho = plantaNivel(nNiveles);
+    const aliT = planoAligerado({lectura: plantaTecho?.lectura ?? lectura, items, k: plantaTecho?.k ?? k, espesorFijo: estructura.espesorLosa ?? null, losaMaciza: estructura.losaMaciza ?? Number(estructura.niveles) >= 2, conVacios: false, volados, alero, tipoCimentacion: cim.tipo});
     aliT.contenido.titulo = "PLANO DE LOSA ALIGERADA TECHO";
     extras.push(aliT.contenido);
   }
