@@ -154,10 +154,15 @@ for (const par of pares) {
   const fila = {id: par.id, grupo: par.grupo, tipos: {}};
   for (const tipo of TIPOS) {
     const ok = (t) => tipo.re.test(t) && !(tipo.no?.test(t));
-    // Agente: la planta en el lugar exacto donde la dibujó (sin adivinar por títulos).
-    const u = ubic.find((x) => ok(x.titulo));
+    // Nivel de una planta para emparejar: el techo cuenta como nivel propio (nivelDeTitulo lo deja
+    // en null), así la losa de techo del agente se compara con la de techo del ingeniero.
+    const nivelClave = (t) => (/TECHO|AZOTEA|CUBIERTA/i.test(String(t ?? '')) ? 'techo' : nivelDeTitulo(t ?? ''));
     // Ingeniero: entre sus vistas con ese título, la que comparte más ejes con la del agente.
     const candidatas = vistasIng.filter((v) => ok(v.titulo));
+    // Agente: la planta en el lugar exacto donde la dibujó (sin adivinar por títulos). Si dibujó
+    // varias (losa de entrepiso y de techo), la del mismo nivel que alguna del ingeniero.
+    const plantasAg = ubic.filter((x) => ok(x.titulo));
+    const u = plantasAg.find((x) => nivelClave(x.titulo) !== null && candidatas.some((v) => nivelClave(v.titulo) === nivelClave(x.titulo))) ?? plantasAg[0];
     if (!candidatas.length || !u?.caja) { fila.tipos[tipo.id] = {estado: !candidatas.length ? 'el ingeniero no lo tiene' : 'el agente no lo dibujó'}; continue; }
     const kAg = ctx.memoria.estructura?.escala ?? 1;
     const cajaAg = ampliar(u.caja, 0.3 * kAg);
@@ -166,8 +171,8 @@ for (const par of pares) {
     if (!va) { fila.tipos[tipo.id] = {estado: 'sin ejes en la planta del agente'}; continue; }
     // Primero la del mismo nivel (la losa de 1° piso del agente contra la de 1° nivel del
     // ingeniero, no contra la de 2° con su vacío); después, la de más ejes en común.
-    const nivelAg = nivelDeTitulo(u.titulo ?? '');
-    const mismoNivel = (v) => (nivelAg !== null && nivelDeTitulo(v.titulo ?? '') === nivelAg ? 1 : 0);
+    const nivelAg = nivelClave(u.titulo);
+    const mismoNivel = (v) => (nivelAg !== null && nivelClave(v.titulo) === nivelAg ? 1 : 0);
     const conTr = candidatas.map((v) => ({v, tr: alinear(posEjes(v), posEjes(va))})).filter((x) => x.tr)
       .sort((a, b) => mismoNivel(b.v) - mismoNivel(a.v) || (b.tr.x.n + b.tr.y.n) - (a.tr.x.n + a.tr.y.n));
     if (!conTr.length) { fila.tipos[tipo.id] = {estado: 'sin ejes comunes'}; continue; }
