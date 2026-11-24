@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {runAgent} from '../../resources/js/ingenieria/agente/agentRunner.js';
+import {runAgent, OLLAMA_LOCAL} from '../../resources/js/ingenieria/agente/agentRunner.js';
 
 const answer = (message) => ({ok: true, json: async () => ({choices: [{message}]})});
 const call = (name, id = 'a') => ({id, type: 'function', function: {name, arguments: '{}'}});
@@ -13,9 +13,9 @@ test('a summary tool cannot become a false confirmation of drawings or engineeri
   assert.doesNotMatch(out.reply, /He agregado|confirmado por el ingeniero/);
 });
 
-test('unsupported bar-length detailing does not spend tokens or mutate the drawing', async () => {
+test('local unsupported bar-length detailing does not spend tokens or mutate the drawing', async () => {
   let requests = 0, writes = 0;
-  const out = await runAgent({text: 'Agrega aceros y barras superiores mediante longitudes', context: {memoria: {}}, skills: [{name: 'plano_estructuras', parameters: {type: 'object', properties: {}}, run: async () => { writes++; return {ok: true, mensaje: 'Generado'}; }}], fetchImpl: async () => { requests++; return answer({tool_calls: [call('plano_estructuras')]}); }});
+  const out = await runAgent({text: 'Agrega aceros y barras superiores mediante longitudes', settings: OLLAMA_LOCAL, context: {memoria: {}}, skills: [{name: 'plano_estructuras', parameters: {type: 'object', properties: {}}, run: async () => { writes++; return {ok: true, mensaje: 'Generado'}; }}], fetchImpl: async () => { requests++; return answer({tool_calls: [call('plano_estructuras')]}); }});
   assert.equal(requests, 0);
   assert.equal(writes, 0);
   assert.match(out.reply, /no implementa|no dispone/i);
@@ -24,8 +24,8 @@ test('unsupported bar-length detailing does not spend tokens or mutate the drawi
 test('confirming an unsupported request remains explicit, without trapping unrelated requests', async () => {
   const context = {memoria: {}};
   const fetchImpl = async () => { throw new Error('no llamar al modelo para una capacidad ausente'); };
-  await runAgent({text: 'Agrega barras superiores con longitudes', context, fetchImpl});
-  const confirmacion = await runAgent({text: 'si, necesito ello', context, fetchImpl});
+  await runAgent({text: 'Agrega barras superiores con longitudes', settings: OLLAMA_LOCAL, context, fetchImpl});
+  const confirmacion = await runAgent({text: 'si, necesito ello', settings: OLLAMA_LOCAL, context, fetchImpl});
   assert.match(confirmacion.reply, /no implementa/);
   const independiente = await runAgent({text: 'Que datos faltan del proyecto', context, fetchImpl: async () => answer({content: 'Necesito los datos del proyecto.'})});
   assert.doesNotMatch(independiente.reply, /no implementa/);

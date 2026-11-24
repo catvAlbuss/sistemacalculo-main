@@ -113,14 +113,17 @@
           <div v-if="run.fotos.length" class="ag-thumbs"><img v-for="(f, j) in run.fotos" :key="j" :src="f" alt="Foto adjunta" /></div>
         </div>
         <div class="ag-work">
-          <ol v-if="run.pasos.length" class="ag-steps">
+          <details v-if="run.pasos.length && !run.vivo" class="ag-activity">
+          <summary>Ver actividad</summary>
+          <ol class="ag-steps">
             <li v-for="(p, j) in run.pasos" :key="j" :class="`is-${p.estado}`">
               <span class="ag-step-ic"><svg viewBox="0 0 24 24"><path :d="ICON[p.icono] || ICON.chispa" /></svg></span>
               <span class="ag-step-txt">{{ p.titulo }}</span>
               <span class="ag-step-t">{{ p.estado === "ok" ? "✓" : p.estado === "error" ? "✕" : "–" }} {{ p.seg }}</span>
             </li>
           </ol>
-          <div v-if="run.vivo" class="ag-thinking"><span class="ag-shimmer">{{ run.vivo }}</span></div>
+          </details>
+          <div v-if="run.vivo" class="ag-thinking" role="status" aria-live="polite"><span class="ag-shimmer">{{ run.vivo }}</span></div>
           <p v-if="run.respuesta" class="ag-answer">{{ run.respuesta }}</p>
           <ul v-if="run.avisos.length" class="ag-notes">
             <li v-for="(a, j) in run.avisos" :key="j"><svg viewBox="0 0 24 24"><path :d="ICON.aviso" /></svg>{{ a }}</li>
@@ -785,6 +788,8 @@ async function cerrarRun(run, steps, reply, inicio, ctx) {
 // Acción directa: la herramienta corre en el navegador, sin el modelo de IA.
 async function ejecutar(herramienta, args = {}, pedido = herramienta) {
   if (busy.value) return;
+  // Las acciones del cliente siguen el mismo ciclo de IA que una instrucción escrita.
+  if (motorListo.value) return send(pedido, {herramienta, args});
   const run = nuevoRun(pedido);
   busy.value = true;
   const inicio = performance.now();
@@ -819,7 +824,7 @@ Análisis: ${analisis}`;
 }
 
 // Pedido libre: va al modelo de IA del servidor, que elige las herramientas.
-async function send(text = draftText.value) {
+async function send(text = draftText.value, accionSolicitada = null) {
   const value = text.trim() || (adjuntos.value.length ? "Revisa estas observaciones" : "");
   if (!value || busy.value || !motorListo.value) return;
   const fotos = adjuntos.value.splice(0);
@@ -843,11 +848,12 @@ async function send(text = draftText.value) {
     const guardada = fotos.length ? guardarObservacion(value, fotos, ctx) : Promise.resolve(false);
     ctx.ultimoEnvioAprendizaje = null;
     const out = await runAgent({
-      text: value, imagenes: fotos.map((f) => f.url), history, settings: settings.value, context: ctx, signal: controller.value.signal,
-      onStep: (step) => { anotarPaso(run, step, marca); marca = performance.now(); run.vivo = "Preparando la respuesta…"; },
+      text: value, imagenes: fotos.map((f) => f.url), history, accionSolicitada, settings: settings.value, context: ctx, signal: controller.value.signal,
+      onProgress: ({mensaje}) => { run.vivo = mensaje; },
+      onStep: (step) => { anotarPaso(run, step, marca); marca = performance.now(); },
     });
     await cerrarRun(run, out.steps, out.steps.some((s) => s.result?.cancelado) ? "No dibujé el plano: cancelaste los datos del proyecto." : out.reply, inicio, ctx);
-    if (fotos.length) run.avisos.unshift((await guardada) ? `Guardé ${fotos.length} foto(s) como observación para entrenar al agente.` : "No pude guardar las fotos como observación; inténtalo de nuevo.");
+    if (fotos.length) run.avisos.unshift((await guardada) ? `Guardé ${fotos.length} imagen(es) como referencia del proyecto.` : "No pude guardar las imágenes de referencia; inténtalo de nuevo.");
   } catch (error) {
     run.respuesta = error?.name === "AbortError" ? "Pedido detenido." : error?.message ?? String(error);
   } finally {
@@ -1066,6 +1072,8 @@ async function exportarMetrado() {
 .is-ok .ag-step-t { color:#22c55e; }
 .is-error .ag-step-t { color:#ef4444; }
 .ag-thinking { padding:4px 0 2px;font-size:12.5px; }
+.ag-activity { margin:0 0 8px; }
+.ag-activity summary { cursor:pointer;color:var(--pr-muted);font-size:12px;padding:4px 0; }
 .ag-shimmer { background:linear-gradient(90deg,var(--pr-muted) 0%,var(--pr-text) 50%,var(--pr-muted) 100%);background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:ag-shine 1.6s linear infinite; }
 .ag-answer { margin:0;font-size:13px;line-height:1.55;white-space:pre-wrap; }
 .ag-notes { list-style:none;margin:10px 0 0;padding:0;display:grid;gap:6px; }

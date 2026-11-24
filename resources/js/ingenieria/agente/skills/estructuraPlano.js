@@ -264,7 +264,11 @@ export const ESTRUCTURA_SKILLS = [
           ? `- Pendientes del paquete actual: ${ctx.memoria.paqueteLaminas.pendientes?.join('; ') || 'sin pendientes registrados; esta revisión no valida el cálculo estructural'}.`
           : `- Aún no dibujo: ${AUN_NO_DIBUJA.join("; ")}.`,
       ];
-      return {ok: true, mensaje: lineas.join("\n"), encimados: despues, corregidos};
+      return {ok: true, mensaje: lineas.join("\n"), encimados: despues, corregidos,
+        pendientes: [...faltanDatos.map((n) => `Dato técnico: ${n}`), ...faltanRotulo.map((n) => `Rótulo: ${n}`),
+          ...(despues ? [`Textos encimados: ${despues} pares`] : []), ...(ctx.memoria.paqueteLaminas?.pendientes ?? [])],
+        alcance: ['encimados de texto', 'datos técnicos', 'rótulo', 'pendientes registrados del paquete'],
+        validacionEstructural: false};
     },
   },
   {
