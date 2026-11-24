@@ -119,15 +119,16 @@ async function f1DelProyecto(grupo) {
   return {f1s, promedio: f1s.length ? f1s.reduce((s, x) => s + x, 0) / f1s.length : null};
 }
 
-test('the 15 office modules: columns read where the engineer put them (F1 ≥ 0.90)', {skip: !hayCache && 'sin los planos de entrenamiento en esta máquina'}, async () => {
+test('the 15 office modules: columns read where the engineer put them (F1 ≥ 0.97)', {skip: !hayCache && 'sin los planos de entrenamiento en esta máquina'}, async () => {
   const {f1s, promedio} = await f1DelProyecto('vinchos');
-  assert.ok(promedio >= 0.9, `F1 promedio ${promedio?.toFixed(3)} en ${f1s.length} módulos`);
+  assert.ok(promedio >= 0.97, `F1 promedio ${promedio?.toFixed(3)} en ${f1s.length} módulos`);
 });
 
-// Segundo proyecto, otro arquitecto (burbujas en capas sin "eje", ejes "05"): piso contra
-// retrocesos; la meta sigue siendo 0.90.
-test('a second project by another architect: its axes and columns are read (F1 ≥ 0.55)', {skip: !hayCache && 'sin los planos de entrenamiento en esta máquina'}, async (t) => {
+// Segundo proyecto, otro arquitecto (burbujas en capas sin "eje", ejes "05"), contra la planta
+// del ingeniero del mismo módulo (ILO 11 no la trae y no cuenta): piso contra retrocesos (0.868 al
+// fijarlo); lo que falta son ejes que el ingeniero agregó a otra versión de la arquitectura.
+test('a second project by another architect: its axes and columns are read (F1 ≥ 0.85)', {skip: !hayCache && 'sin los planos de entrenamiento en esta máquina'}, async (t) => {
   const {f1s, promedio} = await f1DelProyecto('ilo');
   if (!f1s.length) return t.skip('sin el segundo proyecto en esta máquina');
-  assert.ok(promedio >= 0.55, `F1 promedio ${promedio.toFixed(3)} en ${f1s.length} módulos`);
+  assert.ok(promedio >= 0.85, `F1 promedio ${promedio.toFixed(3)} en ${f1s.length} módulos`);
 });
