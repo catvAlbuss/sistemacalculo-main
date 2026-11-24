@@ -180,7 +180,7 @@ test('wall panels: the piece content of its own module is replaced by the destin
   assert.ok(r.biblioteca, 'se adapta la pieza');
   const p = r.contenido.primitivas, t = textos(p);
   // Nada del módulo de origen: ni su columneta, ni su puerta, ni su dintel, ni el rótulo del muro.
-  assert.ok(!t.some((x) => /^(pa|P-3|Dintel 01)$/.test(x) || /King Kong Tipo IV/.test(x)), t.join(' | '));
+  assert.ok(!t.some((x) => /^(pa|P-3|Dintel 01)$/.test(x) || /23x12.5x9cm/.test(x)), t.join(' | '));
   assert.ok(!p.some((q) => q.layer === '.N1 Columna amarre'));
   assert.ok(!p.some((q) => q.type === 'line' && q.layer === 'CONCRETO' && Math.abs(q.a[1] - 2.1) < 0.01 && q.a[0] > 3));
   // Lo del destino, en sus capas semánticas (la lámina las lleva a las del despacho).

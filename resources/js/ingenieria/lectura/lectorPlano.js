@@ -580,12 +580,15 @@ export function claseDeSeccion(c) {
 // Tipos de columna (C1, CT1, PL1…): misma forma y medidas (redondeadas a 1 cm),
 // sin importar la orientación ni el espejo. Se numera por clase.
 export function tiposDeColumna(columnas) {
-  const firma = (c) => `${c.forma}:${[c.b, c.h].sort((p, q) => p - q).map((v) => v.toFixed(2)).join("x")}:${c.area.toFixed(3)}`;
+  // Medidas al módulo de 5 cm y área al centésimo, como el ingeniero arma su cuadro: una lectura
+  // de 0.32x0.30 o una L con 0.004 m² de diferencia no es otro tipo de columna.
+  const mod = (v) => (Math.round(v / 0.05) * 0.05).toFixed(2);
+  const firma = (c) => `${c.forma}:${[c.b, c.h].sort((p, q) => p - q).map(mod).join("x")}${c.forma === "rectangular" ? "" : `:${c.area.toFixed(2)}`}`;
   const tipos = new Map();
   for (const c of columnas) {
     const key = firma(c);
     Object.assign(c, claseDeSeccion(c));
-    if (!tipos.has(key)) tipos.set(key, {forma: c.forma, b: Math.max(c.b, c.h), h: Math.min(c.b, c.h), area: c.area, clase: c.clase, prefijo: c.prefijo, espesor: c.espesor, cantidad: 0, ejes: [], x: c.x, y: c.y});
+    if (!tipos.has(key)) tipos.set(key, {forma: c.forma, b: Number(mod(Math.max(c.b, c.h))), h: Number(mod(Math.min(c.b, c.h))), area: c.area, clase: c.clase, prefijo: c.prefijo, espesor: c.espesor, cantidad: 0, ejes: [], x: c.x, y: c.y});
     const t = tipos.get(key);
     t.cantidad++;
     t.ejes.push(c.eje);

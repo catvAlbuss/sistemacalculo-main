@@ -59,6 +59,16 @@ function baseDelModulo(niveles) {
   return npt.length === 1 && npt[0] >= 1 ? npt[0] : 0;
 }
 
+// Cumbrera escrita en la arquitectura: el N.T.T. (techo terminado) más alto que queda sobre el
+// techo del alero (más de 0.30 m y hasta 4 m arriba). En el módulo 8 la arquitectura anota
+// N.T.T. +4.44 y el ingeniero pone CUMBRERA +4.45; con la pendiente sola salía +4.06.
+export function cumbreraDesdeArquitectura(items, techo) {
+  const n = textosDeNivel(items);
+  const base = baseDelModulo(n);
+  const altos = [...n.ntt.keys()].map((v) => v - base).filter((v) => v > techo + 0.3 && v <= techo + 4);
+  return altos.length ? Math.max(...altos) : null;
+}
+
 // Techo de un nivel (TECHO NFP del pórtico, sobre el piso del módulo): el mayor N.F.T. entre 2.2 y
 // 10 m; si no hay, el N.T.T. (techo terminado) en ese rango; si tampoco, 3 m.
 export function alturaDesdeArquitectura(items) {
@@ -146,7 +156,7 @@ export function vanosDesdeArquitectura(items, k = 1) {
 // entrepisos: pisos de los niveles superiores (NPT, m) en edificios de varios niveles: en cada
 // uno van su viga y su losa, y muros, columnetas y estribos se dibujan por nivel.
 // losaTecho: false cuando el último nivel lleva solo cobertura (sin losa de techo).
-export function planoPortico({eje, columnas, altura = 3, espesorLosa = 0.2, viga = {b: 0.25, h: 0.4}, cimentacion = {tipo: "zapatas"}, columnetas = [], cumbrera = null, pendiente = CRITERIOS.techo.pendiente, vanos = [], entrepisos = [], losaTecho = true}) {
+export function planoPortico({eje, columnas, altura = 3, espesorLosa = 0.2, viga = {b: 0.25, h: 0.4}, cimentacion = {tipo: "zapatas"}, columnetas = [], cumbrera = null, pendiente = CRITERIOS.techo.pendiente, vanos = [], entrepisos = [], losaTecho = true, nivelCumbrera = null}) {
   const ux = eje.q.x - eje.p.x, uy = eje.q.y - eje.p.y, l = Math.hypot(ux, uy) || 1;
   const u = {x: ux / l, y: uy / l};
   const proy = (p) => (p.x - eje.p.x) * u.x + (p.y - eje.p.y) * u.y;
@@ -182,6 +192,7 @@ export function planoPortico({eje, columnas, altura = 3, espesorLosa = 0.2, viga
       if (s > iL + 0.3 && s < iR - 0.3) {
         xr = s;
         H = T + pendiente * ((xr - iL) + (iR - xr)) / 2; // la pendiente se mide desde la cara interior de la columna
+        if (nivelCumbrera > T + 0.3) H = nivelCumbrera; // la cota de la arquitectura manda sobre la pendiente
         sL = (H - T) / (xr - iL); sR = (H - T) / (iR - xr);
       }
     }

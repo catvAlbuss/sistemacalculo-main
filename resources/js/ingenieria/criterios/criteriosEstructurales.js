@@ -98,7 +98,7 @@ export const CRITERIOS = {
     dintel: 0.2,                // m — peralte del dintel / VSa
   },
 
-  muro: "Muro de soga de ladrillo King Kong Tipo V - 23x12.5x9cm",   // pórtico 8-8
+  muro: "Muro de soga de ladrillo King Kong Tipo IV - 9x13x24cm",   // como las especificaciones (formatoDespacho 7) ALBAÑILERÍA)
 
   dibujo: {
     escalaPlanos: "1/25",       // planos de la lámina al doble de la arquitectura 1/50

@@ -109,7 +109,14 @@ function elegirVista(ctx, pedido) {
   }
   // En empate gana una planta de piso sobre techo, cimentación o aligerado.
   const secundaria = (v) => (/techo|cubierta|azotea|cimenta|cimiento|aligerad|losa|platea/i.test(v.vista.titulo) ? 1 : 0);
-  return [...leidas].sort((a, b) => secundaria(a) - secundaria(b) || b.lectura.columnas.length - a.lectura.columnas.length)[0];
+  // Entre las plantas de piso con columnas suficientes gana la del nivel MÁS BAJO: la cimentación
+  // nace del 1er nivel. Antes ganaba la de más columnas y en vinchos 02 (3er nivel) o ilo 01/02/04/06
+  // (2° nivel) la cimentación salía de un piso de arriba. Sin número en el título: tras el 1° nivel.
+  const cols = (v) => v.lectura.columnas.length;
+  const maximo = Math.max(0, ...leidas.filter((v) => !secundaria(v)).map(cols));
+  const insuficiente = (v) => (cols(v) >= Math.max(4, 0.7 * maximo) ? 0 : 1);
+  const nivel = (v) => nivelDeTitulo(v.vista.titulo) ?? 1.5;
+  return [...leidas].sort((a, b) => secundaria(a) - secundaria(b) || insuficiente(a) - insuficiente(b) || nivel(a) - nivel(b) || cols(b) - cols(a))[0];
 }
 
 function leerEstructura(ctx, capasTexto, vistaPedida) {

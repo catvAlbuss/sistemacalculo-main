@@ -18,7 +18,7 @@ import {cuadroColumnas, cuadroColumnetas} from "./cuadroColumnas.js";
 import {datosDesdeArquitectura, textoEnCasilla, anchoTexto} from "./rotulo.js";
 import {aplicarEstilo} from "../criterios/estiloLaminas.js";
 import {separarTextos} from "./separarTextos.js";
-import {planoPortico, nivelesDesdeArquitectura, pendienteDesdeArquitectura, pendienteAnotada, vanosDesdeArquitectura} from "../planos/porticoPlano.js";
+import {planoPortico, cumbreraDesdeArquitectura, nivelesDesdeArquitectura, pendienteDesdeArquitectura, pendienteAnotada, vanosDesdeArquitectura} from "../planos/porticoPlano.js";
 import {porticoDesdeBiblioteca} from "../planos/porticoBiblioteca.js";
 import {detalleDesdeBiblioteca} from "./detalleBiblioteca.js";
 import {datosParaLaminas, datosTecnicos, CAMPOS_TECNICOS} from "../criterios/datosProyecto.js";
@@ -274,7 +274,7 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
   const dosAguas = estructura.techoDosAguas === true || (estructura.techoDosAguas !== false && pendienteAnotada(items));
   const cumbrera = ali.cumbrera ?? (dosAguas ? cumbreraAlCentro(lectura) : null);
   const porticos = ejesPortico.map(({eje, columnas}) => {
-    const p = planoPortico({eje, columnas, altura, espesorLosa: ali.espesor, viga: vigaDelEje(eje.nombre), cimentacion: {tipo: cim.tipo, peralte: cim.peralte, df: cim.df}, columnetas: lectura.columnetas ?? [], cumbrera, pendiente, vanos, entrepisos, losaTecho});
+    const p = planoPortico({eje, columnas, altura, espesorLosa: ali.espesor, viga: vigaDelEje(eje.nombre), cimentacion: {tipo: cim.tipo, peralte: cim.peralte, df: cim.df}, columnetas: lectura.columnetas ?? [], cumbrera, pendiente, vanos, entrepisos, losaTecho, nivelCumbrera: dosAguas ? cumbreraDesdeArquitectura(items, altura) : null});
     return bibliotecaPorticos ? porticoDesdeBiblioteca(p, bibliotecaPorticos) : p;
   });
   // Pórticos repetidos: como el ingeniero, uno solo por dibujo idéntico (módulo 12: dibuja E´ y 8,
@@ -344,9 +344,9 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
     const lista = [
       {id: 'cimentacion', tipo: 'cimentacion', contenido: contenidos.cimentacion, titulado: true},
       ...(cc.tramos ? [{id: 'cimiento', tipo: 'cimiento', contenido: contenidos.cimiento, titulado: true}] : []),
-      ...cortesAdaptados.map((contenido, i) => ({id: `corte${i + 1}`, tipo: 'corte', contenido, nominal: nominal, titulado: Boolean(contenido.titulo)})),
+      ...cortesAdaptados.map((contenido, i) => ({id: `corte${i + 1}`, tipo: 'corte', contenido, nominal: nominal * 2, titulado: Boolean(contenido.titulo)})),
       {id: 'aligerado', tipo: 'losa', contenido: contenidos.aligerado, titulado: true},
-      ...(sinLosa ? [] : [{id: 'detalleAligerado', tipo: 'detalleLosa', contenido: detalleTipicoAligerado(ali.espesor), nominal: nominal, titulado: true}]),
+      ...(sinLosa ? [] : [{id: 'detalleAligerado', tipo: 'detalleLosa', contenido: detalleTipicoAligerado(ali.espesor), nominal: 5, titulado: true}]),
       ...extras.map((contenido, i) => ({id: `extra${i}`, tipo: tipoExtra(contenido), contenido, titulado: true})),
       ...porticosDibujo.map((p, i) => ({id: `portico${i + 1}`, tipo: 'portico', contenido: p.contenido, nominal: 1, titulado: true})),
       {id: 'cuadroColumnas', tipo: 'cuadroColumnas', contenido: contenidos.cuadroColumnas, nominal: 1},

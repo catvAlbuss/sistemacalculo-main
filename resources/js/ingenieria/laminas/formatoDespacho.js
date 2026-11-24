@@ -170,6 +170,8 @@ function juntaSismica(altura) {
   return [`s = 0.006 h ≥ 3 cm; con h=${f2(altura)} m: s=${s} cm con edificaciones vecinas.`, `Retiro del límite de propiedad ≥ ${(s / 2).toFixed(1)} cm.`];
 }
 const f1 = (v) => Number(v).toFixed(1);
+// Sistema de los módulos del despacho: pórticos de concreto armado (E.030, tabla N° 7: Ro=8).
+const RO_PORTICOS = 8;
 export function notasTecnicas({sismo = {}, df = null, hz = null, cimentacion = "platea", conCimiento = true, conAlbanileria = true, altura = null, losaTecho = true} = {}) {
   const p = sismo ?? {};
   const falta = (q) => `${q} = POR DEFINIR (completar en Datos del proyecto)`;
@@ -201,6 +203,12 @@ export function notasTecnicas({sismo = {}, df = null, hz = null, cimentacion = "
       p.S !== undefined ? `S=${f2(p.S)}(suelo tipo ${p.suelo})` : falta("S"),
       p.Tp !== undefined ? `Tp=${f2(p.Tp)}(suelo ${p.suelo})` : falta("Tp"),
       p.TL !== undefined ? `TL=${f1(p.TL)}(suelo tipo ${p.suelo})` : falta("TL"),
+      // Lo que es de norma va completo, como en el cuadro del despacho; lo que sale del análisis
+      // (T, C, desplazamientos, derivas) queda indicado sin inventar valores.
+      "C=2.5 para T<Tp; C=2.5(Tp/T) para Tp<T<TL; C=2.5(Tp·TL/T²) para T>TL",
+      `Ro=${RO_PORTICOS} (pórticos de concreto armado, X e Y); Ia=1.00, Ip=1.00 (estructura regular: verificar)`,
+      `R=Ro·Ia·Ip=${RO_PORTICOS.toFixed(2)}`,
+      "T, C, desplazamientos y deriva máxima: del análisis sísmico (pendiente)",
     ]],
   ];
   const h = 0.1, ht = 0.14, paso = h * 1.6;

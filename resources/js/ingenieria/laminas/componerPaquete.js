@@ -13,7 +13,7 @@
 import {formatoDespacho, repartoDespacho, nombrePlanoLamina, rotuloDespacho} from "./formatoDespacho.js";
 import {anchoTexto} from "./rotulo.js";
 
-const DENOMINADORES = [25, 30, 35, 40, 50, 75, 100, 125, 150, 200, 250, 300];
+const DENOMINADORES = [10, 20, 25, 30, 35, 40, 50, 75, 100, 125, 150, 200, 250, 300];
 const AUXILIARES = /^(cuadro|notas$|corte$|detalle)/;
 const PLANTAS = new Set(["cimentacion", "cimiento", "tabiqueria", "losa", "losaTecho"]);
 // La mayor escala estándar (50/den: x2 = 1/25, x1 = 1/50) ≤ nominal con la que entra el contenido.
@@ -69,7 +69,9 @@ export function componerPaqueteLaminas({contenidos, marco, escalaPlanos = 2, rep
     return {...c, cw, ch, conTitulo, banda: conTitulo ? bandaTitulo : 0, ancho: conTitulo ? anchoTexto(`${proyecto} - ${c.contenido.titulo}`, altoTitulo) * 1.3 : 0};
   });
   // Una escala por grupo: plantas juntas, pórticos juntos; lo demás por separado.
-  const grupo = (it) => (PLANTAS.has(it.tipo) ? "plantas" : it.tipo === "portico" ? "porticos" : it.tipo === "corte" || it.tipo === "detalleLosa" ? "detalles" : it.id);
+  const grupo = (it) => (PLANTAS.has(it.tipo) ? "plantas" : it.tipo === "portico" ? "porticos" : it.tipo === "corte" ? "cortes" : it.id);
+  // Los cortes van juntos (misma escala, como el ingeniero); el detalle típico de aligerado, que es
+  // ancho, va aparte: antes compartían escala y él achicaba los cortes a letra de 0.8 mm impresa.
   const escalas = new Map();
   for (const it of items) {
     const g = grupo(it), nominal = it.nominal ?? escalaPlanos;
