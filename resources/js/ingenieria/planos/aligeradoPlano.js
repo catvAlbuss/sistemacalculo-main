@@ -184,17 +184,25 @@ export function celdasDeGrilla({lectura, tramos, losa, u, v, items = [], k = 1, 
   if (nu.length >= 2 && nv.length >= 2) {
     const brecha = (xs) => Math.max(0, ...xs.slice(1).map((x, i) => x.p - xs[i].p));
     const largoViga = (n) => tramos.filter((t) => t.eje === n).reduce((acc, t) => acc + (t.largo ?? 0), 0);
-    const enU = brecha(nu) <= brecha(nv);
-    const apoyos = [...(enU ? nu : nv)];
-    for (let i = apoyos.length - 1; i > 0; i--) {
-      if (apoyos[i].p - apoyos[i - 1].p < APOYO_MIN) apoyos.splice(largoViga(apoyos[i].n) >= largoViga(apoyos[i - 1].n) ? i - 1 : i, 1);
-    }
-    const paralelos = enU ? nv : nu;
-    // Con apoyos muy juntos (luz media < 2 m) o una luz que un aligerado no salva (> 7 m: faltan
-    // vigas leídas, ILO módulo 1) la dirección no es clara: se deja la grilla.
-    if (apoyos.length >= 3 && (apoyos.at(-1).p - apoyos[0].p) / (apoyos.length - 1) >= 2 && brecha(apoyos) <= LUZ_MAX_VIGUETA) {
+    const apoyosDe = (lista) => {
+      const a = [...lista];
+      for (let i = a.length - 1; i > 0; i--) {
+        if (a[i].p - a[i - 1].p < APOYO_MIN) a.splice(largoViga(a[i].n) >= largoViga(a[i - 1].n) ? i - 1 : i, 1);
+      }
+      return a;
+    };
+    // Dirección válida: al menos 3 apoyos, luz media ≥ 2 m (no paños de pasillo) y ninguna luz que
+    // un aligerado no salve (> 7 m: faltan vigas leídas, ILO módulo 1).
+    const valida = (a) => a.length >= 3 && (a.at(-1).p - a[0].p) / (a.length - 1) >= 2 && brecha(a) <= LUZ_MAX_VIGUETA;
+    // Primero los apoyos más juntos (la luz corta de la grilla). Si quedan demasiado juntos (ejes
+    // cada 1.6 m: VINCHOS módulo 4), el ingeniero hace trabajar la losa en la otra dirección
+    // —vigas de luz más corta, viguetas de 2 a 4 m— y esos ejes no parten los paños.
+    const preferida = brecha(nu) <= brecha(nv);
+    const elegida = [preferida, !preferida].find((enU) => valida(apoyosDe(enU ? nu : nv)));
+    if (elegida !== undefined) {
+      const apoyos = apoyosDe(elegida ? nu : nv), paralelos = elegida ? nv : nu;
       const borde = [paralelos[0], paralelos.at(-1)];
-      if (enU) { nu = apoyos; nv = borde; } else { nv = apoyos; nu = borde; }
+      if (elegida) { nu = apoyos; nv = borde; } else { nv = apoyos; nu = borde; }
     }
   }
   // Volado (pasillo pasado el último eje): una fila más de celdas entre ese eje y el borde.
