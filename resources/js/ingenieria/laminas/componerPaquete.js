@@ -90,7 +90,7 @@ export function componerPaqueteLaminas({contenidos, marco, escalaPlanos = 2, rep
   const deCimentacion = familiaDe("cimentacion") ?? familias[0];
   for (const it of items) {
     if (it.repetible) continue;
-    const fm = familiaDe(it.tipo) ?? (it.tipo === "corte" ? familiaDe("cimiento") ?? deCimentacion : it.tipo === "detalleLosa" ? familiaDe("losa") ?? deCimentacion : /^cuadro|^notas$/.test(it.tipo) ? deCimentacion : null);
+    const fm = familiaDe(it.tipo) ?? (it.tipo === "corte" ? familiaDe("cimiento") ?? deCimentacion : it.tipo === "detalleLosa" ? familiaDe("losa") ?? deCimentacion : it.tipo === "cuadroVigas" ? familiaDe("portico") ?? deCimentacion : /^cuadro|^notas$/.test(it.tipo) ? deCimentacion : null);
     if (fm) fm.items.push(it); else familias.push({tipos: [it.tipo], items: [it]});
   }
   const rango = (it) => { const i = reparto.orden.indexOf(it.tipo); return i < 0 ? reparto.orden.length : i; };

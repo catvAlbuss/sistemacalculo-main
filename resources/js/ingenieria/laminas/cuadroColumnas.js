@@ -204,7 +204,16 @@ export function cuadroColumnas(columnas, {escala = 2, niveles = 1} = {}) {
   const tipos = [];
   for (const c of columnas) {
     const t = tipos.find((x) => x.tipo === c.tipo);
-    if (t) t.cantidad++; else tipos.push({tipo: c.tipo, muestra: dePie(c), cantidad: 1});
+    if (t) { t.cantidad++; t.miembros.push(c); } else tipos.push({tipo: c.tipo, muestra: dePie(c), cantidad: 1, miembros: [c]});
+  }
+  // Muestra del tipo: la medida más repetida entre sus columnas (en el módulo 8 la C2 son tres de
+  // 0.30x0.30 y una lectura de 0.32x0.30; antes se dibujaba la primera que apareciera).
+  for (const t of tipos) {
+    const clave = (c) => [c.b, c.h].map((v) => Math.round(v * 100)).sort((p, q) => p - q).join("x");
+    const cuenta = new Map();
+    for (const c of t.miembros) cuenta.set(clave(c), (cuenta.get(clave(c)) ?? 0) + 1);
+    const moda = [...cuenta].sort((p, q) => q[1] - p[1])[0]?.[0];
+    if (moda && clave(t.muestra) !== moda) t.muestra = dePie(t.miembros.find((c) => clave(c) === moda));
   }
   tipos.sort((a, b) => a.tipo.localeCompare(b.tipo, "es", {numeric: true}));
   const C = CRITERIOS.columnas, F = FORMATO_CUADRO_COLUMNAS;
@@ -399,3 +408,89 @@ export function cuadroColumnetas(columnetas, {alto = 2.9, niveles = 1} = {}) {
 }
 
 const anchoAprox = (s) => [...String(s)].reduce((a, ch) => a + (/[A-Z0-9@]/.test(ch) ? 0.68 : /[ .,:;'"]/.test(ch) ? 0.3 : 0.55), 0) * 0.55;
+
+// Cuadro de vigas como el despacho ("CUADRO DE VIGA (30x40cm)", "(30x60cm)", "VIGA BORDE",
+// "VIGA CHATA"): una columna por sección de viga del modelo, con la sección a 1/25, sus varillas
+// arriba y abajo, el estribo con ganchos, sus medidas y el refuerzo y estribaje. Armado:
+//   peraltadas: el corrido aprendido del despacho (armado.barras Ø armado.barra) y el estribo de vigas;
+//   chatas y de borde (peralte < 0.35 m): 4Ø1/2" con estribo de 3/8" 1@0.05, 4@0.10, Rto.@0.20 C/E,
+//   como el ingeniero. Es predimensionamiento: el diseño por flexión y cortante lo verifica el ingeniero.
+const CHATA = {barras: 4, barra: '1/2"', estribo: '3/8"', distribucion: "1@0.05, 4@0.10, Rto.@0.20 C/E"};
+const cm = (v) => Math.round(v * 100);
+export function cuadroVigas(vigas, {niveles = 1, armado = {barras: 6, barra: '5/8"'}} = {}) {
+  const tipos = [];
+  for (const v of vigas ?? []) {
+    if (!(v?.b > 0 && v?.h > 0)) continue;
+    const b = Math.round(v.b / 0.05) * 0.05, h = Math.round(v.h / 0.05) * 0.05;
+    let t = tipos.find((x) => Math.abs(x.b - b) < 1e-6 && Math.abs(x.h - h) < 1e-6);
+    if (!t) tipos.push(t = {b, h, codigos: new Set(), cantidad: 0});
+    t.cantidad++;
+    if (v.tipo) t.codigos.add(String(v.tipo));
+  }
+  if (!tipos.length) return null;
+  tipos.sort((p, q) => q.h - p.h || q.b - p.b);
+  const V = CRITERIOS.vigas;
+  const armadoDe = (t) => (t.h < 0.35 ? CHATA : {barras: Math.max(4, armado.barras ?? 6), barra: armado.barra ?? '5/8"', estribo: V.estribo, distribucion: V.distribucion});
+  const den = 25, fs = 50 / den;
+  // Filas: título, nombre de la sección, sección (alto según la viga más peraltada), refuerzo.
+  const hMax = Math.max(...tipos.map((t) => t.h));
+  const filas = [0.5, 0.55, Math.max(1.4, hMax * fs + 0.7), 0.75];
+  const H = filas.reduce((s, f) => s + f, 0);
+  const y = [H]; filas.forEach((f) => y.push(y.at(-1) - f));
+  const hT = 0.3, hc = 0.09;
+  const c0 = 1.0, c1 = 1.3;
+  const anchoLlamada = anchoTexto(`3Ø${armado.barra ?? '5/8"'}`, hc) * HOLGURA_VISOR;
+  const anchos = tipos.map((t) => Math.max(1.9, 0.12 + anchoLlamada + 0.15 + t.b * fs + hc * 4));
+  const W = c0 + c1 + anchos.reduce((s, w) => s + w, 0);
+  const inicios = anchos.map((_, i) => c0 + c1 + anchos.slice(0, i).reduce((s, w) => s + w, 0));
+  const out = [];
+  out.push(pline(L.LAMINA, [[0, 0], [W, 0], [W, H], [0, H]], true));
+  out.push(line(L.LAMINA, [0, y[1]], [W, y[1]]), line(L.LAMINA, [c0 + c1, y[2]], [W, y[2]]), line(L.LAMINA, [c0, y[3]], [W, y[3]]));
+  out.push(line(L.LAMINA, [c0, y[0]], [c0, 0]), line(L.LAMINA, [c0 + c1, y[1]], [c0 + c1, 0]));
+  for (let i = 1; i < tipos.length; i++) out.push(line(L.LAMINA, [r4(inicios[i]), y[1]], [r4(inicios[i]), 0]));
+  const ajusta = (lineas, x, yc, ancho, hm) => renglones(lineas, x, yc, ancho / HOLGURA_VISOR, hm);
+  out.push(...ajusta(["ESCALA", `1/${den}`], c0 / 2, (y[0] + y[1]) / 2, c0 * 0.8, hT * 0.42));
+  out.push(text(L.LAMINA, [c0 + (W - c0) / 2, (y[0] + y[1]) / 2], "CUADRO DE VIGAS", Math.min(hT * 0.85, (W - c0) * 0.8 / (anchoTexto("CUADRO DE VIGAS", 1) * HOLGURA_VISOR))));
+  out.push(...ajusta(["NIVEL", ...Array.from({length: Math.max(1, niveles)}, (_, i) => `${i + 1}° Piso`)], c0 / 2, (y[1] + y[3]) / 2, c0 * 0.8, hT * 0.55));
+  out.push(...ajusta(["CONCRETO", "f'c (kg/cm²)"], c0 + c1 / 2, y[1] - (y[1] - y[2]) * 0.5, c1 * 0.84, hT * 0.45));
+  out.push(text(L.LAMINA, [c0 + c1 / 2, (y[2] + y[3]) / 2], String(CRITERIOS.concreto.vigas), hT * 0.7));
+  out.push(...ajusta(["Refuerzo y", "estribaje"], c0 + c1 / 2, (y[3] + y[4]) / 2, c1 * 0.84, hT * 0.48));
+  const filasResumen = tipos.map((t, i) => {
+    const A = armadoDe(t);
+    const x0 = inicios[i], w = anchos[i], xm = x0 + w / 2;
+    const nombre = t.h < 0.35 ? (t.codigos.has("VCH") ? "VIGA CHATA" : "VIGA BORDE") : "VIGA";
+    const codigos = [...t.codigos].filter((c) => !/^V(IGA)?$/i.test(c)).slice(0, 3).join(", ");
+    out.push(...ajusta([`${nombre} (${cm(t.b)}x${cm(t.h)}cm)`, ...(codigos ? [codigos] : [])], xm, (y[1] + y[2]) / 2, w * 0.92, hT * 0.4));
+    // Sección: a la derecha de las llamadas, centrada en lo que queda de la celda.
+    const izq = x0 + 0.12 + anchoLlamada + 0.15;
+    const cx = izq + (x0 + w - hc * 3 - izq) / 2, cy = (y[2] + y[3]) / 2;
+    const X = (u) => r4(cx + u * fs), Y = (v) => r4(cy + v * fs);
+    const b = t.b, hh = t.h;
+    out.push(pline(L.VIGAS, [[X(-b / 2), Y(-hh / 2)], [X(b / 2), Y(-hh / 2)], [X(b / 2), Y(hh / 2)], [X(-b / 2), Y(hh / 2)]], true));
+    const r = V.recubrimiento, de = diametro(A.estribo), db = diametro(A.barra);
+    const e = r + de / 2;
+    const est = [{x: -b / 2 + e, y: -hh / 2 + e}, {x: b / 2 - e, y: -hh / 2 + e}, {x: b / 2 - e, y: hh / 2 - e}, {x: -b / 2 + e, y: hh / 2 - e}];
+    const SX = (p) => [X(p.x), Y(p.y)];
+    out.push(...estriboDetallado([est[2], est[3], est[0], est[1]], SX, {de, db}));
+    const porCara = Math.max(2, Math.ceil(A.barras / 2));
+    const v = r + de + db / 2;
+    const xb = (j) => -b / 2 + v + (j * (b - 2 * v)) / Math.max(1, porCara - 1);
+    const caras = [hh / 2 - v, -hh / 2 + v];
+    for (const yy of caras) for (let j = 0; j < porCara; j++) out.push(varilla({x: xb(j), y: yy}, db, SX, fs));
+    out.push(...cota(L.COTAS_E, [X(-b / 2), Y(hh / 2)], [X(b / 2), Y(hh / 2)], hc * 1.1, hc, cotaCorta(b)));
+    out.push(...cota(L.COTAS_E, [X(b / 2), Y(hh / 2)], [X(b / 2), Y(-hh / 2)], hc * 1.1, hc, cotaCorta(hh)));
+    // Llamadas a la izquierda: arriba y abajo, cada una con su línea a la primera varilla de su cara.
+    const llamada = `${porCara}Ø${A.barra}`;
+    const xFin = r4(x0 + 0.12), xe = r4(xFin + anchoLlamada + hc * 0.3);
+    for (const [k, yy] of caras.entries()) {
+      const yTxt = r4(Y(yy) + (k === 0 ? hc * 0.9 : -hc * 0.9));
+      out.push(line(L.COTAS_E, [X(xb(0)), Y(yy)], [xe, yTxt]), line(L.COTAS_E, [xe, yTxt], [xFin, yTxt]));
+      out.push(text(L.COTAS_E, [xFin, r4(yTxt + hc * 0.3)], llamada, hc, 0, "izq"));
+    }
+    const refuerzo = `${porCara * 2}Ø${A.barra}`;
+    const [inicio, resto] = A.distribucion.split(", Rto");
+    out.push(...renglones([refuerzo, `□ ${A.estribo}Ø: ${inicio},`, `Rto${resto ?? ".@0.20 C/E"}`], xm, (y[3] + y[4]) / 2, (w * 0.9) / HOLGURA_VISOR, hT * 0.36));
+    return {seccion: `${cm(t.b)}x${cm(t.h)}`, cantidad: t.cantidad, codigos: [...t.codigos], refuerzo, estribos: textoEstribos(A.estribo, A.distribucion), escala: `1/${den}`};
+  });
+  return {filas: filasResumen, contenido: {primitivas: out, marco: {x0: 0, y0: 0, x1: r4(W), y1: r4(H)}, h: hT, notas: []}};
+}

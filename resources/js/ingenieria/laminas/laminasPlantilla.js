@@ -14,7 +14,8 @@ import {planoCimentacion, planoCimientoCorrido, planoTabiqueria, escalerasEnPlan
 import {predimensionarEscalera, detalleEscalera, detallesEscaleraPorTramo} from "../planos/escaleraPlano.js";
 import {direccionPrincipal} from "../planos/aligeradoPlano.js";
 import {planoAligerado, seccionViga} from "../planos/aligeradoPlano.js";
-import {cuadroColumnas, cuadroColumnetas} from "./cuadroColumnas.js";
+import {cuadroColumnas, cuadroColumnetas, cuadroVigas} from "./cuadroColumnas.js";
+import {criteriosMetrado} from "../metrado/metrado.js";
 import {datosDesdeArquitectura, textoEnCasilla, anchoTexto} from "./rotulo.js";
 import {aplicarEstilo} from "../criterios/estiloLaminas.js";
 import {separarTextos} from "./separarTextos.js";
@@ -349,6 +350,8 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
       ...(sinLosa ? [] : [{id: 'detalleAligerado', tipo: 'detalleLosa', contenido: detalleTipicoAligerado(ali.espesor), nominal: 5, titulado: true}]),
       ...extras.map((contenido, i) => ({id: `extra${i}`, tipo: tipoExtra(contenido), contenido, titulado: true})),
       ...porticosDibujo.map((p, i) => ({id: `portico${i + 1}`, tipo: 'portico', contenido: p.contenido, nominal: 1, titulado: true})),
+      // Cuadro de vigas (22 de 28 expedientes lo tienen): una columna por sección del modelo.
+      {id: 'cuadroVigas', tipo: 'cuadroVigas', contenido: cuadroVigas(ali.modelo?.vigas ?? [], {niveles: nNiveles, armado: criteriosMetrado(cim.tipo).vigas})?.contenido ?? null, nominal: 1},
       {id: 'cuadroColumnas', tipo: 'cuadroColumnas', contenido: contenidos.cuadroColumnas, nominal: 1},
       {id: 'cuadroPlacas', tipo: 'cuadroColumnas', contenido: contenidos.cuadroPlacas, nominal: 1},
       {id: 'cuadroColumnetas', tipo: 'cuadroColumnetas', contenido: contenidos.cuadroColumnetas, nominal: 1},
