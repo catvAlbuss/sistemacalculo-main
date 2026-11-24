@@ -7,8 +7,10 @@
 // - Niveles: número de pisos del edificio.
 
 import {CRITERIOS} from "./criteriosEstructurales.js";
+import {versionE030} from "./normativa.js";
 
-// E.030-2018, tablas 1, 3, 4 y 5.
+// E.030-2018 (RM 355-2018-VIVIENDA), tablas 1, 3, 4 y 5. Rige solo proyectos en la transitoria de
+// la RM 183-2026-VIVIENDA; las tablas de la E.030-2026 se cargan desde su texto oficial (pendiente).
 export const E030 = {
   Z: {1: 0.10, 2: 0.25, 3: 0.35, 4: 0.45},
   S: { // [zona][suelo]
@@ -34,6 +36,8 @@ export const CAMPOS_TECNICOS = [
   {campo: "suelo", etiqueta: "Perfil de suelo", opciones: [["S0", "S0 roca dura"], ["S1", "S1 roca o suelo muy rígido"], ["S2", "S2 suelo intermedio"], ["S3", "S3 suelo blando"]]},
   {campo: "categoria", etiqueta: "Categoría de la edificación", opciones: [["A2", "A2 esencial (colegio, hospital…)"], ["B", "B importante"], ["C", "C común (vivienda, oficina)"]]},
   {campo: "niveles", etiqueta: "Número de niveles", ejemplo: "1", min: 1, max: 10, entero: true},
+  // Versión de la E.030 según la transitoria de la RM 183-2026-VIVIENDA (criterios/normativa.js).
+  {campo: "normaE030", etiqueta: "Norma E.030 que rige", opciones: [["2026", "E.030-2026 (proyecto nuevo)"], ["2018", "E.030-2018 (licencia o expediente previo)"]]},
 ];
 
 const numero = (v) => {
@@ -129,6 +133,10 @@ export function datosParaLaminas(datos = {}, sugeridos = {}) {
   }
   const faltaSismo = [!t.zona && "zona", !t.suelo && "perfil de suelo", !t.categoria && "categoría"].filter(Boolean);
   if (faltaSismo.length) avisos.push(`Falta ${faltaSismo.join(", ")}: ${faltaSismo.length === 3 ? "los parámetros sísmicos" : "parte de los parámetros sísmicos"} de la lámina son los de la plantilla y hay que revisarlos.`);
+  // Qué E.030 rige (transitoria de la RM 183-2026): si no es la 2018 confirmada, se advierte.
+  const norma = versionE030(t);
+  sismo.norma = `E.030-${norma.version}`;
+  if (norma.nivel !== "info") avisos.push(norma.aviso);
   return {
     cimentacion: {
       ...(t.hz !== null ? {espesorPlatea: t.hz, peralteZapata: t.hz} : {}),

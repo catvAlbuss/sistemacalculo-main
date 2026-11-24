@@ -15,6 +15,7 @@ import {reglasPara} from "../metrado/reglasDespacho.js";
 const RV = reglasPara("platea")?.vigas ?? {};
 import {CASOS} from "../aprendizaje/casosAprendidos.js";
 import {resumenDelAprendizaje} from "./estadoAgente.js";
+import {resumenNormativo} from "../criterios/normativa.js";
 import {resumenReferenciasAprendidas} from "./referenciasProyecto.js";
 
 let aprendido = null; // se calcula una vez por sesión
@@ -77,6 +78,8 @@ export function memoriaDelAgente() {
     "### Límites (decirlo si preguntan)",
     "- Es predimensionamiento y dibujo con los criterios del despacho: el diseño final lo verifica el ingeniero (análisis sísmico E.030, estudio de suelos).",
     "- Cuadro de columnetas, parámetros sísmicos y especificaciones técnicas vienen de la plantilla: revisarlos en cada proyecto.",
+    "",
+    resumenNormativo(),
     "",
     (aprendido ??= resumenDelAprendizaje(CASOS)),
     resumenReferenciasAprendidas(),
