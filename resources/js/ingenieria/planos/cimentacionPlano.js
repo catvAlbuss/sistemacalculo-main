@@ -313,8 +313,22 @@ export function planoCimentacion({lectura, items, caja, k = 1, titulo = ""}, opc
   // Muros del primer nivel sobre la cimentación y columnetas con aspa, como el ingeniero los dibuja
   // en su planta de cimentación (o.muros === false los quita).
   if (o.muros !== false) {
-    const {geometria} = murosDelEdificio({columnas, items, k});
-    for (const g of geometria) prim.push(pline(L.MUROS_E, g.pts.map(pt), g.cerrada === true));
+    const {geometria, huella: borde} = murosDelEdificio({columnas, items, k});
+    // Solo los muros que llevan cimiento: los del perímetro y los que van sobre un eje estructural.
+    // Los tabiques interiores fuera de los ejes (cubículos de SS.HH., divisiones) se apoyan en el
+    // falso piso: el ingeniero no los dibuja en la cimentación (módulos 12 y 13 de VINCHOS).
+    const ejes = (lectura.ejes ?? []).map((e) => { const v = sub(e.q, e.p), l = len(v) || 1; return {p: e.p, u: {x: v.x / l, y: v.y / l}}; });
+    const alEje = (m) => Math.min(Infinity, ...ejes.map((e) => Math.abs(dot(sub(m, e.p), {x: -e.u.y, y: e.u.x}))));
+    const llevaCimiento = (a, b) => {
+      const m = {x: (a.x + b.x) / 2, y: (a.y + b.y) / 2};
+      return (borde.length >= 3 && distanciaAlBorde(m, borde) < 0.5) || alEje(m) < 0.35;
+    };
+    for (const g of geometria) {
+      const segs = g.pts.slice(1).map((q, i) => [g.pts[i], q]);
+      if (g.cerrada && g.pts.length > 2) segs.push([g.pts.at(-1), g.pts[0]]);
+      if (o.todosLosMuros === true || segs.every(([a, b]) => llevaCimiento(a, b))) prim.push(pline(L.MUROS_E, g.pts.map(pt), g.cerrada === true));
+      else for (const [a, b] of segs) if (llevaCimiento(a, b)) prim.push(line(L.MUROS_E, pt(a), pt(b)));
+    }
   }
   for (const c of lectura.columnetas ?? []) {
     if (!(c.contorno?.length >= 3)) continue;
@@ -346,8 +360,11 @@ export function planoCimentacion({lectura, items, caja, k = 1, titulo = ""}, opc
       return pline(L.ACERO_LONG, [Q(a0 + g, b - w - g), Q(a0, b - w), Q(a0, b + w), Q(a1, b + w), Q(a1, b - w), Q(a1 - g, b - w - g)].map(pt));
     };
     const m = 0.12;
-    if (o.malla !== true) prim.push(baston(bu0 + m, bu1 - m, bv0 + (bv1 - bv0) * 0.75, true));
-    if (o.malla !== true) prim.push(baston(bv0 + m, bv1 - m, bu0 + (bu1 - bu0) * 0.12, false));
+    // Medido en los planos del ingeniero (VINCHOS 1, 2, 3, 5, 15): sin malla, la platea no lleva
+    // barras dibujadas; el acero va solo en las llamadas SUPERIOR / INFERIOR. Los bastones se
+    // dibujan si se piden (o.bastones === true).
+    if (o.malla !== true && o.bastones === true) prim.push(baston(bu0 + m, bu1 - m, bv0 + (bv1 - bv0) * 0.75, true));
+    if (o.malla !== true && o.bastones === true) prim.push(baston(bv0 + m, bv1 - m, bu0 + (bu1 - bu0) * 0.12, false));
     // Rótulo al centro, en tres renglones: "PLATEA DE CIMENTACIÓN / Hz / Df" (módulos 1, 2 y 10 de
     // VINCHOS; solo el módulo 14 decía "ZAPATA CORRIDA").
     const c = huella.reduce((acc, p) => ({x: acc.x + p.x / huella.length, y: acc.y + p.y / huella.length}), {x: 0, y: 0});

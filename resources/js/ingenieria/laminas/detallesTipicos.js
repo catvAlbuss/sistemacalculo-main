@@ -95,3 +95,72 @@ export function detalleEmpalmesGanchos() {
   prim.push(text(L.TEXTO, [x2 + s + 0.45, yG - r], "4db ≥ 6.5 cm", h * 0.85), text(L.TEXTO, [x2 + 0.35, yG - 0.62], "GANCHO 180°", h * 0.9));
   return {titulo: "EMPALMES Y GANCHOS ESTÁNDAR (E.060)", sinEscala: true, primitivas: prim, marco: {x0: 0, y0: yG - 0.75, x1: W, y1: H}};
 }
+
+// Tabla genérica con rejilla (en unidades de lámina, como el cuadro de empalmes).
+// cols: [[encabezado, ancho]]; filas: [[celda, ...]]. Devuelve primitivas, ancho y alto.
+function tablaLamina(cols, filas, {h = 0.1, fila = 0.26} = {}) {
+  const prim = [], W = cols.reduce((s, [, w]) => s + w, 0), nf = filas.length + 1, H = nf * fila;
+  prim.push(line(L.LAMINA, [0, 0], [W, 0]), line(L.LAMINA, [W, 0], [W, H]), line(L.LAMINA, [W, H], [0, H]), line(L.LAMINA, [0, H], [0, 0]));
+  for (let i = 1; i < nf; i++) prim.push(line(L.LAMINA, [0, H - i * fila], [W, H - i * fila]));
+  let x = 0; const xs = cols.map(([, w]) => { const c = x + w / 2; x += w; return c; });
+  x = 0; for (const [, w] of cols.slice(0, -1)) { x += w; prim.push(line(L.LAMINA, [x, 0], [x, H])); }
+  cols.forEach(([t, w], j) => prim.push(text(L.TEXTO, [xs[j], H - fila / 2], t, Math.min(h * 0.8, (w * 0.9) / (String(t).length * 0.6)))));
+  filas.forEach((f, i) => { const y = H - (i + 1.5) * fila; f.forEach((v, j) => prim.push(text(L.TEXTO, [xs[j], y], String(v), h * 0.9))); });
+  return {prim, W, H};
+}
+
+// E.060 12.2: longitud de desarrollo de barras corrugadas a tracción (f'c=210, fy=4200). Las
+// superiores (con más de 30 cm de concreto fresco debajo) llevan el factor 1.3. Valores del despacho.
+export const DESARROLLO_DESPACHO = [
+  {barra: '3/8"', inf: 0.40, sup: 0.52}, {barra: '1/2"', inf: 0.45, sup: 0.60},
+  {barra: '5/8"', inf: 0.55, sup: 0.75}, {barra: '3/4"', inf: 0.70, sup: 0.90}, {barra: '1"', inf: 1.05, sup: 1.35},
+];
+export function cuadroLongitudesDesarrollo() {
+  const {prim, W, H} = tablaLamina([["Ø ACERO", 0.8], ["INFERIOR Ld (m)", 1.4], ["SUPERIOR Ld (m)", 1.4]],
+    DESARROLLO_DESPACHO.map((d) => [d.barra, d.inf.toFixed(2), d.sup.toFixed(2)]));
+  prim.push(text(L.TEXTO, [0, -0.22], "Barras corrugadas a tracción · f'c=210, fy=4200 (E.060 12.2). Superior: > 30 cm de concreto debajo.", 0.082, 0, "izq"));
+  return {titulo: "LONGITUDES DE DESARROLLO", sinEscala: true, primitivas: prim, marco: {x0: 0, y0: -0.36, x1: W, y1: H}};
+}
+
+// Tiempos mínimos de desencofrado (E.060 6.2.2 y práctica del despacho). Texto, sin escala.
+export function tablaDesencofrado() {
+  const h = 0.1, prim = [], filas = [
+    "Columnas ................................................. 24 horas mínimo",
+    "Fondo de vigas y losa maciza .................. 20 días mínimo",
+    "Lateral de vigas y losas ........................... 24 horas mínimo",
+    "Zapatas y cimiento corrido (c/c): monolíticamente.",
+    "Las armaduras no deben soldarse.",
+  ];
+  filas.forEach((t, i) => prim.push(text(L.TEXTO, [0, -i * 0.2], t, h * 0.9, 0, "izq")));
+  return {titulo: "DESENCOFRADO", sinEscala: true, primitivas: prim, marco: {x0: -0.05, y0: -filas.length * 0.2 - 0.05, x1: 3.8, y1: 0.14}};
+}
+
+// Especificación del ladrillo y mortero (E.070), con un isométrico del ladrillo. Sin escala.
+export function especificacionLadrillo() {
+  const h = 0.1, prim = [], bx = 0.6, by = 0.3, dz = 0.16;
+  prim.push(rect(L.MUROS_E, 0, 0, bx, by));
+  prim.push(line(L.MUROS_E, [0, by], [dz, by + dz]), line(L.MUROS_E, [bx, by], [bx + dz, by + dz]), line(L.MUROS_E, [bx, 0], [bx + dz, dz]));
+  prim.push(line(L.MUROS_E, [dz, by + dz], [bx + dz, by + dz]), line(L.MUROS_E, [bx + dz, by + dz], [bx + dz, dz]));
+  prim.push(hatch(L.ACHURADO, [[0, 0], [bx, 0], [bx, by], [0, by]], {patron: "AR-CONC", escala: 0.01}));
+  const tx = [
+    "Ladrillo King Kong 18 huecos 9x13x24 cm, f'b ≥ 145 kg/cm².",
+    "Muro de soga; f'm ≥ 65 kg/cm² (E.070).",
+    "Mortero 1:4 (cemento:arena), junta ≤ 1.5 cm.",
+  ];
+  tx.forEach((t, i) => prim.push(text(L.TEXTO, [0, -0.22 - i * 0.18], t, h * 0.85, 0, "izq")));
+  return {titulo: "ESPECIFICACIÓN LADRILLO - MORTERO", sinEscala: true, primitivas: prim, marco: {x0: -0.05, y0: -0.22 - tx.length * 0.18 - 0.05, x1: bx + dz + 0.1, y1: by + dz + 0.1}};
+}
+
+// Cuadro de viguetas: la sección de la vigueta (0.10 × espesor) con su acero y estribaje, como
+// el "VSa" del despacho. Depende solo del espesor de losa y del f'c de viguetas.
+export function cuadroViguetas(espesor = 0.2, fc = null) {
+  const h = 0.1, prim = [], e = Number(espesor) || 0.2, fcv = fc ?? CRITERIOS.concreto.columnetas ?? 175;
+  const bw = 0.1, esc = 2.4, w = bw * esc, hh = e * esc, x0 = 0.25, y0 = -hh - 0.15;
+  prim.push(rect(L.VIGUETAS, x0, y0, x0 + w, y0 + hh));
+  prim.push(hatch(L.ACHURADO, [[x0, y0], [x0 + w, y0], [x0 + w, y0 + hh], [x0, y0 + hh]], {patron: "AR-CONC", escala: 0.01}));
+  prim.push(circle(L.ESTRIBOS, [x0 + w / 2, y0 + hh - 0.045], 0.013), circle(L.ESTRIBOS, [x0 + w / 2, y0 + 0.045], 0.016));
+  prim.push(text(L.TEXTO, [x0 + w + 0.08, y0 + hh - 0.045], "1Ø3/8\"", h * 0.8, 0, "izq"), text(L.TEXTO, [x0 + w + 0.08, y0 + 0.045], "1Ø1/2\"", h * 0.8, 0, "izq"));
+  prim.push(text(L.TEXTO, [x0 + w / 2, y0 - 0.1], "VSa", h));
+  prim.push(text(L.TEXTO, [0.1, 0.08], `1° PISO · f'c=${fcv} kg/cm² · estribo Ø1/4": 1@0.05, Rto.@0.25`, h * 0.82, 0, "izq"));
+  return {titulo: "CUADRO DE VIGUETAS", sinEscala: false, primitivas: prim, marco: {x0: -0.05, y0: y0 - 0.22, x1: 2.3, y1: 0.2}};
+}

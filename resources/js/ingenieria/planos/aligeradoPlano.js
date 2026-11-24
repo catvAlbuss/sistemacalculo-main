@@ -162,9 +162,10 @@ const esHumedo = (t) => HUMEDO.test(t) && !CIRCULACION.test(t);
 // Agua almacenada (cisterna, tanque, cuarto de bombas): losa maciza, como el módulo 15.
 const AGUA = /cisterna|tanque|reservorio|cuarto de bombas/i;
 
+const APOYO_MIN = 1.2, LUZ_MAX_VIGUETA = 7;
 // Celdas de la grilla entre ejes con vigas (paños del ingeniero). null si hay una sola celda.
 // Cada celda: {P (polígono con alero en los bordes), tipo: "aligerada" | "maciza" | "abertura", motivo}.
-export function celdasDeGrilla({lectura, tramos, losa, u, v, items = [], k = 1, volados = [], muros = []}) {
+export function celdasDeGrilla({lectura, tramos, losa, u, v, items = [], k = 1, volados = [], muros = [], losaMaciza = true}) {
   const conViga = new Set(tramos.map((t) => t.eje));
   const proy = (p, e) => p.x * e.x + p.y * e.y;
   const cortes = {u: [], v: []};
@@ -176,7 +177,26 @@ export function celdasDeGrilla({lectura, tramos, losa, u, v, items = [], k = 1, 
     if (Math.abs(proy(d, u) / l) < 0.26) cortes.u.push({p: proy(m, u), n: e.nombre}); else if (Math.abs(proy(d, v) / l) < 0.26) cortes.v.push({p: proy(m, v), n: e.nombre});
   }
   const unicos = (xs) => xs.sort((a, b) => a.p - b.p).filter((x, i, a) => i === 0 || x.p - a[i - 1].p > 0.3);
-  const nu = unicos(cortes.u), nv = unicos(cortes.v);
+  let nu = unicos(cortes.u), nv = unicos(cortes.v);
+  // Paños como los dibuja el ingeniero (VINCHOS 4 y 8, ILO 4): solo los apoyos de las viguetas
+  // (vigas perpendiculares a ellas) parten la losa; un eje paralelo a las viguetas no corta el
+  // paño, y de dos apoyos a menos de 1.2 m queda el que lleva más viga.
+  if (nu.length >= 2 && nv.length >= 2) {
+    const brecha = (xs) => Math.max(0, ...xs.slice(1).map((x, i) => x.p - xs[i].p));
+    const largoViga = (n) => tramos.filter((t) => t.eje === n).reduce((acc, t) => acc + (t.largo ?? 0), 0);
+    const enU = brecha(nu) <= brecha(nv);
+    const apoyos = [...(enU ? nu : nv)];
+    for (let i = apoyos.length - 1; i > 0; i--) {
+      if (apoyos[i].p - apoyos[i - 1].p < APOYO_MIN) apoyos.splice(largoViga(apoyos[i].n) >= largoViga(apoyos[i - 1].n) ? i - 1 : i, 1);
+    }
+    const paralelos = enU ? nv : nu;
+    // Con apoyos muy juntos (luz media < 2 m) o una luz que un aligerado no salva (> 7 m: faltan
+    // vigas leídas, ILO módulo 1) la dirección no es clara: se deja la grilla.
+    if (apoyos.length >= 3 && (apoyos.at(-1).p - apoyos[0].p) / (apoyos.length - 1) >= 2 && brecha(apoyos) <= LUZ_MAX_VIGUETA) {
+      const borde = [paralelos[0], paralelos.at(-1)];
+      if (enU) { nu = apoyos; nv = borde; } else { nv = apoyos; nu = borde; }
+    }
+  }
   // Volado (pasillo pasado el último eje): una fila más de celdas entre ese eje y el borde.
   for (const vo of volados) {
     const lista = vo.lado[0] === "u" ? nu : nv;
@@ -203,12 +223,29 @@ export function celdasDeGrilla({lectura, tramos, losa, u, v, items = [], k = 1, 
       const dentro = textos.filter((x) => { const a = proy(x.p, u), b = proy(x.p, v); return a > cu[i] && a < cu[i + 1] && b > cv[j] && b < cv[j + 1]; }).map((x) => x.t);
       // Por el texto; si no lo rotulan, la detectan sus peldaños (partirEscaleras).
       const escalera = dentro.some((t) => ESCALERA.test(t));
-      const agua = dentro.some((t) => AGUA.test(t));
-      const humedo = agua || dentro.some(esHumedo);
+      // En una grilla de varios paños la cisterna rotulada en la planta está enterrada bajo el
+      // piso: el paño de encima sigue aligerado (ILO módulo 3). Solo el agua elevada pide maciza.
+      const agua = dentro.some((t) => AGUA.test(t) && !/cisterna|bombas/i.test(t));
+      // Sin losa maciza en los baños (decisión del ingeniero), el paño queda entero y aligerado:
+      // partirlo al ambiente dejaba franjas de 0.5 m con sus propias viguetas (VINCHOS módulo 8).
+      const humedo = agua || (losaMaciza !== false && dentro.some(esHumedo));
       const volado = nu[i].volado || nu[i + 1].volado || nv[j].volado || nv[j + 1].volado;
       if (volado) { celdas.push({P, tipo: "aligerada", motivo: "volado", ejes: [`${nu[i].n}–${nu[i + 1].n}`, `${nv[j].n}–${nv[j + 1].n}`]}); continue; }
-      celdas.push({P, tipo: escalera ? "abertura" : humedo ? "maciza" : "aligerada", motivo: escalera ? "escalera" : agua ? "cisterna" : humedo ? "baños" : null,
+      // Solo si el paño no tiene el rótulo de otro ambiente (la franja entre apoyos puede juntar varios).
+      const vacio = !escalera && dentro.some((t) => DOBLE_ALTURA.test(t)) && !dentro.some((t) => AMBIENTE.test(t) && !NO_AMBIENTE.test(t) && !DOBLE_ALTURA.test(t));
+      celdas.push({P, tipo: escalera || vacio ? "abertura" : humedo ? "maciza" : "aligerada", motivo: escalera ? "escalera" : vacio ? "vacío" : agua ? "cisterna" : humedo ? "baños" : null, ij: [i, j],
+        conAmbiente: dentro.some((t) => AMBIENTE.test(t) && !NO_AMBIENTE.test(t)),
+        rotulos: textos.filter((x) => { const a = proy(x.p, u), b = proy(x.p, v); return a > cu[i] && a < cu[i + 1] && b > cv[j] && b < cv[j + 1] && AMBIENTE.test(x.t) && !NO_AMBIENTE.test(x.t); }).map((x) => x.p),
         ejes: [`${nu[i].n}–${nu[i + 1].n}`, `${nv[j].n}–${nv[j + 1].n}`]});
+    }
+  }
+  // El vacío de doble altura (SUM, auditorio) ocupa también los paños vecinos sin rótulo propio
+  // (solo vanos y proyecciones de viga): ILO módulo 5, SUM de tres paños rotulado en uno.
+  for (let cambio = true; cambio;) {
+    cambio = false;
+    for (const c of celdas) {
+      if (c.tipo !== "aligerada" || c.motivo || c.conAmbiente) continue;
+      if (celdas.some((o) => o.motivo === "vacío" && Math.abs(o.ij[0] - c.ij[0]) + Math.abs(o.ij[1] - c.ij[1]) === 1)) { c.tipo = "abertura"; c.motivo = "vacío"; cambio = true; }
     }
   }
   // Toda la planta puede ser maciza (módulo 6: vestidores y duchas en sus dos paños).
@@ -242,7 +279,7 @@ export function ajustarAlAmbiente(celda, textos, muros, u, v) {
     ra0 = Math.min(ra0, menor(enU, r.a, cu0)); ra1 = Math.max(ra1, mayor(enU, r.a, cu1));
     rb0 = Math.min(rb0, menor(enV, r.b, cv0)); rb1 = Math.max(rb1, mayor(enV, r.b, cv1));
   }
-  const MIN = 0.6;
+  const MIN = 1.2; // franja de paño más angosta: se suma a la maciza (no hay vigueta de 1 m)
   if (ra0 - cu0 < MIN) ra0 = cu0; if (cu1 - ra1 < MIN) ra1 = cu1;
   if (rb0 - cv0 < MIN) rb0 = cv0; if (cv1 - rb1 < MIN) rb1 = cv1;
   if (ra0 <= cu0 && ra1 >= cu1 && rb0 <= cv0 && rb1 >= cv1) return [celda];
@@ -300,6 +337,12 @@ function extenderLosa(losa, pano, volados, u, v) {
   return out;
 }
 
+const DESCANSO_MAX = 2.2, AMBIENTE_MIN = 3.5;
+// Ambiente de doble altura: la losa de entrepiso no lo cubre (queda vacío con su aspa).
+const DOBLE_ALTURA = /^\s*S\.?\s?U\.?\s?M\.?\s*$|usos\s+m[uú]ltiples|auditorio|coliseo|gimnasio|doble\s+altura|^\s*vac[ií]o\s*$/i;
+// Rótulo de un ambiente (palabra de 4+ letras) que no es de la escalera ni un dato de acabado.
+const AMBIENTE = /[A-ZÁÉÍÓÚÑ]{4,}/;
+const NO_AMBIENTE = /escaler|descanso|hall|piso|cota|npt|proy|inicio|vac[ií]o|porcelanato|cer[aá]mic|\d/i;
 // La celda de la escalera se abre solo en la huella de la escalera (tramos + descanso); el resto
 // de la celda es losa maciza (hall o descanso), como el ingeniero en los módulos 1 y 3.
 function partirEscaleras(celdas, escaleras, u, v) {
@@ -320,7 +363,14 @@ function partirEscaleras(celdas, escaleras, u, v) {
     fuera.push(corte(resto, b.u1, u, 1)); resto = corte(resto, b.u1, u, -1);
     fuera.push(corte(resto, b.v0, v, -1)); resto = corte(resto, b.v0, v, 1);
     fuera.push(corte(resto, b.v1, v, 1)); resto = corte(resto, b.v1, v, -1);
-    const piezas = fuera.filter((P) => P.length >= 3 && areaDe(P) > 0.3).map((P) => ({...c, P, tipo: "maciza", motivo: "descanso"}));
+    // El resto de la celda es descanso o hall (maciza), salvo una pieza ancha (> 2.2 m con el
+    // rótulo de otro ambiente, o > 3.5 m aunque no lo tenga): es un aula, oficina o depósito
+    // junto a la escalera y sigue aligerado (ILO módulos 1, 3 y 7 en el plano del ingeniero;
+    // VINCHOS módulo 3 conserva su franja de 3 m maciza junto a la escalera de emergencia).
+    const ancho = (P) => Math.min(...[u, v].map((e) => { const [a, b] = rango(P, e); return b - a; }));
+    const conAmbiente = (P) => (c.rotulos ?? []).some((p) => dentroDe(p, P));
+    const piezas = fuera.filter((P) => P.length >= 3 && areaDe(P) > 0.3)
+      .map((P) => ((ancho(P) > DESCANSO_MAX && conAmbiente(P)) || ancho(P) > AMBIENTE_MIN ? {...c, P, tipo: "aligerada", motivo: null, resto: true} : {...c, P, tipo: "maciza", motivo: "descanso"}));
     return resto.length >= 3 && areaDe(resto) > 0.3 ? [{...c, P: resto}, ...piezas] : [c];
   });
 }
@@ -424,8 +474,8 @@ export function planoAligerado({lectura, items = [], k = 1, espesorFijo = null, 
   // interiores y viga de cumbrera.
   // Caras de los muros (metros), para limitar la losa maciza al ambiente húmedo.
   const murosLosa = items.length ? murosDelEdificio({columnas, items, k}).geometria.flatMap((g) => g.pts.slice(1).map((q, i) => [g.pts[i], q]).concat(g.cerrada && g.pts.length > 2 ? [[g.pts.at(-1), g.pts[0]]] : [])) : [];
-  const celdas = partirEscaleras(celdasDeGrilla({lectura, tramos, losa, u, v, items, k, volados, muros: murosLosa}), conVacios ? escalerasEnPlanta({columnas, items, k}, u) : [], u, v)
-    ?.map((c) => ((c.tipo === "maciza" && losaMaciza === false && c.motivo === "baños") || (c.tipo === "abertura" && conVacios === false) ? {...c, tipo: "aligerada"} : c)) ?? null;
+  const celdas = partirEscaleras(celdasDeGrilla({lectura, tramos, losa, u, v, items, k, volados, muros: murosLosa, losaMaciza}), conVacios ? escalerasEnPlanta({columnas, items, k}, u) : [], u, v)
+    ?.map((c) => ((c.tipo === "maciza" && losaMaciza === false && c.motivo === "baños") || (c.tipo === "abertura" && conVacios === false) ? {...c, tipo: "aligerada", motivo: c.motivo === "vacío" ? null : c.motivo} : c)) ?? null;
   // Muros interiores largos: la losa se divide en paños con una viga sobre cada uno.
   // La viga central es la de cumbrera (módulo XIV: "VCUMBRERA" sobre el muro central).
   const interiores = !celdas && items.length ? murosDelEdificio({columnas, items, k}).tramos.filter((t) => !t.exterior && t.largo >= 1.0) : [];

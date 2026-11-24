@@ -26,7 +26,7 @@ import {CRITERIOS} from "../criterios/criteriosEstructurales.js";
 import {componerPaqueteLaminas} from "./componerPaquete.js";
 import {notasTecnicas} from "./formatoDespacho.js";
 import {corteCimientoCorrido} from "./corteCimiento.js";
-import {detalleTipicoAligerado, detalleEmpalmesGanchos} from "./detallesTipicos.js";
+import {detalleTipicoAligerado, detalleEmpalmesGanchos, cuadroLongitudesDesarrollo, tablaDesencofrado, especificacionLadrillo, cuadroViguetas} from "./detallesTipicos.js";
 
 const r4 = (v) => Math.round(v * 10000) / 10000;
 const MESES = ["ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO", "JULIO", "AGOSTO", "SETIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"];
@@ -166,7 +166,12 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
   const previas = items.filter((it) => it.tipo === "texto" && it.capa === L.LAMINA && /^E-\d{2}$/.test(it.texto)).length;
 
   // Contenido de cada espacio.
-  const cim = planoCimentacion({lectura, items, caja, k, titulo: lectura.titulo}, {tipo: cimentacion, ...dp.cimentacion, malla: estructura.mallaCimentacion});
+  // Muros del edificio sobre la planta de cimentación (estructura.murosEnCimentacion; por defecto sí).
+  // Medido el 24/11/2026 en 23 módulos: quitarlos mejora la platea de varios módulos (V-01/02/03/05/15,
+  // con clase +12 a +24) pero empeora el global (57→50 %): donde el ingeniero dibuja VIGAS DE
+  // CIMENTACIÓN bajo los muros (V-12/13), el agente las tiene solo sobre los ejes. Falta: dibujar el
+  // elemento de cimentación bajo los muros y aprender esta decisión por caso (como mallaCimentacion).
+  const cim = planoCimentacion({lectura, items, caja, k, titulo: lectura.titulo}, {tipo: cimentacion, ...dp.cimentacion, malla: estructura.mallaCimentacion, muros: estructura.murosEnCimentacion !== false});
   const cc = planoCimientoCorrido({lectura, items, caja, k}, {columnetas: lectura.columnetas ?? [], ...(dp.cimentacion.pisos ? {pisos: dp.cimentacion.pisos} : {})});
   const volados = estructura.volados ?? [];
   // Baños en losa maciza solo en losas de entrepiso (con baños encima); en un nivel la losa es techo.
@@ -350,6 +355,12 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
       {id: 'notas', tipo: 'notas', contenido: notas, nominal: 1},
       // Empalmes y ganchos estándar del despacho (E.060), como en sus especificaciones técnicas.
       {id: 'empalmes', tipo: 'cuadroEmpalmes', contenido: detalleEmpalmesGanchos(), nominal: 1, titulado: true},
+      // Tablas y detalles estándar que el despacho pone en toda lámina (criterio E.060/E.070, no
+      // dependen del proyecto): longitudes de desarrollo, desencofrado, ladrillo-mortero y viguetas.
+      {id: 'desarrollo', tipo: 'cuadroEmpalmes', contenido: cuadroLongitudesDesarrollo(), nominal: 1, titulado: true},
+      {id: 'desencofrado', tipo: 'notas', contenido: tablaDesencofrado(), nominal: 1, titulado: true},
+      {id: 'ladrillo', tipo: 'detalleLosa', contenido: especificacionLadrillo(), nominal: 1, titulado: true},
+      ...(sinLosa ? [] : [{id: 'cuadroViguetas', tipo: 'cuadroColumnetas', contenido: cuadroViguetas(ali.espesor), nominal: 1, titulado: true}]),
       // El cuadro de columnas también en las láminas de pórticos (si cabe), como el ingeniero.
       {id: 'cuadroColumnas', tipo: 'cuadroColumnas', contenido: contenidos.cuadroColumnas, nominal: 1, repetible: true},
     ].filter((c) => c.contenido);
