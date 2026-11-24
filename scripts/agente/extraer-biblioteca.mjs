@@ -738,8 +738,10 @@ async function main() {
   const grupoSolo = args.find((a) => a.startsWith('--grupo='))?.slice(8);
   const modulos = args.filter((a) => !a.startsWith('--'));
   const manifiesto = JSON.parse(readFileSync(join(BASE, 'pares.json'), 'utf8'));
+  // Los proyectos marcados `holdout` son solo para medir generalización (evaluar-dibujo): no se
+  // extraen a la biblioteca ni se aprende de ellos, así no contaminan la referencia ni filtran datos.
   const pares = paresDelManifiesto(BASE, manifiesto, existsSync)
-    .filter((p) => (!grupoSolo || p.grupo === grupoSolo) && (!modulos.length || modulos.includes(p.id)));
+    .filter((p) => !p.holdout && (!grupoSolo || p.grupo === grupoSolo) && (!modulos.length || modulos.includes(p.id)));
   // Paso 1: vocabulario de rótulo y del resto de textos por proyecto (de TODO el manifiesto).
   const vocab = new Map();
   for (const p of paresDelManifiesto(BASE, manifiesto, existsSync)) {

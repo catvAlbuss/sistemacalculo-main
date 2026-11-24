@@ -20,7 +20,10 @@ const m = {viguetaLargo: [], viguetaPar: [], viguetaPaso: [], mallaPaso: [], vig
 // Fase de las viguetas: posición de cada marca respecto del eje anterior, módulo 0.40 (en cm).
 const fase = new Array(40).fill(0);
 let planos = 0;
-for (const g of existsSync(INV) ? readdirSync(INV).filter((d) => !d.endsWith('.json')) : []) {
+// Los proyectos `holdout` del manifiesto (planos de prueba de generalización) no se aprenden.
+const manifiesto = join(PLANOS, 'estructuras', 'pares.json');
+const holdout = new Set(existsSync(manifiesto) ? Object.entries(JSON.parse(readFileSync(manifiesto, 'utf8'))).filter(([, ps]) => ps.some((p) => p.holdout)).map(([g]) => g) : []);
+for (const g of existsSync(INV) ? readdirSync(INV).filter((d) => !d.endsWith('.json') && !holdout.has(d)) : []) {
   for (const f of readdirSync(join(INV, g)).filter((x) => x.endsWith('-estructura.json'))) {
     const inv = JSON.parse(readFileSync(join(INV, g, f), 'utf8'));
     for (const v of inv.vistas.filter((x) => x.tipoPlano === 'losa')) {

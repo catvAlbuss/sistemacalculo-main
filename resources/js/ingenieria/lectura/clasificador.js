@@ -106,6 +106,10 @@ export function clasificarVista(vista) {
 // Índices de las entidades que forman una rejilla (malla de platea o de losa maciza), en
 // cualquier capa: ≥ 7 trazos paralelos que se solapan a lo largo, a paso regular de 0.15–0.45 m.
 // El largo puede variar (la malla se recorta contra un contorno irregular).
+// Paso de una malla dibujada: 0.15 a 0.45 m, con tolerancia porque las posiciones se restan ya
+// redondeadas (1.35 - 1.20 = 0.1499...) y la malla @0.15 (Ø3/4"@0.15, VINCHOS 04) quedaba fuera.
+const PASO_MALLA_MIN = 0.145, PASO_MALLA_MAX = 0.455;
+
 export function indicesDeRejilla(entidades) {
   const segs = entidades.map((e, i) => ({e, i})).filter(({e}) => e.puntos?.length === 2)
     .map(({e, i}) => { const [a, b] = e.puntos, l = Math.hypot(b.x - a.x, b.y - a.y); return {i, a, b, l}; })
@@ -123,7 +127,7 @@ export function indicesDeRejilla(entidades) {
       if (vecinos.length < 7) continue;
       const pos = [...new Set(vecinos.map((o) => Math.round(o.pos * 100) / 100))].sort((x, y) => x - y);
       const pasos = pos.slice(1).map((q, j) => q - pos[j]);
-      if (pasos.length >= 6 && pasos.filter((x) => x >= 0.15 && x <= 0.45).length >= pasos.length * 0.7) for (const o of vecinos) dentro.add(o.i);
+      if (pasos.length >= 6 && pasos.filter((x) => x >= PASO_MALLA_MIN && x <= PASO_MALLA_MAX).length >= pasos.length * 0.7) for (const o of vecinos) dentro.add(o.i);
     }
   }
   return dentro;
@@ -143,7 +147,7 @@ function marcarMallas(entidades, clases, clase) {
       if (vecinos.length < 6) continue;
       const pos = [...new Set(vecinos.map((o) => Math.round(((o.a.x - s.a.x) * n.x + (o.a.y - s.a.y) * n.y) * 100) / 100))].sort((a, b) => a - b);
       const pasos = pos.slice(1).map((p, j) => p - pos[j]);
-      if (pasos.filter((x) => x >= 0.15 && x <= 0.45).length >= pasos.length * 0.7) for (const o of vecinos) clases[o.i] = {clase, por: "geometria", evidencia: "rejilla de trazos paralelos regulares (malla)"};
+      if (pasos.filter((x) => x >= PASO_MALLA_MIN && x <= PASO_MALLA_MAX).length >= pasos.length * 0.7) for (const o of vecinos) clases[o.i] = {clase, por: "geometria", evidencia: "rejilla de trazos paralelos regulares (malla)"};
     }
   }
 }

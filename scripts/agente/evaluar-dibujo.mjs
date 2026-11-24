@@ -111,7 +111,11 @@ const cruzaCaja = (pts, c) => {
 const ampliar = (c, m) => ({x0: c.x0 - m, y0: c.y0 - m, x1: c.x1 + m, y1: c.y1 + m});
 const familia = (p) => (p.malla ? 'losa' : 'resto');
 const TOL_LOSA = 0.30;
-function cubiertos(desde, hacia) {
+// conClase: además de la posición, el mismo elemento (muro con muro, viga con viga; columna y
+// columneta se aceptan entre sí). Así dibujar denso cerca del ingeniero no cuenta como acierto.
+const CLASE_PAR = {columneta: 'columna'};
+const mismaFamiliaClase = (a, b) => (CLASE_PAR[a] ?? a) === (CLASE_PAR[b] ?? b);
+function cubiertos(desde, hacia, conClase = false) {
   if (!desde.length) return 0;
   const g = new Map(), k = (x, y) => `${Math.floor(x / TOL)},${Math.floor(y / TOL)}`;
   for (const p of hacia) { const c = k(p.x, p.y); if (!g.has(c)) g.set(c, []); g.get(c).push(p); }
@@ -125,7 +129,7 @@ function cubiertos(desde, hacia) {
     // La rejilla representa un área armada: dos rejillas coinciden si están a ≤ 0.30 m (no se
     // exige el mismo paso ni la misma fase de líneas); el resto de elementos, a 10 cm.
     const fam = familia(p), tol = fam === 'losa' ? TOL_LOSA : TOL, r = Math.ceil(tol / TOL);
-    for (let dx = -r; dx <= r && !ok; dx++) for (let dy = -r; dy <= r && !ok; dy++) ok = (g.get(`${cx + dx},${cy + dy}`) ?? []).some((q) => familia(q) === fam && Math.hypot(q.x - p.x, q.y - p.y) <= tol);
+    for (let dx = -r; dx <= r && !ok; dx++) for (let dy = -r; dy <= r && !ok; dy++) ok = (g.get(`${cx + dx},${cy + dy}`) ?? []).some((q) => familia(q) === fam && (!conClase || mismaFamiliaClase(p.clase, q.clase)) && Math.hypot(q.x - p.x, q.y - p.y) <= tol);
     if (ok) n++;
   }
   return n / desde.length;
@@ -184,6 +188,7 @@ for (const par of pares) {
     const esDibujo = (p) => CLASES_DIBUJO.includes(p.clase);
     const mie = mi.filter(esDibujo), mae = ma.filter(esDibujo);
     const pe = cubiertos(mae, mie), ee = cubiertos(mie, mae);
+    const pc = cubiertos(mae, mie, true), ec = cubiertos(mie, mae, true);
     if (diag) {
       for (const [lista, otra, dest] of [[mae, mie, 'sobra'], [mie, mae, 'falta']]) {
         const porCapa = new Map();
@@ -202,7 +207,7 @@ for (const par of pares) {
     const f1s = Object.values(porClase).filter((v) => v.ing >= 200 || v.agente >= 200)
       .map((v) => { const pr = v.prec ?? 0, ex = v.exh ?? 0; return pr + ex ? (2 * pr * ex) / (pr + ex) : 0; });
     const f1Elementos = f1s.length ? f1s.reduce((a, b) => a + b, 0) / f1s.length : null;
-    fila.tipos[tipo.id] = {precision: prec, exhaustividad: exh, f1, f1Estructural: pe + ee ? (2 * pe * ee) / (pe + ee) : 0, precEstr: pe, exhEstr: ee, porClase, f1Elementos,
+    fila.tipos[tipo.id] = {precision: prec, exhaustividad: exh, f1, f1Estructural: pe + ee ? (2 * pe * ee) / (pe + ee) : 0, precEstr: pe, exhEstr: ee, f1ConClase: pc + ec ? (2 * pc * ec) / (pc + ec) : 0, porClase, f1Elementos,
       ejes: Math.min(tr.x.n, tr.y.n), vistaIngeniero: vi.titulo, vistaAgente: u.titulo};
     if (png) {
       mkdirSync(png, {recursive: true});
@@ -223,14 +228,14 @@ console.log('\nPor planta (estructural · todo lo dibujado):');
 for (const t of TIPOS) {
   const fs = filas.map((f) => f.tipos[t.id]).filter((x) => x?.f1 !== undefined);
   if (!fs.length) continue;
-  console.log(`  ${t.id.padEnd(12)} ${prom(fs.map((x) => x.f1Estructural))} % · ${prom(fs.map((x) => x.f1))} % · por elemento ${prom(fs.map((x) => x.f1Elementos).filter((x) => x !== null))} %  (${fs.length} módulos; precisión ${prom(fs.map((x) => x.precEstr))} %, exhaustividad ${prom(fs.map((x) => x.exhEstr))} %)`);
+  console.log(`  ${t.id.padEnd(12)} ${prom(fs.map((x) => x.f1Estructural))} % · ${prom(fs.map((x) => x.f1))} % · por elemento ${prom(fs.map((x) => x.f1Elementos).filter((x) => x !== null))} % · con clase ${prom(fs.map((x) => x.f1ConClase))} %  (${fs.length} módulos; precisión ${prom(fs.map((x) => x.precEstr))} %, exhaustividad ${prom(fs.map((x) => x.exhEstr))} %)`);
   // Por elemento: qué falta (exhaustividad baja) y qué sobra (precisión baja).
   const clases = {};
   for (const x of fs) for (const [c, v] of Object.entries(x.porClase ?? {})) { clases[c] ??= {exh: [], prec: [], ing: 0, ag: 0}; if (v.exh !== null) clases[c].exh.push(v.exh); if (v.prec !== null) clases[c].prec.push(v.prec); clases[c].ing += v.ing; clases[c].ag += v.agente; }
   for (const [c, v] of Object.entries(clases).sort((a, b) => b[1].ing - a[1].ing)) console.log(`      ${c.padEnd(10)} del ingeniero cubierto ${String(prom(v.exh) ?? '—').padStart(3)} % · del agente correcto ${String(prom(v.prec) ?? '—').padStart(3)} %  (muestras ing ${v.ing}, agente ${v.ag})`);
 }
 const todos = filas.flatMap((f) => Object.values(f.tipos).filter((x) => x.f1 !== undefined));
-console.log(`SEMEJANZA DE DIBUJO ESTRUCTURAL GLOBAL: ${prom(todos.map((x) => x.f1Estructural))} %  (todo lo dibujado: ${prom(todos.map((x) => x.f1))} %; por elemento: ${prom(todos.map((x) => x.f1Elementos).filter((x) => x !== null))} %; ${todos.length} plantas)`);
+console.log(`SEMEJANZA DE DIBUJO ESTRUCTURAL GLOBAL: ${prom(todos.map((x) => x.f1Estructural))} %  (todo lo dibujado: ${prom(todos.map((x) => x.f1))} %; por elemento: ${prom(todos.map((x) => x.f1Elementos).filter((x) => x !== null))} %; con clase: ${prom(todos.map((x) => x.f1ConClase))} %; ${todos.length} plantas)`);
 if (diag) for (const dest of ['sobra', 'falta']) {
   console.log(`
 ${dest === 'sobra' ? 'Sobra (del agente, sin ingeniero cerca)' : 'Falta (del ingeniero, sin agente cerca)'}:`);
@@ -241,16 +246,16 @@ if (salidaJson) {
     const fs = filas.map((f) => f.tipos[t.id]).filter((x) => x?.f1 !== undefined);
     const clases = {};
     for (const x of fs) for (const [c, v] of Object.entries(x.porClase ?? {})) { clases[c] ??= {exh: [], prec: [], ing: 0, faltan: 0, sobran: 0}; if (v.exh !== null) clases[c].exh.push(v.exh); if (v.prec !== null) clases[c].prec.push(v.prec); clases[c].ing += v.ing; clases[c].faltan += v.ing * (1 - (v.exh ?? 0)); clases[c].sobran += v.agente * (1 - (v.prec ?? 0)); }
-    return [t.id, {estructural: prom(fs.map((x) => x.f1Estructural)), todo: prom(fs.map((x) => x.f1)), modulos: fs.length,
+    return [t.id, {estructural: prom(fs.map((x) => x.f1Estructural)), conClase: prom(fs.map((x) => x.f1ConClase)), todo: prom(fs.map((x) => x.f1)), modulos: fs.length,
       porElemento: Object.fromEntries(Object.entries(clases).map(([c, v]) => [c, {cubierto: prom(v.exh), correcto: prom(v.prec), muestras: v.ing, faltan: Math.round(v.faltan), sobran: Math.round(v.sobran)}]))}];
   }));
   // Por proyecto: un estilo nuevo no debe esconder (ni inflar) lo que ya se domina.
   const porProyecto = Object.fromEntries([...new Set(filas.map((f) => f.grupo))].map((g) => {
     const ts = filas.filter((f) => f.grupo === g).flatMap((f) => Object.values(f.tipos).filter((x) => x.f1 !== undefined));
-    return [g, {global: prom(ts.map((x) => x.f1Estructural)), plantas: ts.length,
+    return [g, {global: prom(ts.map((x) => x.f1Estructural)), conClase: prom(ts.map((x) => x.f1ConClase)), plantas: ts.length,
       porPlanta: Object.fromEntries(TIPOS.map((t) => [t.id, prom(filas.filter((f) => f.grupo === g).map((f) => f.tipos[t.id]).filter((x) => x?.f1 !== undefined).map((x) => x.f1Estructural))]))}];
   }));
-  writeFileSync(salidaJson, JSON.stringify({fecha: new Date().toISOString(), global: prom(todos.map((x) => x.f1Estructural)), todo: prom(todos.map((x) => x.f1)),
+  writeFileSync(salidaJson, JSON.stringify({fecha: new Date().toISOString(), global: prom(todos.map((x) => x.f1Estructural)), conClase: prom(todos.map((x) => x.f1ConClase)), todo: prom(todos.map((x) => x.f1)),
     porElemento: prom(todos.map((x) => x.f1Elementos).filter((x) => x !== null)), porPlanta, porProyecto, filas}, null, 1));
 }
 process.exit(0);
