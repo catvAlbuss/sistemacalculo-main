@@ -183,10 +183,9 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
 
   // Contenido de cada espacio.
   // Muros del edificio sobre la planta de cimentación (estructura.murosEnCimentacion; por defecto sí).
-  // Medido el 24/11/2026 en 23 módulos: quitarlos mejora la platea de varios módulos (V-01/02/03/05/15,
-  // con clase +12 a +24) pero empeora el global (57→50 %): donde el ingeniero dibuja VIGAS DE
-  // CIMENTACIÓN bajo los muros (V-12/13), el agente las tiene solo sobre los ejes. Falta: dibujar el
-  // elemento de cimentación bajo los muros y aprender esta decisión por caso (como mallaCimentacion).
+  // Con platea solo va la cara exterior del edificio (el ingeniero dibuja el borde) y sin las
+  // columnetas interiores; con zapatas, los muros y las vigas de cimentación corridas bajo el muro
+  // paralelo (≤ 0.35 m). Medido el 25/11/2026 en 23 módulos: cimentación 62 → 66 % (planoCimentacion).
   const cim = planoCimentacion({lectura, items, caja, k, titulo: lectura.titulo}, {tipo: cimentacion, ...dp.cimentacion, malla: estructura.mallaCimentacion, muros: estructura.murosEnCimentacion !== false});
   const cc = planoCimientoCorrido({lectura, items, caja, k}, {columnetas: lectura.columnetas ?? [], ...(dp.cimentacion.pisos ? {pisos: dp.cimentacion.pisos} : {})});
   const volados = estructura.volados ?? [];
@@ -207,7 +206,9 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
   const vigaSecundaria = Number(datos?.vigaSecundaria) > 0 ? Number(datos.vigaSecundaria) : (dp.sismo?.Z >= 0.45 ? 0.5 : 0.4);
   const vigasProyecto = {pisos: nivelesLosa, vigaSecundaria};
   // Lados del techo que llevan alero: los que tienen CANALETA escrita junto a ellos en la
-  // arquitectura; si no hay, los lados largos (la cumbrera corre a lo largo en 6 de 8 techos).
+  // arquitectura; si no hay, los lados cortos (el ingeniero deja el alero en los extremos y termina
+  // los lados largos en la cara de la viga: VINCHOS 1, 4 y 8; medido 25/11: 1 63→72 %, 8 74→76 %,
+  // 14 54→56 %, ningún módulo baja).
   const aleroParaleloA = (() => {
     if (alero === 0 || !lectura.columnas?.length) return null;
     const pano = huellaColumnas(lectura.columnas), du = direccionPrincipal(lectura.ejes), dv = {x: -du.y, y: du.x};
@@ -223,7 +224,7 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
     }
     if (votos > 0) return du;
     if (votos < 0) return dv;
-    return u1 - u0 >= v1 - v0 ? du : dv;
+    return u1 - u0 >= v1 - v0 ? dv : du;
   })();
   // El alero es del techo: con varios niveles, la losa de entrepiso termina en la cara de la viga
   // (el pasillo en volado sí sigue: va en `volados`).

@@ -166,7 +166,8 @@ const AGUA = /cisterna|tanque|reservorio|cuarto de bombas/i;
 
 const APOYO_MIN = 1.2, LUZ_MAX_VIGUETA = 7;
 // Celdas de la grilla entre ejes con vigas (paños del ingeniero). null si hay una sola celda.
-// Cada celda: {P (polígono con alero en los bordes), tipo: "aligerada" | "maciza" | "abertura", motivo}.
+// Cada celda: {P (polígono con alero en los bordes), tipo: "aligerada" | "maciza" | "abertura", motivo,
+// dir: "u" | "v" | null (dirección de las viguetas que fija la grilla; null = la luz corta de cada paño)}.
 export function celdasDeGrilla({lectura, tramos, losa, u, v, items = [], k = 1, volados = [], muros = [], losaMaciza = true}) {
   const conViga = new Set(tramos.map((t) => t.eje));
   const proy = (p, e) => p.x * e.x + p.y * e.y;
@@ -180,6 +181,7 @@ export function celdasDeGrilla({lectura, tramos, losa, u, v, items = [], k = 1, 
   }
   const unicos = (xs) => xs.sort((a, b) => a.p - b.p).filter((x, i, a) => i === 0 || x.p - a[i - 1].p > 0.3);
   let nu = unicos(cortes.u), nv = unicos(cortes.v);
+  let dir = null;
   // Paños como los dibuja el ingeniero (VINCHOS 4 y 8, ILO 4): solo los apoyos de las viguetas
   // (vigas perpendiculares a ellas) parten la losa; un eje paralelo a las viguetas no corta el
   // paño, y de dos apoyos a menos de 1.2 m queda el que lleva más viga.
@@ -201,6 +203,13 @@ export function celdasDeGrilla({lectura, tramos, losa, u, v, items = [], k = 1, 
     // —vigas de luz más corta, viguetas de 2 a 4 m— y esos ejes no parten los paños.
     const preferida = brecha(nu) <= brecha(nv);
     const elegida = [preferida, !preferida].find((enU) => valida(apoyosDe(enU ? nu : nv)));
+    // Las viguetas de todos los paños salvan la luz entre esos apoyos (también los restos junto a
+    // la escalera y el volado): VINCHOS 1 y 5. Sin dirección válida, si los ejes de una dirección
+    // quedan demasiado juntos para recibir viguetas (luz media < 2 m), la losa trabaja en la otra
+    // aunque alguna crujía pase de 7 m (VINCHOS 4, techo: ejes cada 1.6 m → viguetas en la otra).
+    const recibe = (a) => a.length >= 3 && (a.at(-1).p - a[0].p) / (a.length - 1) >= 2;
+    const [ru, rv] = [recibe(apoyosDe(nu)), recibe(apoyosDe(nv))];
+    dir = elegida !== undefined ? (elegida ? "u" : "v") : ru !== rv ? (ru ? "u" : "v") : null;
     if (elegida !== undefined) {
       const apoyos = apoyosDe(elegida ? nu : nv), paralelos = elegida ? nv : nu;
       const borde = [paralelos[0], paralelos.at(-1)];
@@ -240,10 +249,10 @@ export function celdasDeGrilla({lectura, tramos, losa, u, v, items = [], k = 1, 
       // partirlo al ambiente dejaba franjas de 0.5 m con sus propias viguetas (VINCHOS módulo 8).
       const humedo = agua || (losaMaciza !== false && dentro.some(esHumedo));
       const volado = nu[i].volado || nu[i + 1].volado || nv[j].volado || nv[j + 1].volado;
-      if (volado) { celdas.push({P, tipo: "aligerada", motivo: "volado", ejes: [`${nu[i].n}–${nu[i + 1].n}`, `${nv[j].n}–${nv[j + 1].n}`]}); continue; }
+      if (volado) { celdas.push({P, tipo: "aligerada", motivo: "volado", dir, ejes: [`${nu[i].n}–${nu[i + 1].n}`, `${nv[j].n}–${nv[j + 1].n}`]}); continue; }
       // Solo si el paño no tiene el rótulo de otro ambiente (la franja entre apoyos puede juntar varios).
       const vacio = !escalera && dentro.some((t) => DOBLE_ALTURA.test(t)) && !dentro.some((t) => AMBIENTE.test(t) && !NO_AMBIENTE.test(t) && !DOBLE_ALTURA.test(t));
-      celdas.push({P, tipo: escalera || vacio ? "abertura" : humedo ? "maciza" : "aligerada", motivo: escalera ? "escalera" : vacio ? "vacío" : agua ? "cisterna" : humedo ? "baños" : null, ij: [i, j],
+      celdas.push({P, tipo: escalera || vacio ? "abertura" : humedo ? "maciza" : "aligerada", motivo: escalera ? "escalera" : vacio ? "vacío" : agua ? "cisterna" : humedo ? "baños" : null, ij: [i, j], dir,
         conAmbiente: dentro.some((t) => AMBIENTE.test(t) && !NO_AMBIENTE.test(t)),
         rotulos: textos.filter((x) => { const a = proy(x.p, u), b = proy(x.p, v); return a > cu[i] && a < cu[i + 1] && b > cv[j] && b < cv[j + 1] && AMBIENTE.test(x.t) && !NO_AMBIENTE.test(x.t); }).map((x) => x.p),
         ejes: [`${nu[i].n}–${nu[i + 1].n}`, `${nv[j].n}–${nv[j + 1].n}`]});
@@ -446,8 +455,22 @@ export function planoAligerado({lectura, items = [], k = 1, espesorFijo = null, 
   // Ancho de las vigas interiores (sobre muros, cumbrera): el más usado en los ejes.
   const anchoEjes = (() => { const c = new Map(); for (const t of tramos) c.set(t.seccion.b, (c.get(t.seccion.b) ?? 0) + 1); return [...c].sort((a, b) => b[1] - a[1])[0]?.[0]; })();
   const medidas = [...new Set(tramos.map((t) => t.medida))].sort((a, b) => Number(b.split("x")[1]) - Number(a.split("x")[1]));
+  // Vigas del perímetro al ras de la cara exterior de las columnas, como el ingeniero (VINCHOS 1, 2
+  // y 6: columna de 0.50-0.60 y viga de 0.30 con la cara de afuera alineada, no centrada en el eje).
+  const caraColumnas = (n) => Math.max(...columnas.flatMap((c) => c.contorno.map((p) => p.x * n.x + p.y * n.y)));
   for (const t of tramos) {
     t.tipo = `V-${101 + medidas.indexOf(t.medida)}`;
+    for (const s of [1, -1]) {
+      const n = {x: -t.d.y * s, y: t.d.x * s}, pr = (p) => p.x * n.x + p.y * n.y;
+      const cara = Math.min(...[t.desde, t.hasta].map((c) => Math.max(...c.contorno.map(pr))));
+      if (caraColumnas(n) - cara > 0.05) continue; // no es borde del edificio por ese lado
+      const corrimiento = cara - t.seccion.b / 2 - pr(t.a);
+      if (corrimiento > 0.02 && corrimiento < 0.5) {
+        t.a = {x: t.a.x + n.x * corrimiento, y: t.a.y + n.y * corrimiento};
+        t.b = {x: t.b.x + n.x * corrimiento, y: t.b.y + n.y * corrimiento};
+      }
+      break;
+    }
     prim.push(banda(L.VIGAS, t.a, t.b, t.seccion.b));
   }
   for (const medida of medidas) {
@@ -518,11 +541,13 @@ export function planoAligerado({lectura, items = [], k = 1, espesorFijo = null, 
   // La viga central es la de cumbrera (módulo XIV: "VCUMBRERA" sobre el muro central).
   const interiores = !celdas && items.length ? murosDelEdificio({columnas, items, k}).tramos.filter((t) => !t.exterior && t.largo >= 1.0) : [];
   // Los paños se miden sobre la losa con aleros (el expediente cuenta 6 + 6 viguetas).
-  // Un solo paño con cisterna o tanque (módulo 15): toda la losa es maciza.
+  // Un solo paño con cisterna o tanque (VINCHOS 15): el ingeniero dibuja este techo aligerado y la
+  // losa de la cisterna en su propio plano ("PLANO DE LOSA MACIZA CISTERNA"); aquí la losa sigue
+  // aligerada y la maciza de la cisterna solo pasa al modelo (metrado).
   const textosLosa = !celdas ? items.filter((it) => it.tipo === "texto" && it.texto && it.centro && dentroDe({x: it.centro.x / k, y: it.centro.y / k}, losa)).map((it) => it.texto) : [];
   const cisternaUnica = !celdas && textosLosa.some((t) => AGUA.test(t));
-  let panos = celdas ? celdas.filter((c) => c.tipo === "aligerada").map((c) => c.P) : cisternaUnica ? [] : [losa];
-  const especiales = celdas ? celdas.filter((c) => c.tipo !== "aligerada") : cisternaUnica ? [{P: losa, tipo: "maciza", motivo: "cisterna"}] : [];
+  let panos = celdas ? celdas.filter((c) => c.tipo === "aligerada").map((c) => c.P) : [losa];
+  const especiales = celdas ? celdas.filter((c) => c.tipo !== "aligerada") : [];
   const vigasInternas = [];
   for (const t of interiores) {
     const tramo = recortar(t.a, t.d, pano);
@@ -573,15 +598,17 @@ export function planoAligerado({lectura, items = [], k = 1, espesorFijo = null, 
   const [su, sv] = [separaciones(u), separaciones(v)];
   const direccionPlanta = su.length && sv.length ? (Math.max(...su) <= Math.max(...sv) ? "u" : "v") : null;
   const panosVolado = new Set((celdas ?? []).filter((c) => c.motivo === "volado").map((c) => c.P));
+  // Dirección que fija la grilla (celdasDeGrilla): la de los apoyos de las viguetas, igual en todos los paños.
+  const dirDeGrilla = new Map((celdas ?? []).filter((c) => c.dir).map((c) => [c.P, c.dir]));
   const datosPanos = panos.map((P, i) => {
     // Interior del paño entre vigas (sin aleros): ahí van el bastón y los trazos.
     const Pin = interseccionConvexa(P, pano);
     const [u0, u1] = rango(P, u), [v0, v1] = rango(P, v);
     // Con viga de cumbrera las viguetas corren paralelas a ella y se apoyan en las vigas
-    // de los ejes que la cruzan (módulo XIV); si no, van en la luz corta del paño.
+    // de los ejes que la cruzan (módulo XIV); con grilla, entre sus apoyos; si no, en la luz corta del paño.
     const cumbrera = vigasInternas.find((x) => x.nombre === "VCUMBRERA");
     const corta = cumbrera ? (Math.abs(proy(cumbrera.d, u)) >= Math.abs(proy(cumbrera.d, v)) ? "u" : "v")
-      : panosVolado.has(P) && direccionPlanta ? direccionPlanta : u1 - u0 <= v1 - v0 ? "u" : "v";
+      : dirDeGrilla.get(P) ?? (panosVolado.has(P) && direccionPlanta ? direccionPlanta : u1 - u0 <= v1 - v0 ? "u" : "v");
     const dir = corta === "u" ? u : v, reparto = corta === "u" ? v : u;
     const luzPano = Math.max(0.5, (corta === "u" ? u1 - u0 : v1 - v0) - 2 * alero); // luz entre apoyos, sin aleros
     const [r0, r1] = corta === "u" ? [v0, v1] : [u0, u1];
@@ -709,7 +736,7 @@ export function planoAligerado({lectura, items = [], k = 1, espesorFijo = null, 
         ...vigasInternas.map((v) => ({tipo: v.nombre, eje: "", b: v.sec.b, h: v.sec.h, largo: Math.hypot(v.tramo[1].x - v.tramo[0].x, v.tramo[1].y - v.tramo[0].y)})),
         ...vigasVolado],
       losa: {espesor, areaBruta: areaDe(losa), areaPanos: datosPanos.reduce((s, p) => s + (p.area ?? 0), 0), panos: datosPanos.map((p) => ({luz: p.luz, viguetas: p.viguetas, area: p.area, ancho: p.ancho})),
-        maciza: especialesModelo.filter((x) => x.tipo === "maciza").reduce((s, x) => s + x.area, 0),
+        maciza: especialesModelo.filter((x) => x.tipo === "maciza").reduce((s, x) => s + x.area, 0) + (cisternaUnica ? areaDe(pano) : 0),
         vacios: especialesModelo.filter((x) => x.tipo === "abertura").reduce((s, x) => s + x.area, 0)},
     },
     cumbrera: (({tramo, d} = {}) => (tramo ? {a: tramo[0], b: tramo[1], d} : null))(vigasInternas.find((x) => x.nombre === "VCUMBRERA")), tiposViga: medidas.map((m) => ({tipo: tramos.find((t) => t.medida === m).tipo, medida: m})),

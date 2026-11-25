@@ -315,6 +315,25 @@ export function planoCimentacion({lectura, items, caja, k = 1, titulo = ""}, opc
   }
   const cimientos = tramos.filter((t) => t.elemento === "cimiento");
   const vigas = tramos.filter((t) => t.elemento === "viga");
+  // Viga de cimentación bajo el muro que corre sobre ella, no en el eje: con el muro corrido al
+  // borde de la columna (perímetro de VINCHOS 12 y 13) el ingeniero la dibuja entre las caras del
+  // muro. Se usan los muros leídos por su geometría (los de segmentosMuro dependen del nombre de la
+  // capa): paralelos, a ≤ 0.35 m del tramo y cubriendo al menos la mitad de su largo.
+  if (tipo !== "platea" && vigas.length) {
+    const {tramos: murosTramo} = murosDelEdificio({columnas, items, k});
+    for (const t of vigas) {
+      const n = {x: -t.d.y, y: t.d.x};
+      const bajo = murosTramo.filter((m) => Math.abs(dot(m.d, t.d)) > 0.99 && Math.abs(dot(sub(m.a, t.a), n)) <= 0.35).map((m) => {
+        const s0 = dot(sub(m.a, t.a), t.d), s1 = dot(sub(m.b, t.a), t.d);
+        return {solape: Math.max(0, Math.min(t.largo, Math.max(s0, s1)) - Math.max(0, Math.min(s0, s1))), off: dot(sub(m.a, t.a), n)};
+      }).filter((x) => x.solape > 0);
+      const total = bajo.reduce((s, x) => s + x.solape, 0);
+      if (total < 0.5 * t.largo) continue;
+      const off = bajo.reduce((s, x) => s + x.off * x.solape, 0) / total;
+      t.a = {x: t.a.x + n.x * off, y: t.a.y + n.y * off};
+      t.b = {x: t.b.x + n.x * off, y: t.b.y + n.y * off};
+    }
+  }
   if (!muros.length) avisos.push("No encontré capas de muros (MURO, TABIQUE): entre columnas puse vigas de cimentación.");
 
   // ---- Contenido del plano (coordenadas de la planta, en metros) ----
@@ -334,15 +353,24 @@ export function planoCimentacion({lectura, items, caja, k = 1, titulo = ""}, opc
       const m = {x: (a.x + b.x) / 2, y: (a.y + b.y) / 2};
       return (borde.length >= 3 && distanciaAlBorde(m, borde) < 0.5) || alEje(m) < 0.35;
     };
+    // Con platea el muro no lleva cimiento propio (lo recibe la platea): el ingeniero dibuja solo el
+    // borde del edificio, sin la cara interior de los muros del perímetro ni los muros sobre los ejes
+    // interiores (VINCHOS 1, 2, 4, 5, 6: las dibujadas por el agente quedaban sin contraparte). Con
+    // zapatas los muros siguen: el ingeniero dibuja bajo ellos la viga o el cimiento (VINCHOS 12, 13, ilo).
+    const enBorde = (a, b) => borde.length >= 3 && distanciaAlBorde({x: (a.x + b.x) / 2, y: (a.y + b.y) / 2}, borde) < 0.08;
+    const dibujar = tipo === "platea" && o.todosLosMuros !== true ? enBorde : (a, b) => o.todosLosMuros === true || llevaCimiento(a, b);
     for (const g of geometria) {
       const segs = g.pts.slice(1).map((q, i) => [g.pts[i], q]);
       if (g.cerrada && g.pts.length > 2) segs.push([g.pts.at(-1), g.pts[0]]);
-      if (o.todosLosMuros === true || segs.every(([a, b]) => llevaCimiento(a, b))) prim.push(pline(L.MUROS_E, g.pts.map(pt), g.cerrada === true));
-      else for (const [a, b] of segs) if (llevaCimiento(a, b)) prim.push(line(L.MUROS_E, pt(a), pt(b)));
+      if (segs.every(([a, b]) => dibujar(a, b))) prim.push(pline(L.MUROS_E, g.pts.map(pt), g.cerrada === true));
+      else for (const [a, b] of segs) if (dibujar(a, b)) prim.push(line(L.MUROS_E, pt(a), pt(b)));
     }
   }
   for (const c of lectura.columnetas ?? []) {
     if (!(c.contorno?.length >= 3)) continue;
+    // Con platea, sin los muros interiores tampoco van sus columnetas: solo las del perímetro.
+    const cc = c.contorno.reduce((q, p) => ({x: q.x + p.x / c.contorno.length, y: q.y + p.y / c.contorno.length}), {x: 0, y: 0});
+    if (tipo === "platea" && o.todosLosMuros !== true && huella.length >= 3 && dentroConvexo(cc, huella) && distanciaAlBorde(cc, huella) > 0.5) continue;
     prim.push(pline(L.COLUMNETAS, c.contorno.map(pt), true));
     const xs = c.contorno.map((q) => q.x), ys = c.contorno.map((q) => q.y);
     const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
