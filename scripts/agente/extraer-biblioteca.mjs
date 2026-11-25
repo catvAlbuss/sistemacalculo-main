@@ -29,7 +29,20 @@ import {paresDelManifiesto} from './pares-entrenamiento.mjs';
 export const ESQUEMA = {nombre: 'BIBLIOTECA-DETALLES', version: '1.0.0'};
 const BASE = join(PLANOS, 'estructuras');
 export const BIBLIOTECA = join(PLANOS, 'biblioteca');
-export const TIPOS = ['portico', 'corte_cimiento', 'corte_otro', 'escalera', 'cuadro_columnas', 'cuadro_columnetas', 'techo', 'notas'];
+export const TIPOS = ['portico', 'corte_cimiento', 'corte_otro', 'escalera', 'cuadro_columnas', 'cuadro_columnetas', 'techo', 'notas', 'estandar'];
+// Detalles estándar del despacho: el ingeniero los repite iguales en todos los módulos (no dependen
+// del proyecto). Son los que llenan su lámina alrededor de las plantas.
+export const ESTANDAR = [
+  ['junta', /^JUNTA\s+SISMICA$/],
+  ['encuentros', /^DETALLE\s+DE\s+\S+\s+EN\s+CASO\s+DE\s+ENCUENTROS\s+EN\s+PLANTA$/],
+  ['empalmes', /^DETALLE\s+DE\s+LA\s+UBICACION\s+Y\s+LONGITUD/],
+  ['refuerzo', /^DETALLE\s+DEL\s+REFUERZO$/],
+  ['recubrimientos', /^DETALLE\s+DE\s+RECUBRIMIENTOS\s+EN\s+ENCUENTRO\s+VIGA\s+LOSA$/],
+  ['isometrico', /^DETALLE\s+(TIPICO\s+)?ISOMETRICO\s+(DE\s+)?LOSA\s+ALIGERADA/],
+  ['estribos', /^DETALLE\s+DE\s+ESTRIBOS$/],
+  ['leyenda', /^LEYENDA$/],
+];
+export const claveEstandar = (titulo) => { const t = sinAcentos(tituloLimpio(titulo)).toUpperCase().replace(/\s+/g, ' '); return ESTANDAR.find(([, re]) => re.test(t))?.[0] ?? null; };
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
 const mediana = (xs) => { const a = xs.filter(Number.isFinite).sort((p, q) => p - q); if (!a.length) return null; const m = a.length >> 1; return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2; };
@@ -66,6 +79,7 @@ export function tituloLimpio(texto) {
 export function tipoDePieza(titulo) {
   const t = sinAcentos(tituloLimpio(titulo)).toUpperCase();
   if (!t || t.length > 90) return null;
+  if (claveEstandar(titulo)) return 'estandar';
   if (/P[O]RTICO/.test(t)) return 'portico';
   if (/^(PLANO\s+DE\s+)?TECHO\s+DE\s+ESCALERA|PLANO\s+DE\s+TECHO/.test(t)) return null; // planta de techo, no detalle
   if (/[:=]|\bKG\b/.test(t)) return null; // una nota o una carga, no un título
@@ -402,6 +416,7 @@ function crecerCaja(caja, grupos, k, otrosTitulos, titulo, limite) {
 const LIMITES = {
   portico: {ancho: 60, alto: 40}, corte: {ancho: 12, alto: 12}, escalera: {ancho: 20, alto: 12},
   cuadro_columnas: {ancho: 40, alto: 25}, cuadro_columnetas: {ancho: 40, alto: 25}, techo: {ancho: 10, alto: 8}, notas: {ancho: 25, alto: 30},
+  estandar: {ancho: 14, alto: 12},
 };
 
 // Caja del pórtico: el dibujo conectado sobre el título, sus burbujas de eje encima y las
@@ -673,6 +688,11 @@ export function extraerPiezas(items, {prohibidas = new Set()} = {}) {
       parametros.secciones = etiquetasDeCuadro(textosPieza.filter((x) => !esTextoDeCliente(x.texto, prohibidas)), k);
       parametros.resistencias = resistencias(textosPieza);
       parametros.filasDeNivel = [...new Set(textosPieza.map((x) => limpiarTexto(x.texto)).filter((s) => /^\d+\s*[°º]?\s*(PISO|NIVEL)|^(PRIMER|SEGUNDO|TERCER|CUARTO)\s+(PISO|NIVEL)|^AZOTEA$/i.test(s)))];
+    } else if (tipo === 'estandar') {
+      parametros.clave = claveEstandar(titulo.texto);
+      // Para dibujarlo en otra lámina: unidades de lámina (1 = 1 m a 1/50) = local × factor.
+      parametros.factor = r3(f.factor);
+      parametros.caja = cajaLocal;
     } else if (tipo === 'notas') {
       parametros.resistencias = resistencias(textosPieza);
       parametros.lineas = textosPieza.length;

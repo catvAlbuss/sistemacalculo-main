@@ -97,6 +97,8 @@ class AgenteLlmController extends Controller
             'vision' => $c['vision'],
             // El panel pide la biblioteca del despacho solo si está activa y el usuario puede verla.
             'biblioteca' => (bool) config('agente.biblioteca_activa') && AgenteBibliotecaController::puedeVer($request->user()),
+            // Detalles estándar del despacho: aparte de los pórticos (llenan la lámina como el ingeniero).
+            'estandar' => (bool) config('agente.estandar_activa') && AgenteBibliotecaController::puedeVer($request->user()),
             'mensaje' => $listo ? null : 'El agente aún no tiene un motor de IA configurado. El administrador debe completarlo en el servidor.',
         ]);
     }

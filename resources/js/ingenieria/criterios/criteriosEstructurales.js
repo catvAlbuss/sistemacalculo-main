@@ -101,7 +101,7 @@ export const CRITERIOS = {
   muro: "Muro de soga de ladrillo King Kong Tipo IV - 9x13x24cm",   // como las especificaciones (formatoDespacho 7) ALBAÑILERÍA)
 
   dibujo: {
-    escalaPlanos: "1/25",       // planos de la lámina al doble de la arquitectura 1/50
+    escalaPlanos: "1/50",       // plantas a 1/50 como el ingeniero (131 de 173 plantas; 1/75 en edificios grandes); detalles a 1/25
     cotasEnCadena: true,        // columna + luz libre + columna, y total entre ejes
   },
 };

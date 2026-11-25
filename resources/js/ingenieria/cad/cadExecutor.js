@@ -86,7 +86,9 @@ function toEntity(p, k, origin, dm) {
       entity.styleName = ESTILO_TEXTO;
       entity.height = p.h * k;
       entity.location = pt(p.at);
-      entity.attachmentPoint = p.align === "izq" ? dm.AcGiMTextAttachmentPoint.BottomLeft : dm.AcGiMTextAttachmentPoint.MiddleCenter;
+      // ancla 1–9 (MTEXT: 1 arriba-izq … 9 abajo-der): textos copiados de un detalle del ingeniero.
+      entity.attachmentPoint = Number.isInteger(p.ancla) && p.ancla >= 1 && p.ancla <= 9 ? p.ancla
+        : p.align === "izq" ? dm.AcGiMTextAttachmentPoint.BottomLeft : dm.AcGiMTextAttachmentPoint.MiddleCenter;
       if (p.rot) {
         const a = (p.rot * Math.PI) / 180;
         entity.rotation = a;

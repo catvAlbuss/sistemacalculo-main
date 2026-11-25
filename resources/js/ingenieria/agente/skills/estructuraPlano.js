@@ -592,21 +592,22 @@ export const ESTRUCTURA_SKILLS = [
         const guiada = ctx.memoria.construccion?.respuestas;
         const t = datosTecnicos(datosAntes);
         const faltanTecnicos = ["hz", "df", "zona", "suelo", "categoria"].filter((k) => t[k] === null);
-        // Decisiones ya respondidas en este plano: no se vuelven a preguntar.
-        const previas = ctx.memoria.respuestasFormulario ?? {};
+        // Decisiones ya respondidas en este plano (en el formulario o en el chat, paso a paso):
+        // no se vuelven a preguntar. Antes las del chat no contaban y el modal repetía las mismas.
+        const previas = {...(ctx.memoria.respuestasFormulario ?? {}), ...(guiada ?? {})};
         const nuevas = c.consultas.filter((q) => !(q.clave in previas));
         // Haber abierto el formulario antes no confirma los campos que siguen vacíos.
         const abrir = Boolean(ctx.pedirDatos) && (faltanTecnicos.length > 0 || nuevas.length > 0);
-        if (guiada && !abrir) respuestas = Object.fromEntries(Object.entries(guiada).filter(([k]) => c.consultas.some((q) => q.clave === k)));
-        else if (!abrir) respuestas = Object.fromEntries(Object.entries(previas).filter(([k]) => c.consultas.some((q) => q.clave === k)));
+        if (!abrir) respuestas = Object.fromEntries(Object.entries(previas).filter(([k]) => c.consultas.some((q) => q.clave === k)));
         else {
           const faltan = [...faltanTecnicos, ...["proyecto", "entidad", "especialista", "cip"].filter((k) => !String(datosAntes[k] ?? "").trim())];
           const d = propuesta?.decisiones ?? {};
           const sugeridos = {hz: d.hz?.valor, df: d.df?.valor, niveles: rasgos?.niveles};
-          const nuevos = await ctx.pedirDatos({faltan, sugeridos, vista: e.titulo || e.vista, consultas: c.consultas, informes: c.informes});
+          // En el formulario solo lo que aún no se respondió.
+          const nuevos = await ctx.pedirDatos({faltan, sugeridos, vista: e.titulo || e.vista, consultas: nuevas, informes: nuevas.length ? c.informes : []});
           if (!nuevos) return {ok: false, cancelado: true, error: "cancelaste los datos del proyecto, así que no dibujé nada"};
           const {decisiones, ...datos} = nuevos;
-          respuestas = {...guiada, ...decisiones};
+          respuestas = {...previas, ...decisiones};
           ctx.memoria.respuestasFormulario = {...previas, ...respuestas};
           const llenos = Object.fromEntries(Object.entries(datos).filter(([, v]) => String(v ?? "").trim() !== ""));
           if (Object.keys(llenos).length) ctx.guardarDatosProyecto?.(llenos);
@@ -904,6 +905,8 @@ async function generarLaminas(args, ctx, {e, guardados, invalidos, quitadas}) {
           ...(ctx.bibliotecaPorticos ? {bibliotecaPorticos: ctx.bibliotecaPorticos} : {}),
           // Biblioteca de detalles (cortes de cimiento, escalera, cuadros), también opcional.
           ...(ctx.bibliotecaDetalles ? {bibliotecaDetalles: ctx.bibliotecaDetalles} : {}),
+          // Detalles estándar del despacho (estribos, empalmes, nudo, isométrico…): llenan la lámina.
+          ...(ctx.detallesEstandar?.length ? {detallesEstandar: ctx.detallesEstandar} : {}),
           losaMaciza: "losaMaciza" in elegido ? elegido.losaMaciza : undefined,
           mallaCimentacion: "mallaCimentacion" in elegido ? elegido.mallaCimentacion
             : typeof propuesta.decisiones.mallaCimentacion?.valor === "boolean" ? propuesta.decisiones.mallaCimentacion.valor : false,

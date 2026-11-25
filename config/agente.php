@@ -26,8 +26,12 @@ return [
     // Lista blanca de tipos servibles (también los que publica el comando).
     'biblioteca_tipos' => [
         'portico', 'corte_cimiento', 'corte_otro', 'escalera',
-        'cuadro_columnas', 'cuadro_columnetas', 'notas', 'techo',
+        'cuadro_columnas', 'cuadro_columnetas', 'notas', 'techo', 'estandar',
     ],
+
+    // Detalles estándar del despacho (estribos, empalmes, nudo, isométrico del aligerado…): se
+    // usan aunque la biblioteca de pórticos esté apagada; llenan la lámina como la del ingeniero.
+    'estandar_activa' => (bool) env('AGENTE_ESTANDAR_ACTIVA', true),
 
     // Rutas relativas al disco local (storage/app/private).
     'biblioteca_origen' => 'entrenamiento/biblioteca',

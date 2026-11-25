@@ -14,7 +14,7 @@ import {SKILLS} from '../../resources/js/ingenieria/agente/skills/index.js';
 import {instalarRecorteXclip} from '../../resources/js/etabs/visor/recorteXclip.js';
 import {PLANOS} from './planos.mjs';
 import {paresDelManifiesto} from './pares-entrenamiento.mjs';
-import {cargarPlantillaAdaptativa} from './plantilla.mjs';
+import {cargarPlantillaAdaptativa, cargarDetallesEstandar} from './plantilla.mjs';
 
 const args = process.argv.slice(2);
 const filtro = args.find((a) => !a.startsWith('--'));
@@ -44,6 +44,7 @@ for (const p of planos) {
     const db = await leer(p.ruta);
     const ctx = createDrawingContext({getDatabase: () => db, dm, loadTemplate: async () => plantilla, getProjectData: () => ({...DATOS}), setProjectData: () => {}, afterDraw: () => {}});
     ctx.memoria ??= {};
+    ctx.detallesEstandar = cargarDetallesEstandar();
     const r = await skill('plano_estructuras').run({}, ctx);
     if (!r.ok) { fila.error = `láminas: ${r.error ?? 'sin detalle'}`; filas.push({...fila, s: (Date.now() - t0) / 1000}); console.log(linea(filas.at(-1))); continue; }
     fila.laminas = r.laminas?.length ?? 0;

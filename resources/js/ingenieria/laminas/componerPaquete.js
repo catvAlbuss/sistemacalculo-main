@@ -54,7 +54,7 @@ function lugar(libres, w, h, esquina = "izqArriba") {
   return mejor && {x: mejor.x, y: mejor.y, w, h};
 }
 
-export function componerPaqueteLaminas({contenidos, marco, escalaPlanos = 2, reparto = repartoDespacho(), proyecto = ""}) {
+export function componerPaqueteLaminas({contenidos, marco, escalaPlanos = 1, reparto = repartoDespacho(), proyecto = ""}) {
   const valido = marco && Number.isFinite(marco.x1 - marco.x0) && Number.isFinite(marco.y1 - marco.y0)
     && marco.x1 - marco.x0 >= 12 && marco.y1 - marco.y0 >= 12;
   const formato = valido ? marco : formatoDespacho();
@@ -97,7 +97,7 @@ export function componerPaqueteLaminas({contenidos, marco, escalaPlanos = 2, rep
   const familiaDe = (tipo) => familias.find((fm) => fm.tipos.includes(tipo));
   const deCimentacion = familiaDe("cimentacion") ?? familias[0];
   for (const it of items) {
-    if (it.repetible) continue;
+    if (it.repetible || it.relleno) continue;
     const fm = familiaDe(it.tipo) ?? (it.tipo === "corte" ? familiaDe("cimiento") ?? deCimentacion : it.tipo === "detalleLosa" ? familiaDe("losa") ?? deCimentacion : it.tipo === "cuadroVigas" ? familiaDe("portico") ?? deCimentacion : /^cuadro|^notas$/.test(it.tipo) ? deCimentacion : null);
     if (fm) fm.items.push(it); else familias.push({tipos: [it.tipo], items: [it]});
   }
@@ -133,7 +133,10 @@ export function componerPaqueteLaminas({contenidos, marco, escalaPlanos = 2, rep
     if (!fm.items.length) continue;
     const ultima = hojas.at(-1);
     const principales = fm.items.filter((it) => !AUXILIARES.test(it.tipo));
-    const propias = ultima && cabeEntera(ultima, principales.length ? principales : fm.items) ? [ultima] : [nuevaHoja()];
+    // Pórticos: primero en el hueco de la lámina anterior (el ingeniero pone dos o tres junto a la
+    // losa) y los que no entren, en láminas nuevas.
+    const llenaHueco = ultima && fm.tipos.includes("portico") && principales.length && cabeEntera(ultima, principales.slice(0, 1));
+    const propias = ultima && (llenaHueco || cabeEntera(ultima, principales.length ? principales : fm.items)) ? [ultima] : [nuevaHoja()];
     for (const it of fm.items) {
       // Primero en las láminas de esta familia (rellena huecos); si no entra, lámina nueva.
       if (propias.some((hoja) => colocar(hoja, it))) continue;
@@ -163,6 +166,19 @@ export function componerPaqueteLaminas({contenidos, marco, escalaPlanos = 2, rep
       const copia = {...it};
       if (lugar(hoja.libres, copia.w, copia.h)) colocar(hoja, copia);
     }
+  }
+
+  // Detalles estándar del despacho (relleno): en el hueco que quede, primero en la lámina de su
+  // familia (los de columna con la cimentación, los de losa con el aligerado) y si no en otra.
+  // Nunca abren una lámina: si no caben, no van (como el ingeniero, que llena lo que sobra).
+  // Una lámina ya cargada (≥ 55 %) cede el detalle a la más vacía, para no dejar una casi en blanco.
+  const ocupacion = (hoja) => hoja.colocados.reduce((s, {r}) => s + r.w * r.h, 0) / (utilW * utilH);
+  for (const it of items.filter((x) => x.relleno)) {
+    const orden = [...hojas].sort((a, b) => {
+      const pa = it.familia && a.tipos.has(it.familia) && ocupacion(a) < 0.55 ? 0 : 1, pb = it.familia && b.tipos.has(it.familia) && ocupacion(b) < 0.55 ? 0 : 1;
+      return pa - pb || ocupacion(a) - ocupacion(b);
+    });
+    for (const hoja of orden) if (colocar(hoja, it)) break;
   }
 
   const resultado = hojas.map((hoja, i) => {

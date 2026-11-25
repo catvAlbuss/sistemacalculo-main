@@ -412,6 +412,7 @@ async function consultarMotor() {
     motor.value = {cargando: false, listo: Boolean(e.listo), mensaje: e.mensaje ?? ""};
     settings.value = {...AGENTE_SERVIDOR, memoria: e.memoria ?? "completa", vision: Boolean(e.vision), sinRazonar: e.memoria === "corta", analizarResultados: true};
     bibliotecaActiva = Boolean(e.biblioteca);
+    estandarActivo = Boolean(e.estandar);
   } catch {
     motor.value = {cargando: false, listo: false, mensaje: "No pude consultar el motor del agente."};
   }
@@ -514,6 +515,17 @@ const cargarBibliotecaPorticos = () => {
     .catch(() => null);
 };
 
+// Detalles estándar del despacho (estribos, empalmes, nudo viga-columna, isométrico del aligerado…):
+// aparte de los pórticos; con 403/404 o sin red las láminas salen sin ellos.
+let estandarActivo = false;
+let estandarPromise = null;
+const cargarDetallesEstandar = () => {
+  if (!estandarActivo) return Promise.resolve(null);
+  return estandarPromise ??= fetch("/software/etabs/agente/biblioteca/estandar", {headers: {Accept: "application/json"}, credentials: "same-origin"})
+    .then(async (r) => (r.status === 200 ? (await r.json())?.piezas ?? null : null))
+    .catch(() => null);
+};
+
 // ---- Contexto del documento abierto (creado una vez) ----
 let contextPromise = null;
 const sesionDocumento = crearSesionDeDocumento();
@@ -550,7 +562,9 @@ const getContext = () => {
       databaseActual();
       const biblioteca = await cargarBibliotecaPorticos();
       if (biblioteca) ctx.bibliotecaPorticos = biblioteca;
-      return {db: null, config: {modo: 'adaptativa', escalaPlanos: 2}};
+      const estandar = await cargarDetallesEstandar();
+      if (estandar?.length) ctx.detallesEstandar = estandar;
+      return {db: null, config: {modo: 'adaptativa', escalaPlanos: 1}};
     },
   });
   // Antes de dibujar el plano, el agente muestra los datos del proyecto para confirmarlos.

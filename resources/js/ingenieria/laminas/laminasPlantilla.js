@@ -27,6 +27,7 @@ import {CRITERIOS} from "../criterios/criteriosEstructurales.js";
 import {componerPaqueteLaminas} from "./componerPaquete.js";
 import {notasTecnicas} from "./formatoDespacho.js";
 import {corteCimientoCorrido} from "./corteCimiento.js";
+import {detallesEstandar} from "./detallesEstandar.js";
 import {detalleTipicoAligerado, detalleEmpalmesGanchos, cuadroLongitudesDesarrollo, tablaDesencofrado, especificacionLadrillo, cuadroViguetas} from "./detallesTipicos.js";
 
 const r4 = (v) => Math.round(v * 10000) / 10000;
@@ -177,7 +178,7 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
   // De dónde salen Hz y Df (para la observación de cada fila del metrado).
   const dados = datosTecnicos(datos);
   const fuenteDe = (k) => (dados[k] !== null ? "dato del proyecto" : (estructura.sugeridos?.[k] > 0 ? "propuesto por el agente con proyectos parecidos" : "criterio del despacho"));
-  const nominal = config.escalaPlanos ?? 2;
+  const nominal = config.escalaPlanos ?? 1;
   const adaptativa = config.modo === 'adaptativa';
   const previas = items.filter((it) => it.tipo === "texto" && it.capa === L.LAMINA && /^E-\d{2}$/.test(it.texto)).length;
 
@@ -416,7 +417,7 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
     const lista = [
       {id: 'cimentacion', tipo: 'cimentacion', contenido: contenidos.cimentacion, titulado: true},
       ...(cc.tramos ? [{id: 'cimiento', tipo: 'cimiento', contenido: contenidos.cimiento, titulado: true}] : []),
-      ...cortesAdaptados.map((contenido, i) => ({id: `corte${i + 1}`, tipo: 'corte', contenido, nominal: nominal * 2, titulado: Boolean(contenido.titulo)})),
+      ...cortesAdaptados.map((contenido, i) => ({id: `corte${i + 1}`, tipo: 'corte', contenido, nominal: 2, titulado: Boolean(contenido.titulo)})),
       {id: 'aligerado', tipo: 'losa', contenido: contenidos.aligerado, titulado: true},
       ...(sinLosa ? [] : [{id: 'detalleAligerado', tipo: 'detalleLosa', contenido: detalleTipicoAligerado(ali.espesor), nominal: 5, titulado: true}]),
       ...extras.map((contenido, i) => ({id: `extra${i}`, tipo: tipoExtra(contenido), contenido, titulado: true})),
@@ -437,6 +438,8 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
       ...(sinLosa ? [] : [{id: 'cuadroViguetas', tipo: 'cuadroColumnetas', contenido: cuadroViguetas(ali.espesor), nominal: 1, titulado: true}]),
       // El cuadro de columnas también en las láminas de pórticos (si cabe), como el ingeniero.
       {id: 'cuadroColumnas', tipo: 'cuadroColumnas', contenido: contenidos.cuadroColumnas, nominal: 1, repetible: true},
+      // Detalles estándar del despacho (biblioteca): llenan el hueco libre como en sus láminas.
+      ...detallesEstandar(estructura.detallesEstandar ?? [], {espesor: ali.espesor}, {conLosa: !sinLosa}).map((d) => ({...d, nominal: 1, relleno: true})),
     ].filter((c) => c.contenido);
     for (const c of lista) c.caja = medir(c.contenido, c.titulado);
     paquete = componerPaqueteLaminas({marco: estructura.formatoReferencia ?? null, escalaPlanos: nominal, proyecto, contenidos: lista});
