@@ -202,9 +202,13 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
   const nivelesLosa = Math.max(1, Number(estructura.niveles) || 1);
   const plantaNivel = (n) => (estructura.plantasNiveles ?? []).find((p) => p.nivel === n && (p.lectura?.columnas?.length ?? 0) >= Math.max(2, 0.6 * lectura.columnas.length));
   const plantaEntrepiso = nivelesLosa > 1 ? plantaNivel(2) : null;
+  // Peralte de las vigas que no cargan losa: el del proyecto si lo dieron; si no, 0.40, y 0.50 en
+  // zona 4 (así en los dos proyectos del despacho: Z=0.25 → 0.40, Z=0.45 → 0.50). Propuesta.
+  const vigaSecundaria = Number(datos?.vigaSecundaria) > 0 ? Number(datos.vigaSecundaria) : (dp.sismo?.Z >= 0.45 ? 0.5 : 0.4);
+  const vigasProyecto = {pisos: nivelesLosa, vigaSecundaria};
   // El alero es del techo: con varios niveles, la losa de entrepiso termina en la cara de la viga
   // (el pasillo en volado sí sigue: va en `volados`).
-  const ali = planoAligerado({lectura: plantaEntrepiso?.lectura ?? lectura, items, k: plantaEntrepiso?.k ?? k, espesorFijo: estructura.espesorLosa ?? null, losaMaciza: estructura.losaMaciza ?? Number(estructura.niveles) >= 2, volados, alero: nivelesLosa > 1 ? 0 : alero, tipoCimentacion: cim.tipo});
+  const ali = planoAligerado({lectura: plantaEntrepiso?.lectura ?? lectura, items, k: plantaEntrepiso?.k ?? k, espesorFijo: estructura.espesorLosa ?? null, losaMaciza: estructura.losaMaciza ?? Number(estructura.niveles) >= 2, volados, alero: nivelesLosa > 1 ? 0 : alero, tipoCimentacion: cim.tipo, ...vigasProyecto});
   const cuadro = cuadroColumnas(lectura.columnas, {niveles: Math.max(1, Number(estructura.niveles) || 1)}); // en NIVEL, los pisos que cubre
   // Con placas y columnas, el ingeniero hace dos cuadros: "CUADRO DE PLACAS" y "CUADRO DE COLUMNAS"
   // (así en 35 de los 44 cuadros de la biblioteca); el cuadro completo queda para el metrado.
@@ -225,7 +229,7 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
   const extras = [];
   if (nNiveles > 1 && losaTecho) {
     const plantaTecho = plantaNivel(nNiveles);
-    const aliT = planoAligerado({lectura: plantaTecho?.lectura ?? lectura, items, k: plantaTecho?.k ?? k, espesorFijo: estructura.espesorLosa ?? null, losaMaciza: estructura.losaMaciza ?? Number(estructura.niveles) >= 2, conVacios: false, volados, alero, tipoCimentacion: cim.tipo});
+    const aliT = planoAligerado({lectura: plantaTecho?.lectura ?? lectura, items, k: plantaTecho?.k ?? k, espesorFijo: estructura.espesorLosa ?? null, losaMaciza: estructura.losaMaciza ?? Number(estructura.niveles) >= 2, conVacios: false, volados, alero, tipoCimentacion: cim.tipo, ...vigasProyecto});
     aliT.contenido.titulo = "PLANO DE LOSA ALIGERADA TECHO";
     extras.push(aliT.contenido);
   }
@@ -273,7 +277,7 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
     }
     if (propias.length >= 4 && propias.length < 0.6 * lectura.columnas.length) {
       try {
-        const aliA = planoAligerado({lectura: az.lectura, items, k: az.k, espesorFijo: estructura.espesorLosa ?? null, losaMaciza: false, conVacios: false, alero: 0, tipoCimentacion: cim.tipo});
+        const aliA = planoAligerado({lectura: az.lectura, items, k: az.k, espesorFijo: estructura.espesorLosa ?? null, losaMaciza: false, conVacios: false, alero: 0, tipoCimentacion: cim.tipo, ...vigasProyecto});
         aliA.contenido.titulo = "PLANO DE LOSA ALIGERADA AZOTEA (CASETA)";
         extras.push(aliA.contenido);
       } catch { /* sin losa de caseta */ }

@@ -8,7 +8,7 @@ import {primitivasBase, tramosEntreColumnas, envolvente, huellaColumnas, banda, 
 import {CRITERIOS, espesorPorLuz} from "../criterios/criteriosEstructurales.js";
 import {ubicarSinEncimar, cajasDeTextos} from "../laminas/colocarTextos.js";
 import {receta} from "../aprendizaje/recetas.js";
-import {seccionVigaPorLuz} from "../diseno/estructura.js";
+import {seccionVigaPorLuz, seccionVigaDespacho} from "../diseno/estructura.js";
 import {REGLAS_DESPACHO, reglasPara} from "../metrado/reglasDespacho.js";
 
 const SEPARACION_VIGUETAS = 0.4;
@@ -402,7 +402,7 @@ export function ambientesDeLosa({lectura, items = [], k = 1}) {
 // volados: los de voladosDesdePlanta (pasillo en voladizo), en el marco de esta planta.
 // alero: m de losa fuera de las columnas; null = el del criterio (techo). Una losa de entrepiso
 // termina en la cara de la viga (alero 0), como la dibuja el ingeniero.
-export function planoAligerado({lectura, items = [], k = 1, espesorFijo = null, losaMaciza = true, conVacios = true, volados = [], alero: aleroPedido = null, tipoCimentacion = null}) {
+export function planoAligerado({lectura, items = [], k = 1, espesorFijo = null, losaMaciza = true, conVacios = true, volados = [], alero: aleroPedido = null, tipoCimentacion = null, pisos = 1, vigaSecundaria = null}) {
   const columnas = lectura.columnas;
   // Con volado los ejes pasan su borde (las burbujas quedan fuera de la losa).
   const bordeVolado = (() => {
@@ -426,11 +426,19 @@ export function planoAligerado({lectura, items = [], k = 1, espesorFijo = null, 
   const conReglas = Boolean(reglasVigas?.luzSobrePeralte);
   const dirViguetas = direccionViguetas(lectura.ejes, direccionPrincipal(lectura.ejes));
   const cargaLosa = (t) => !dirViguetas || Math.abs(t.d.x * dirViguetas.x + t.d.y * dirViguetas.y) < 0.5;
-  const luzGobierna = Math.max(0, ...tramos.filter(cargaLosa).map((t) => t.largo));
+  // Con las reglas del despacho, la sección principal sale de la mayor luz ENTRE EJES que carga
+  // losa; una línea que carga pero salva menos de 0.8 de esa luz va con la secundaria (ilo 4:
+  // 10.49 m → 0.85, 5.61 m → 0.50), y el peralte crece con los pisos (seccionVigaDespacho).
+  const luzEjesDe = (t) => Math.hypot(t.hasta.nodo.x - t.desde.nodo.x, t.hasta.nodo.y - t.desde.nodo.y);
+  const cargan = tramos.filter(cargaLosa);
+  const luzMayor = Math.max(0, ...cargan.map(luzEjesDe));
+  const lineaMayor = new Map();
+  for (const t of cargan) lineaMayor.set(t.eje, Math.max(lineaMayor.get(t.eje) ?? 0, luzEjesDe(t)));
   for (const t of tramos) {
-    const luzViga = Math.hypot(t.hasta.nodo.x - t.desde.nodo.x, t.hasta.nodo.y - t.desde.nodo.y);
     t.cargaLosa = cargaLosa(t);
-    t.seccion = conReglas ? seccionViga(luzGobierna, {cargaLosa: t.cargaLosa, apoyos: [t.desde, t.hasta], reglas: reglasVigas}) : seccionViga(luzViga, {reglas: null});
+    const principal = t.cargaLosa && (lineaMayor.get(t.eje) ?? 0) >= 0.8 * luzMayor;
+    // La regla del despacho vale con platea y con zapatas (se midió en vinchos y en ilo, que es de zapatas).
+    t.seccion = seccionVigaDespacho({luzMayor, principal, pisos, secundaria: vigaSecundaria, apoyos: [t.desde, t.hasta]}, reglasVigas, CRITERIOS.vigas);
     t.medida = `${t.seccion.b.toFixed(2)}x${t.seccion.h.toFixed(2)}`;
   }
   // Ancho de las vigas interiores (sobre muros, cumbrera): el más usado en los ejes.
@@ -507,7 +515,8 @@ export function planoAligerado({lectura, items = [], k = 1, espesorFijo = null, 
     panos = nuevos;
     const largoInterior = Math.hypot(tramo[1].x - tramo[0].x, tramo[1].y - tramo[0].y);
     // Sobre un muro no carga como viga de pórtico: peralte de las que no cargan losa.
-    const sec = conReglas ? {...seccionViga(largoInterior, {cargaLosa: false, reglas: reglasVigas}), ...(anchoEjes ? {b: anchoEjes} : {})} : seccionViga(largoInterior, {reglas: null});
+    // No carga losa: la sección secundaria del proyecto, con el ancho de las vigas de los ejes.
+    const sec = {...seccionVigaDespacho({luzMayor: largoInterior, principal: false, secundaria: vigaSecundaria}, reglasVigas, CRITERIOS.vigas), ...(anchoEjes ? {b: anchoEjes} : {})};
     const m = {x: (tramo[0].x + tramo[1].x) / 2, y: (tramo[0].y + tramo[1].y) / 2};
     const [n0, n1] = rango(pano, n);
     const central = Math.abs(proy(m, n) - proy(centroPano, n)) < 0.2 * (n1 - n0);

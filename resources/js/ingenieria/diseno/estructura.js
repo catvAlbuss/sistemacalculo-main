@@ -217,3 +217,21 @@ export function seccionVigaPorLuz({luz, cargaLosa = true, apoyos = [], peralteMi
   const h = cargaLosa ? Math.max(hSecundaria, redondear(luz / reglas.luzSobrePeralte, 0.1)) : hSecundaria;
   return {b: r2v(b), h: r2v(Math.max(h, peralteMinimo))};
 }
+
+// Peralte de vigas como el despacho (medido en 511 tramos de sus plantas de losa: 29.9 % → 56.8 %
+// de peraltes exactos con la dirección de viguetas del agente). Una sección principal por planta:
+//   principal (carga losa y su línea salva ≥ 0.8 de la mayor luz que carga):
+//     h = max(h_s + Δ(pisos), redondeo a 0.05 de L_max entre ejes / 12), Δ = 0 · 0.10 · 0.20 (1 · 2 · 3+ pisos)
+//   las demás: h_s (secundaria, dato del proyecto; 0.40 por defecto).
+// Ancho como seccionVigaPorLuz (espesor de los apoyos hasta el ancho del despacho). Es
+// predimensionamiento: el peralte final lo fijan el análisis y la deriva (E.030).
+export function seccionVigaDespacho({luzMayor, principal = true, pisos = 1, secundaria = 0.4, apoyos = [], peralteMinimo = 0}, reglas = null, criterios = {ancho: 0.25, peraltaMinimo: 0.4}) {
+  const bMin = criterios.ancho ?? 0.25;
+  const bMax = Math.max(bMin, reglas?.ancho ?? 0.3);
+  const espesores = apoyos.map(espesorDeApoyo).filter((e) => e > 0);
+  const b = espesores.length ? Math.min(bMax, Math.max(bMin, redondear(Math.max(...espesores), 0.05))) : bMax;
+  const hs = secundaria > 0 ? secundaria : (criterios.peraltaMinimo ?? 0.4);
+  const delta = pisos >= 3 ? 0.2 : pisos === 2 ? 0.1 : 0;
+  const h = principal ? Math.max(hs + delta, redondear(luzMayor / 12, 0.05)) : hs;
+  return {b: r2v(b), h: r2v(Math.max(h, peralteMinimo))};
+}
