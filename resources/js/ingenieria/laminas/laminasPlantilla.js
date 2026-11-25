@@ -187,7 +187,9 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
   const nivelesLosa = Math.max(1, Number(estructura.niveles) || 1);
   const plantaNivel = (n) => (estructura.plantasNiveles ?? []).find((p) => p.nivel === n && (p.lectura?.columnas?.length ?? 0) >= Math.max(2, 0.6 * lectura.columnas.length));
   const plantaEntrepiso = nivelesLosa > 1 ? plantaNivel(2) : null;
-  const ali = planoAligerado({lectura: plantaEntrepiso?.lectura ?? lectura, items, k: plantaEntrepiso?.k ?? k, espesorFijo: estructura.espesorLosa ?? null, losaMaciza: estructura.losaMaciza ?? Number(estructura.niveles) >= 2, volados, alero, tipoCimentacion: cim.tipo});
+  // El alero es del techo: con varios niveles, la losa de entrepiso termina en la cara de la viga
+  // (el pasillo en volado sí sigue: va en `volados`).
+  const ali = planoAligerado({lectura: plantaEntrepiso?.lectura ?? lectura, items, k: plantaEntrepiso?.k ?? k, espesorFijo: estructura.espesorLosa ?? null, losaMaciza: estructura.losaMaciza ?? Number(estructura.niveles) >= 2, volados, alero: nivelesLosa > 1 ? 0 : alero, tipoCimentacion: cim.tipo});
   const cuadro = cuadroColumnas(lectura.columnas, {niveles: Math.max(1, Number(estructura.niveles) || 1)}); // en NIVEL, los pisos que cubre
   // Con placas y columnas, el ingeniero hace dos cuadros: "CUADRO DE PLACAS" y "CUADRO DE COLUMNAS"
   // (así en 35 de los 44 cuadros de la biblioteca); el cuadro completo queda para el metrado.
