@@ -35,15 +35,23 @@ function ocupar(libres, r) {
   const utiles = fuera.filter((l) => l.w > 0.05 && l.h > 0.05);
   return utiles.filter((a, i) => !utiles.some((b, j) => j !== i && a.x >= b.x - 1e-9 && a.y >= b.y - 1e-9 && a.x + a.w <= b.x + b.w + 1e-9 && a.y + a.h <= b.y + b.h + 1e-9 && (j < i || a.w * a.h < b.w * b.h)));
 }
-// Lugar más arriba y a la izquierda donde entra un rectángulo w×h (sin la separación).
-function lugar(libres, w, h) {
+// Esquina de la lámina que el ingeniero usa para cada tipo de bloque (medido en 168 láminas):
+// plantas y pórticos arriba a la izquierda (95 %); notas en la columna derecha, arriba (88 %);
+// cuadros y tablas a la derecha, sobre el rótulo; columnetas y viguetas en una banda baja.
+const ESQUINA = {notas: "derArriba", cuadroColumnas: "derAbajo", cuadroVigas: "derAbajo", cuadroEmpalmes: "derAbajo", detalleLosa: "derAbajo", cuadroColumnetas: "izqAbajo"};
+// Lugar donde entra un rectángulo w×h (sin la separación), en la esquina preferida de su tipo
+// dentro de cada hueco libre; sin preferencia, el más arriba y a la izquierda.
+function lugar(libres, w, h, esquina = "izqArriba") {
   let mejor = null;
   for (const l of libres) {
     if (w > l.w + 1e-9 || h > l.h + 1e-9) continue;
-    const top = l.y + l.h;
-    if (!mejor || top > mejor.top + 0.05 || (Math.abs(top - mejor.top) <= 0.05 && l.x < mejor.x)) mejor = {x: l.x, top};
+    const der = esquina.startsWith("der"), abajo = esquina.endsWith("Abajo");
+    const x = der ? l.x + l.w - w : l.x, y = abajo ? l.y : l.y + l.h - h;
+    // Puntaje: primero la altura pedida (arriba o abajo), después el lado (izquierda o derecha).
+    const pv = abajo ? -y : y + h, ph = der ? x + w : -x;
+    if (!mejor || pv > mejor.pv + 0.05 || (Math.abs(pv - mejor.pv) <= 0.05 && ph > mejor.ph)) mejor = {x, y, pv, ph};
   }
-  return mejor && {x: mejor.x, y: mejor.top - h, w, h};
+  return mejor && {x: mejor.x, y: mejor.y, w, h};
 }
 
 export function componerPaqueteLaminas({contenidos, marco, escalaPlanos = 2, reparto = repartoDespacho(), proyecto = ""}) {
@@ -104,7 +112,7 @@ export function componerPaqueteLaminas({contenidos, marco, escalaPlanos = 2, rep
     return hoja;
   };
   const colocar = (hoja, it) => {
-    const r = lugar(hoja.libres, it.w, it.h);
+    const r = lugar(hoja.libres, it.w, it.h, ESQUINA[it.tipo]);
     if (!r) return false;
     hoja.libres = ocupar(hoja.libres, {x: r.x - sep / 2, y: r.y - sep / 2, w: r.w + sep, h: r.h + sep});
     hoja.colocados.push({it, r});
@@ -114,7 +122,7 @@ export function componerPaqueteLaminas({contenidos, marco, escalaPlanos = 2, rep
   const cabeEntera = (hoja, lista) => {
     let libres = hoja.libres;
     for (const it of lista) {
-      const r = lugar(libres, it.w, it.h);
+      const r = lugar(libres, it.w, it.h, ESQUINA[it.tipo]);
       if (!r) return false;
       libres = ocupar(libres, {x: r.x - sep / 2, y: r.y - sep / 2, w: r.w + sep, h: r.h + sep});
     }
