@@ -27,7 +27,10 @@
                             </tr>
                         </template>
                         <tr x-show="combinations.length === 0">
-                            <td class="px-4 py-8 text-center text-gray-500">No hay combinaciones de carga definidas</td>
+                            <td class="px-4 py-6 text-center text-gray-500">
+                                No hay combinaciones propias.<br>
+                                <span class="text-xs">El análisis usa las de la E.060 (1.4CM+1.7CV, 1.25(CM+CV)±S, 0.9CM±S). Las que agregue aquí se suman a ellas.</span>
+                            </td>
                         </tr>
                     </tbody>
                 </table>
@@ -80,10 +83,9 @@
             <div class="mb-4">
                 <label class="block text-xs font-semibold text-gray-400 mb-1">Tipo de Combinación de Carga</label>
                 <select x-model="combinationForm.combinationType" class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+                    {{-- Solo los tipos que resuelve el motor (ADD y envolvente; ver _ff_compute_combo_entries). --}}
                     <option value="ADD">ADD - Adición</option>
                     <option value="ENVE">ENVE - Envolvente</option>
-                    <option value="ABS">ABS - Valor Absoluto</option>
-                    <option value="SRSS">SRSS - Raíz Cuadrada de la Suma de Cuadrados</option>
                 </select>
             </div>
 
@@ -314,11 +316,15 @@
                 }
             },
 
+            // Sin combinaciones definidas la lista queda vacía: el motor usa las de la E.060 y las que el
+            // usuario agregue se suman a ellas. Antes se cargaban COMB1–COMB3 de ejemplo (con casos
+            // "DEAD/LIVE Static Load" que no existen) y se escribían en el modelo: viajaban al motor y
+            // reemplazaban a las de la norma.
             loadCombinations() {
-                if (window.cadSystem && window.cadSystem.loadCombinations && window.cadSystem.loadCombinations.items && window.cadSystem.loadCombinations.items.length > 0) {
+                if (window.cadSystem && window.cadSystem.loadCombinations && Array.isArray(window.cadSystem.loadCombinations.items)) {
                     this.combinations = window.cadSystem.loadCombinations.items;
                 } else {
-                    this.combinations = JSON.parse(JSON.stringify(this.defaultCombinations));
+                    this.combinations = [];
                     if (window.cadSystem) {
                         if (!window.cadSystem.loadCombinations) window.cadSystem.loadCombinations = {};
                         window.cadSystem.loadCombinations.items = this.combinations;
@@ -389,13 +395,14 @@
                     };
                     this.editingCombinationIndex = this.selectedCombinationIndex;
                 } else {
+                    var primerCaso = (this.availableCases && this.availableCases[0] && this.availableCases[0].name) || 'DEAD Static Load';
                     this.combinationForm = {
                         name: 'COMB' + (this.combinations.length + 1),
                         combinationType: 'ADD',
-                        caseName: 'DEAD Static Load',
+                        caseName: primerCaso,
                         scaleFactor: 1,
                         loadCases: [{
-                            name: 'DEAD Static Load',
+                            name: primerCaso,
                             scale: 1
                         }]
                     };
@@ -477,11 +484,24 @@
                     return;
                 }
 
-                var combinationToSave = {
+                // Se guarda también en el formato del motor (`id` + `terms`): sin eso el análisis la
+                // descartaba. Al editar una combinación importada del .e2k se conservan sus marcas de
+                // diseño; una nueva queda como "del usuario" y de diseño (Strength), como en ETABS.
+                var previa = (!this.isNewCombination && this.editingCombinationIndex !== null) ? this.combinations[this.editingCombinationIndex] : null;
+                var casos = JSON.parse(JSON.stringify(this.combinationForm.loadCases));
+                var combinationToSave = Object.assign({}, previa || {}, {
+                    id: this.combinationForm.name,
                     name: this.combinationForm.name,
                     combinationType: this.combinationForm.combinationType,
-                    loadCases: JSON.parse(JSON.stringify(this.combinationForm.loadCases))
-                };
+                    type: this.combinationForm.combinationType === 'ENVE' ? 'ENVELOPE' : 'ADD',
+                    loadCases: casos,
+                    terms: casos.map(function (c) { return { case: c.name, factor: Number(c.scale) || 0 }; })
+                });
+                if (!previa) {
+                    combinationToSave.origen = 'usuario';
+                    combinationToSave.design = 'Concrete';
+                    combinationToSave.comboType = 'Strength';
+                }
 
                 if (!this.isNewCombination && this.editingCombinationIndex !== null) {
                     this.combinations[this.editingCombinationIndex] = combinationToSave;

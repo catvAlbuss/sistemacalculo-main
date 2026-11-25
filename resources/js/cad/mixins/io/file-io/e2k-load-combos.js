@@ -212,3 +212,36 @@ export function comboExpression(combo) {
         .join(" ")
         .trim();
 }
+
+/**
+ * Combinación en el formato del motor: `{id, name, type, terms: [{case, factor, signless?}]}`,
+ * venga del .e2k (`terms`) o del modal Define ▸ Combinaciones de carga (`loadCases: [{name, scale}]`).
+ *
+ * Antes las del modal viajaban tal cual: sin `id` ni `terms`, el motor no encontraba ningún término y
+ * las descartaba en silencio — y como cualquier combo enviado REEMPLAZA a los de la E.060, el diseño
+ * se quedaba sin combinaciones. `espectro`: nombres o ids de los casos de espectro (sus términos van
+ * sin signo, como hace e2k-import.js con los importados).
+ */
+export function comboParaMotor(combo, espectro = new Set()) {
+    const norm = (v) => String(v || "").trim().replace(/[\s_]+/g, "_").toUpperCase();
+    const enEspectro = new Set([...espectro].map(norm));
+    const crudos = Array.isArray(combo?.terms) && combo.terms.length
+        ? combo.terms.map((t) => ({case: t.case, factor: Number(t.factor) || 0, signless: t.signless === true}))
+        : (combo?.loadCases || []).map((l) => ({case: l.name, factor: Number(l.scale) || 0, signless: false}));
+    const terms = crudos
+        .filter((t) => String(t.case || "").trim() && t.factor !== 0)
+        .map((t) => (t.signless || enEspectro.has(norm(t.case)) ? {...t, signless: true} : {case: t.case, factor: t.factor}));
+    const tipo = String(combo?.type || combo?.combinationType || "ADD").toUpperCase();
+    const name = String(combo?.name || combo?.id || "").trim();
+    return {
+        ...combo,
+        id: String(combo?.id || name),
+        name,
+        // El motor resuelve ADD y ENVELOPE (ver _ff_compute_combo_entries en solver.py).
+        type: /^ENV/.test(tipo) ? "ENVELOPE" : "ADD",
+        terms,
+    };
+}
+
+/** Combinación creada por el usuario en la app (no importada del .e2k). */
+export const esComboDelUsuario = (combo) => combo?.origen === "usuario" || (!Array.isArray(combo?.terms) && Array.isArray(combo?.loadCases));

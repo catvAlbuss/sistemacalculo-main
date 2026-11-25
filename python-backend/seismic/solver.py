@@ -2583,6 +2583,27 @@ def _ff_default_design_combos(available) -> list:
 
     return combos
 
+def _ff_combos_a_usar(combos, case_meta, adicionales=None) -> list:
+    """
+    Combinaciones con las que se arman las fuerzas de diseño.
+
+    - Sin `combos` en el payload: las de la E.060 (`_ff_default_design_combos`).
+    - Con `combos` (las del .e2k): esas.
+    - `adicionales`: las que creó el usuario en la app (Define > Combinaciones de carga). Se SUMAN a
+      las anteriores en vez de reemplazarlas; antes, cualquier combo enviado borraba las de la norma y
+      las del usuario llegaban sin términos, así que el diseño quedaba sin combinaciones.
+    """
+    base = _ff_default_design_combos(case_meta) if combos is None else list(combos or [])
+    extra = [c for c in (adicionales or []) if isinstance(c, dict) and c.get("terms")]
+    ids = {str(c.get("id")) for c in base if isinstance(c, dict)}
+    usadas = list(base)
+    for c in extra:
+        if str(c.get("id")) not in ids:
+            ids.add(str(c.get("id")))
+            usadas.append(c)
+    return usadas
+
+
 def _ff_design_combo_ids(combos: list) -> set:
     """
     Ids de los combos que SÍ son de diseño, para la envolvente.
@@ -3545,10 +3566,7 @@ def run_frame_force_results(
     # ── Combinaciones de carga (ADD / ENVELOPE) ──────────────────────────────
     # Se le pasa el METADATO completo (no solo los ids) para que los casos
     # Response Spectrum se reconozcan por su `type` y no por llamarse "SDX".
-    if combos is None:
-        combo_defs = _ff_default_design_combos(case_meta)
-    else:
-        combo_defs = combos or []
+    combo_defs = _ff_combos_a_usar(combos, case_meta, data.get("combosAdicionales"))
 
     case_idx = {}
     for entry in frame_forces:

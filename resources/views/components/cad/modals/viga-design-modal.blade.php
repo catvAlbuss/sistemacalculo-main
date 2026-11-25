@@ -165,8 +165,8 @@
                                     <td class="px-1 py-1 border-r border-gray-700">
                                         <select class="w-full text-[11px] p-1 rounded border border-gray-600 bg-gray-700 text-white"
                                             :value="rebarState[sectionType]?.asReal?.[idx-1] ?? 0"
-                                            @change="onRebarChange(sectionType, idx-1, $event.target.value)">
-                                            <template x-for="opt in rebarOptions" :key="opt.value">
+                                            @change="onRebarChange(sectionType, idx-1, $event.target.value, $event.target)">
+                                            <template x-for="opt in allRebarOptions()" :key="opt.value">
                                                 <option :value="opt.value" x-text="opt.text"></option>
                                             </template>
                                         </select>
@@ -218,6 +218,46 @@
             <button @click="close()" class="px-4 py-1.5 bg-gray-600 hover:bg-gray-500 text-white rounded text-sm">Cerrar</button>
         </div>
     </div>
+
+    {{-- Combinación personalizada de acero (como en el programa de diseño de vigas):
+         cantidad de barras por diámetro → área acumulada → se aplica a la celda elegida. --}}
+    <div x-show="custom.open" x-cloak @keydown.esc.stop="custom.open = false"
+         style="position:fixed; inset:0; z-index:10000; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.55)">
+        <div class="bg-gray-800 rounded-lg shadow-xl border border-gray-600 w-[360px] text-sm text-gray-200" role="dialog" aria-modal="true" aria-labelledby="rc-custom-rebar-title">
+            <div class="flex items-center justify-between px-4 py-2 border-b border-gray-700 bg-gray-900 rounded-t-lg">
+                <h4 id="rc-custom-rebar-title" class="text-sm font-semibold text-white">Combinación personalizada de acero</h4>
+                <button @click="custom.open = false" class="text-gray-400 hover:text-white text-lg leading-none" aria-label="Cerrar">&times;</button>
+            </div>
+            <div class="p-4">
+                <p class="text-[11px] text-gray-400 mb-2" x-text="customTarget()"></p>
+                <table class="w-full text-xs">
+                    <thead><tr class="text-gray-400"><th class="text-left py-1">Diámetro</th><th class="text-left py-1">Área cm²</th><th class="text-left py-1">Cantidad</th></tr></thead>
+                    <tbody>
+                        <template x-for="(bar, i) in barSizes" :key="bar[0]">
+                            <tr>
+                                <td class="py-0.5" x-text="bar[0]"></td>
+                                <td class="py-0.5" x-text="Number(bar[1]).toFixed(3)"></td>
+                                <td class="py-0.5">
+                                    <input type="number" min="0" step="1" x-model.number="custom.counts[i]"
+                                        :aria-label="'Cantidad de barras ' + bar[0]"
+                                        class="w-20 p-1 rounded border border-gray-600 bg-gray-700 text-white">
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+                <div class="font-bold py-2" aria-live="polite">
+                    Área acumulada: <span x-text="customArea().toFixed(2)"></span> cm²
+                    <span class="font-normal text-gray-400" x-show="customLabel()" x-text="'(' + customLabel() + ')'"></span>
+                </div>
+                <p class="text-[11px] text-red-400" x-show="custom.error" x-text="custom.error"></p>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button @click="custom.open = false" class="px-3 py-1.5 bg-gray-600 hover:bg-gray-500 text-white rounded text-xs">Cancelar</button>
+                    <button @click="applyCustomRebar()" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded text-xs">Aplicar</button>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -229,6 +269,10 @@
             results: {},
             rebarState: { negativo: { asReal: [], phiMn: [] }, positivo: { asReal: [], phiMn: [] } },
             rebarOptions: [],
+            barSizes: [],
+            // Combinaciones de acero que armó el usuario (se suman a la lista del selector).
+            customOptions: [],
+            custom: {open: false, sectionType: null, flatIdx: null, counts: [], error: ''},
             groupsConfig: {},
 
             init() {
@@ -237,6 +281,7 @@
                     this.results = e.detail?.results || {};
                     this.rebarState = e.detail?.rebarState || this.rebarState;
                     this.rebarOptions = e.detail?.rebarOptions || [];
+                    this.barSizes = e.detail?.barSizes || [];
                     this.groupsConfig = e.detail?.groupsConfig || {};
                     this.loading = false;
                     this.open = true;
@@ -317,10 +362,72 @@
                 }));
             },
 
-            onRebarChange(sectionType, flatIdx, value) {
+            onRebarChange(sectionType, flatIdx, value, el) {
+                if (value === 'custom') {
+                    // El selector vuelve a mostrar el acero que tenía hasta que se aplique la combinación.
+                    if (el) el.value = String(this.rebarState[sectionType]?.asReal?.[flatIdx] ?? 0);
+                    this.openCustomRebar(sectionType, flatIdx);
+                    return;
+                }
+                this.setRebar(sectionType, flatIdx, value);
+            },
+
+            setRebar(sectionType, flatIdx, value) {
                 const tramoIdx = Math.floor(flatIdx / 3) + 1;
                 const posIdx = flatIdx % 3;
                 window.cadSystem?.rcBeamDesignSetRebar?.(sectionType, tramoIdx, posIdx, value);
+            },
+
+            // Lista del selector: las predeterminadas, las que armó el usuario y la opción para crear una.
+            allRebarOptions() {
+                return [...this.rebarOptions, ...this.customOptions, {value: 'custom', text: 'Combinación personalizada…'}];
+            },
+
+            openCustomRebar(sectionType, flatIdx) {
+                this.custom = {open: true, sectionType, flatIdx, counts: this.barSizes.map(() => 0), error: ''};
+            },
+
+            customTarget() {
+                const {sectionType, flatIdx} = this.custom;
+                if (flatIdx === null || flatIdx === undefined) return '';
+                const tramo = Math.floor(flatIdx / 3) + 1;
+                const pos = ['izquierda', 'centro', 'derecha'][flatIdx % 3];
+                return 'Acero ' + (sectionType === 'positivo' ? 'positivo (inferior)' : 'negativo (superior)') + ' · tramo ' + tramo + ' · ' + pos;
+            },
+
+            customArea() {
+                return this.barSizes.reduce((sum, bar, i) => {
+                    const n = Number(this.custom.counts[i] ?? 0);
+                    return sum + (Number.isInteger(n) && n > 0 ? n * Number(bar[1]) : 0);
+                }, 0);
+            },
+
+            // "2Ø5/8"+1Ø1/2"", como las opciones del selector.
+            customLabel() {
+                return this.barSizes.map((bar, i) => {
+                    const n = Number(this.custom.counts[i] ?? 0);
+                    return Number.isInteger(n) && n > 0 ? n + 'Ø' + bar[0] : null;
+                }).filter(Boolean).reverse().join('+'); // el diámetro mayor primero, como en los planos
+            },
+
+            applyCustomRebar() {
+                const counts = this.custom.counts.map((n) => Number(n ?? 0));
+                if (counts.some((n) => !Number.isInteger(n) || n < 0)) {
+                    this.custom.error = 'Ingrese cantidades enteras mayores o iguales a cero.';
+                    return;
+                }
+                const area = this.customArea();
+                if (!(area > 0)) {
+                    this.custom.error = 'Agregue al menos una barra.';
+                    return;
+                }
+                const value = String(Number(area.toFixed(3)));
+                if (!this.allRebarOptions().some((o) => String(o.value) === value)) {
+                    this.customOptions.push({value, text: this.customLabel() + ' (' + area.toFixed(2) + ' cm²)'});
+                }
+                const sectionType = this.custom.sectionType, flatIdx = this.custom.flatIdx;
+                this.custom.open = false;
+                this.setRebar(sectionType, flatIdx, value);
             },
 
             verifText(sectionType, flatIdx) {

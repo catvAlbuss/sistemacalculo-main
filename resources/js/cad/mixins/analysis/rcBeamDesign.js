@@ -5,6 +5,7 @@ import { CapacidadCalculator } from "../../../vigas/calculators/capacidadCalcula
 import { DeflectionCalculator } from "../../../vigas/calculators/deflectionCalculator.js";
 import { StructuralUtils } from "../../../vigas/calculators/SharedCalculatorUtils.js";
 import { TABLE_CONFIG } from "../../../vigas/config/constants.js";
+import { BAR_SIZES } from "../../../vigas/utils/steelEditor.js";
 import { loadRealFrameForceResults } from "../../engine/frameForceBackend.js";
 import { getFrameForceRecord } from "../../diagrams/frameForceDiagramUtils.js";
 
@@ -160,6 +161,10 @@ export const rcBeamDesignMixin = {
           results: null,
           rebarState: null,
           rebarOptions: RC_REBAR_OPTIONS,
+          // Diámetros y áreas del editor "Combinación personalizada…" del programa de vigas
+          // (resources/js/vigas/utils/steelEditor.js): el modal arma con ellos la combinación
+          // de acero propia del usuario, igual que en vigas-general.
+          barSizes: BAR_SIZES,
           // Mismo TABLE_CONFIG.GROUPS que usa vigas-general para armar sus
           // filas — se pasa tal cual (no se duplica a mano en el modal) para
           // que la tabla de entrada del CAD quede SIEMPRE igual a la de

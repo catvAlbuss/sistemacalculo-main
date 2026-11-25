@@ -20,7 +20,7 @@ import {
     DEFAULT_FRAME_FORCE_UNITS,
 } from "./frameForceResultsContract.js";
 
-import { remapCombosToKeptCases } from "../mixins/io/file-io/e2k-load-combos.js";
+import { remapCombosToKeptCases, comboParaMotor, esComboDelUsuario } from "../mixins/io/file-io/e2k-load-combos.js";
 import { mergeMeshedFrameForces } from "../mixins/analysis/seismic/frameMeshAtIntersections.js";
 
 // Ruta relativa: PythonEngineController reenvía a 127.0.0.1:5001 en Windows
@@ -321,13 +321,34 @@ export async function loadRealFrameForceResults(cadSystem, opts = {}) {
     // El remapeo NO es opcional: `dedupeSeismicCases` fusiona casos con el mismo
     // espectro quedándose con el nombre más corto ("SDX ESCALADO" → "SDX"), y un
     // combo que referencie el descartado saldría en CERO sin avisar.
-    const importedCombos = remapCombosToKeptCases(
-        cadSystem.loadCombinations?.items || [],
-        seismicMerged,
-    );
+    // Las combinaciones del usuario (Define ▸ Combinaciones de carga) se SUMAN: a las del .e2k si el
+    // modelo las trae, o a las de la E.060 que genera el motor (`combosAdicionales`). Todas pasan por
+    // `comboParaMotor` (id + terms); antes las del modal llegaban sin términos y se perdían.
+    const espectroNombres = new Set((cadSystem.responseSpectrumCases?.items || []).flatMap((c) => [c.id, c.name]).filter(Boolean));
+    const todasLasCombos = (cadSystem.loadCombinations?.items || []).map((c) => ({...comboParaMotor(c, espectroNombres), ...(esComboDelUsuario(c) ? {origen: "usuario"} : {})}));
+    const importedCombos = remapCombosToKeptCases(todasLasCombos.filter((c) => c.origen !== "usuario"), seismicMerged);
+    // Términos con un caso que NO existe en el modelo (p. ej. "DEAD Static Load" de las combinaciones de
+    // ejemplo que el modal guardaba antes) no se mandan: el motor no los resolvería.
+    const normCaso = (v) => String(v || "").trim().replace(/[\s_]+/g, "").toUpperCase();
+    const casosDelModelo = new Set([
+        ...(cadSystem.staticLoadCases?.items || []), ...(cadSystem.loadCases?.cases || []), ...(cadSystem.responseSpectrumCases?.items || []),
+    ].flatMap((c) => [c?.id, c?.name]).filter(Boolean).map(normCaso));
+    const sinCaso = [];
+    todasLasCombos.filter((c) => c.origen === "usuario").forEach((c) => {
+        const validos = c.terms.filter((t) => !casosDelModelo.size || casosDelModelo.has(normCaso(t.case)));
+        c.terms.filter((t) => !validos.includes(t)).forEach((t) => sinCaso.push(`${c.name} → ${t.case}`));
+        c.terms = validos;
+    });
+    if (sinCaso.length) console.warn(`⚠️ Términos de combinaciones con casos que no existen en el modelo (no se usan):`, sinCaso);
+    const combosDelUsuario = remapCombosToKeptCases(todasLasCombos.filter((c) => c.origen === "usuario" && c.terms.length), seismicMerged)
+        // Las del usuario son de diseño (como en ETABS al marcarlas "Strength" para concreto).
+        .map((c) => ({...c, design: c.design || "Concrete", comboType: c.comboType || "Strength"}));
 
     if (importedCombos.length) {
         console.log(`🧮 Usando ${importedCombos.length} combinaciones importadas del .e2k.`);
+    }
+    if (combosDelUsuario.length) {
+        console.log(`🧮 ${combosDelUsuario.length} combinación(es) del usuario: ${combosDelUsuario.map((c) => c.name).join(", ")}.`);
     }
 
     // COMBOS QUE USAN UN CASO DESMARCADO.
@@ -351,7 +372,7 @@ export async function loadRealFrameForceResults(cadSystem, opts = {}) {
             }
         });
         const afectados = [];
-        importedCombos.forEach((combo) => {
+        [...importedCombos, ...combosDelUsuario].forEach((combo) => {
             (combo.terms || []).forEach((t) => {
                 const k = norm(t.case);
                 if (!enviados.has(k) && apagados.has(k)) {
@@ -381,7 +402,10 @@ export async function loadRealFrameForceResults(cadSystem, opts = {}) {
         ...payload,
         seismicCases,
         numStations,
-        ...(importedCombos.length ? { combos: importedCombos } : {}),
+        // Con .e2k: sus combos más los del usuario. Sin .e2k: el motor genera los de la E.060 y les
+        // agrega los del usuario (combosAdicionales).
+        ...(importedCombos.length ? { combos: [...importedCombos, ...combosDelUsuario] } : {}),
+        ...(!importedCombos.length && combosDelUsuario.length ? { combosAdicionales: combosDelUsuario } : {}),
     };
     const signature = computeModelSignature(body);
 
