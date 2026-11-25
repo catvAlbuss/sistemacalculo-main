@@ -58,8 +58,9 @@ export function recortar(p, d, poligono) {
   return t1 > t0 ? [{x: p.x + d.x * t0, y: p.y + d.y * t0}, {x: p.x + d.x * t1, y: p.y + d.y * t1}] : null;
 }
 
-// Polígono convexo desplazado hacia afuera una distancia d (aleros).
-export function desplazarPoligono(original, d) {
+// Polígono convexo desplazado hacia afuera una distancia d (aleros). distanciaDe(dirección del
+// lado) da un desplazamiento por lado (alero solo en los lados que reciben el agua).
+export function desplazarPoligono(original, d, distanciaDe = null) {
   // Sin vértices casi alineados (< 4°): sus bordes desplazados se cortan muy lejos.
   const poligono = original.filter((b, i) => {
     const a = original[(i - 1 + original.length) % original.length], c = original[(i + 1) % original.length];
@@ -75,7 +76,8 @@ export function desplazarPoligono(original, d) {
   const lineas = poligono.map((a, i) => {
     const b = poligono[(i + 1) % n], l = Math.hypot(b.x - a.x, b.y - a.y) || 1;
     const nrm = {x: ((b.y - a.y) / l) * signo, y: (-(b.x - a.x) / l) * signo}; // hacia afuera
-    return {p: {x: a.x + nrm.x * d, y: a.y + nrm.y * d}, d: {x: (b.x - a.x) / l, y: (b.y - a.y) / l}};
+    const dir = {x: (b.x - a.x) / l, y: (b.y - a.y) / l}, dd = distanciaDe ? distanciaDe(dir, nrm, a) : d;
+    return {p: {x: a.x + nrm.x * dd, y: a.y + nrm.y * dd}, d: dir};
   });
   return lineas.map((l1, i) => {
     const l0 = lineas[(i - 1 + n) % n];
@@ -402,7 +404,7 @@ export function ambientesDeLosa({lectura, items = [], k = 1}) {
 // volados: los de voladosDesdePlanta (pasillo en voladizo), en el marco de esta planta.
 // alero: m de losa fuera de las columnas; null = el del criterio (techo). Una losa de entrepiso
 // termina en la cara de la viga (alero 0), como la dibuja el ingeniero.
-export function planoAligerado({lectura, items = [], k = 1, espesorFijo = null, losaMaciza = true, conVacios = true, volados = [], alero: aleroPedido = null, tipoCimentacion = null, pisos = 1, vigaSecundaria = null}) {
+export function planoAligerado({lectura, items = [], k = 1, espesorFijo = null, losaMaciza = true, conVacios = true, volados = [], alero: aleroPedido = null, tipoCimentacion = null, pisos = 1, vigaSecundaria = null, aleroParaleloA = null}) {
   const columnas = lectura.columnas;
   // Con volado los ejes pasan su borde (las burbujas quedan fuera de la losa).
   const bordeVolado = (() => {
@@ -458,7 +460,27 @@ export function planoAligerado({lectura, items = [], k = 1, espesorFijo = null, 
   const pano = huellaColumnas(columnas);
   const alero = aleroPedido ?? CRITERIOS.aligerado.alero;
   const u = direccionPrincipal(lectura.ejes), v = {x: -u.y, y: u.x};
-  const losa = extenderLosa(alero > 0 ? desplazarPoligono(pano, alero) : pano, pano, volados, u, v);
+  // Techo inclinado: alero solo en los lados paralelos a la cumbrera (por donde cae el agua); los
+  // hastiales terminan en el eje. Medido en los techos del ingeniero: 61 % → 81 % de lados bien.
+  const porLado = aleroParaleloA ? (dir) => (Math.abs(dir.x * aleroParaleloA.x + dir.y * aleroParaleloA.y) > 0.7 ? alero : 0) : null;
+  // El alero se mide desde el EJE extremo, como el ingeniero (borde a 0.55–0.60 m del eje), no
+  // desde la cara de la columna: se descuenta lo que la columna sobresale del eje en ese lado.
+  const posEjes = (eje) => (lectura.ejes ?? []).filter((e) => !e.inclinado).map((e) => {
+    const d = {x: e.q.x - e.p.x, y: e.q.y - e.p.y}, l = Math.hypot(d.x, d.y) || 1;
+    return Math.abs((d.x * eje.x + d.y * eje.y) / l) < 0.26 ? ((e.p.x + e.q.x) / 2) * eje.x + ((e.p.y + e.q.y) / 2) * eje.y : null;
+  }).filter((x) => x !== null);
+  const desdeEje = (dir, nrm, a) => {
+    const base = porLado ? porLado(dir) : alero;
+    if (!(base > 0) || !nrm) return base;
+    const e = Math.abs(nrm.x * u.x + nrm.y * u.y) > 0.7 ? u : Math.abs(nrm.x * v.x + nrm.y * v.y) > 0.7 ? v : null;
+    const pos = e ? posEjes(e) : [];
+    if (!pos.length) return base;
+    const sgn = Math.sign(nrm.x * e.x + nrm.y * e.y);
+    const ejeExtremo = sgn > 0 ? Math.max(...pos) : Math.min(...pos);
+    const sobresale = sgn * (a.x * e.x + a.y * e.y - ejeExtremo);
+    return sobresale > 0 && sobresale < base ? base - sobresale : base;
+  };
+  const losa = extenderLosa(alero > 0 ? desplazarPoligono(pano, alero, desdeEje) : pano, pano, volados, u, v);
   prim.push(pline(L.ALIGERADO, losa.map(pt), true));
   const proy = (p, eje) => p.x * eje.x + p.y * eje.y;
   // Vigas del volado, como el expediente: las vigas de los ejes que cruzan el volado siguen en
@@ -610,6 +632,7 @@ export function planoAligerado({lectura, items = [], k = 1, espesorFijo = null, 
     prim.push(text(L.TEXTO_LOSA, pt(sitio), sitio.valor, sitio.h));
     return {pano: i + 1, viguetas: n, luz: luzPano, espesor: espesorPano, area: areaDe(Pin?.length >= 3 ? Pin : P), ancho: r1 - r0};
   });
+  // (La viga de borde VCH en esos lados se probó: misma semejanza y menos precisión; no va.)
   const espesor = espesorFijo ?? espesorAligerado(Math.max(luz, luzEjes));
 
   // Losa maciza (baños, SS.HH.) con su malla, y vacío de escalera con aspa, como el expediente.

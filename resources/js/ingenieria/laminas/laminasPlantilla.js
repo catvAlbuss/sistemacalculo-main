@@ -10,7 +10,7 @@
 // Unidades: las de un dibujo en metros (la plantilla dibuja los planos x2 = 1/25).
 
 import {L, line, text} from "../cad/primitives.js";
-import {planoCimentacion, planoCimientoCorrido, planoTabiqueria, escalerasEnPlanta} from "../planos/cimentacionPlano.js";
+import {planoCimentacion, planoCimientoCorrido, planoTabiqueria, escalerasEnPlanta, huellaColumnas} from "../planos/cimentacionPlano.js";
 import {predimensionarEscalera, detalleEscalera, detallesEscaleraPorTramo} from "../planos/escaleraPlano.js";
 import {direccionPrincipal} from "../planos/aligeradoPlano.js";
 import {planoAligerado, seccionViga} from "../planos/aligeradoPlano.js";
@@ -206,9 +206,28 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
   // zona 4 (así en los dos proyectos del despacho: Z=0.25 → 0.40, Z=0.45 → 0.50). Propuesta.
   const vigaSecundaria = Number(datos?.vigaSecundaria) > 0 ? Number(datos.vigaSecundaria) : (dp.sismo?.Z >= 0.45 ? 0.5 : 0.4);
   const vigasProyecto = {pisos: nivelesLosa, vigaSecundaria};
+  // Lados del techo que llevan alero: los que tienen CANALETA escrita junto a ellos en la
+  // arquitectura; si no hay, los lados largos (la cumbrera corre a lo largo en 6 de 8 techos).
+  const aleroParaleloA = (() => {
+    if (alero === 0 || !lectura.columnas?.length) return null;
+    const pano = huellaColumnas(lectura.columnas), du = direccionPrincipal(lectura.ejes), dv = {x: -du.y, y: du.x};
+    const rg = (eje) => { const p = pano.map((q) => q.x * eje.x + q.y * eje.y); return [Math.min(...p), Math.max(...p)]; };
+    const [u0, u1] = rg(du), [v0, v1] = rg(dv);
+    let votos = 0;
+    for (const it of items) {
+      if (it.tipo !== "texto" || !/CANALETA/i.test(it.texto ?? "") || !it.centro) continue;
+      const p = {x: it.centro.x / k, y: it.centro.y / k}, a = p.x * du.x + p.y * du.y, b = p.x * dv.x + p.y * dv.y;
+      if (a < u0 - 3 || a > u1 + 3 || b < v0 - 3 || b > v1 + 3) continue;
+      const cercaU = Math.min(Math.abs(a - u0), Math.abs(a - u1)), cercaV = Math.min(Math.abs(b - v0), Math.abs(b - v1));
+      votos += cercaV < cercaU ? 1 : -1; // junto a un lado paralelo a u → ese par recibe el agua
+    }
+    if (votos > 0) return du;
+    if (votos < 0) return dv;
+    return u1 - u0 >= v1 - v0 ? du : dv;
+  })();
   // El alero es del techo: con varios niveles, la losa de entrepiso termina en la cara de la viga
   // (el pasillo en volado sí sigue: va en `volados`).
-  const ali = planoAligerado({lectura: plantaEntrepiso?.lectura ?? lectura, items, k: plantaEntrepiso?.k ?? k, espesorFijo: estructura.espesorLosa ?? null, losaMaciza: estructura.losaMaciza ?? Number(estructura.niveles) >= 2, volados, alero: nivelesLosa > 1 ? 0 : alero, tipoCimentacion: cim.tipo, ...vigasProyecto});
+  const ali = planoAligerado({lectura: plantaEntrepiso?.lectura ?? lectura, items, k: plantaEntrepiso?.k ?? k, espesorFijo: estructura.espesorLosa ?? null, losaMaciza: estructura.losaMaciza ?? Number(estructura.niveles) >= 2, volados, alero: nivelesLosa > 1 ? 0 : alero, tipoCimentacion: cim.tipo, ...vigasProyecto, aleroParaleloA});
   const cuadro = cuadroColumnas(lectura.columnas, {niveles: Math.max(1, Number(estructura.niveles) || 1)}); // en NIVEL, los pisos que cubre
   // Con placas y columnas, el ingeniero hace dos cuadros: "CUADRO DE PLACAS" y "CUADRO DE COLUMNAS"
   // (así en 35 de los 44 cuadros de la biblioteca); el cuadro completo queda para el metrado.
@@ -229,7 +248,7 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
   const extras = [];
   if (nNiveles > 1 && losaTecho) {
     const plantaTecho = plantaNivel(nNiveles);
-    const aliT = planoAligerado({lectura: plantaTecho?.lectura ?? lectura, items, k: plantaTecho?.k ?? k, espesorFijo: estructura.espesorLosa ?? null, losaMaciza: estructura.losaMaciza ?? Number(estructura.niveles) >= 2, conVacios: false, volados, alero, tipoCimentacion: cim.tipo, ...vigasProyecto});
+    const aliT = planoAligerado({lectura: plantaTecho?.lectura ?? lectura, items, k: plantaTecho?.k ?? k, espesorFijo: estructura.espesorLosa ?? null, losaMaciza: estructura.losaMaciza ?? Number(estructura.niveles) >= 2, conVacios: false, volados, alero, tipoCimentacion: cim.tipo, ...vigasProyecto, aleroParaleloA});
     aliT.contenido.titulo = "PLANO DE LOSA ALIGERADA TECHO";
     extras.push(aliT.contenido);
   }
