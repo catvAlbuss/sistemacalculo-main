@@ -20,13 +20,34 @@ import {aprenderPatron, patronUtil} from "./patrones.js";
 
 const ORDINAL = [[/\b(1|PRIMER|1ER|1ERO|1°)\b/, 1], [/\b(2|SEGUNDO|2DO|2°)\b/, 2], [/\b(3|TERCER|3ER|3RO|3°)\b/, 3], [/\b(4|CUARTO|4TO|4°)\b/, 4]];
 
-// Nivel de una planta por su título ("PLANTA DE DISTRIBUCIÓN 2DO NIVEL" → 2), o null.
+// Ordinales escritos ("NOVENO NIVEL") y con marca ("9° NIVEL", "2DO PISO", "3ER NIVEL").
+const PALABRAS = {PRIMER: 1, PRIMERO: 1, SEGUNDO: 2, TERCER: 3, TERCERO: 3, CUARTO: 4, QUINTO: 5, SEXTO: 6, SEPTIMO: 7, OCTAVO: 8, NOVENO: 9, DECIMO: 10};
+const ORDINAL_MARCADO = /\b(\d{1,2})\s*(?:°|º|ER|ERO|DO|RO|TO|VO|NO|MO)(?![A-Z])|\b(PRIMERO?|SEGUNDO|TERCERO?|CUARTO|QUINTO|SEXTO|S[EÉ]PTIMO|OCTAVO|NOVENO|D[EÉ]CIMO)\b/g;
+const sinTilde = (s) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+// Niveles que cubre una planta por su título: "2° A 8° NIVEL" → {desde: 2, hasta: 8}; "1° Y 2°
+// PISO" → {1, 2}; "9° NIVEL" → {9, 9}. Un número suelto ("MÓDULO 8") no es un piso. Null si no hay.
+export function rangoDeNivelesDeTitulo(titulo) {
+  const t = textoPlano(String(titulo ?? "")).toUpperCase();
+  if (!/NIVEL|PISO|PLANTA/.test(t) || /TECHO|AZOTEA|CUBIERTA/.test(t)) return null;
+  const nums = [...t.matchAll(ORDINAL_MARCADO)].map((m) => (m[1] ? Number(m[1]) : PALABRAS[sinTilde(m[2])])).filter((n) => n >= 1 && n <= 30);
+  // "NIVEL 2" / "PISO 3": número junto a la palabra.
+  const junto = /(?:NIVEL|PISO)\s*(\d{1,2})\b/.exec(t);
+  if (junto) nums.push(Number(junto[1]));
+  if (!nums.length) return null;
+  return {desde: Math.min(...nums), hasta: Math.max(...nums)};
+}
+
+// Nivel de una planta por su título ("PLANTA DE DISTRIBUCIÓN 2DO NIVEL" → 2), o null. Con un
+// rango ("2° A 8° NIVEL") devuelve el primero; rangoDeNivelesDeTitulo da todos.
 export function nivelDeTitulo(titulo) {
+  const r = rangoDeNivelesDeTitulo(titulo);
+  if (r) return r.desde;
   const t = textoPlano(String(titulo ?? "")).toUpperCase();
   if (!/NIVEL|PISO|PLANTA/.test(t)) return null;
   if (/TECHO|AZOTEA|CUBIERTA/.test(t)) return null;
   for (const [re, n] of ORDINAL) if (re.test(t.replace(/NIVEL|PISO/g, " "))) return n;
-  return /NIVEL|PISO/.test(t) ? null : null;
+  return null;
 }
 
 const r2 = (v) => Math.round(v * 100) / 100;
@@ -50,7 +71,8 @@ const luces = (pos) => pos.slice(1).map((v, i) => v - pos[i]).filter((d) => d > 
 export function rasgosDeArquitectura(lecturas, textos = []) {
   const plantas = lecturas.filter((l) => l.lectura?.ejes?.length >= 2);
   const principal = [...plantas].sort((a, b) => (b.lectura.columnas.length - a.lectura.columnas.length))[0];
-  const niveles = new Set(plantas.map((l) => nivelDeTitulo(l.titulo)).filter(Boolean));
+  // Con la planta típica "2° A 8° NIVEL" el edificio llega al 8° (no al 2°).
+  const niveles = new Set(plantas.map((l) => rangoDeNivelesDeTitulo(l.titulo)?.hasta ?? nivelDeTitulo(l.titulo)).filter(Boolean));
   const pos = posicionesDeEjes(principal?.lectura.ejes);
   const lx = luces(pos.x), ly = luces(pos.y);
   const largo = pos.x.length > 1 ? pos.x.at(-1) - pos.x[0] : 0;
@@ -80,7 +102,7 @@ export function rasgosDeArquitectura(lecturas, textos = []) {
     falsoCielo: /FALSO CIELO|CIELO RASO|CIELORRASO/.test(todo),
     deportivo: /DEPORTIV|COLISEO|TRIBUNA|LOSA MULTIUSO/.test(todo),
     agua: /CISTERNA|TANQUE ELEVADO|RESERVORIO|CUARTO DE BOMBAS/.test(todo),
-    banos: /SS\.?\s*HH|S\.S\.H\.H|SERVICIOS HIGI|BA[ÑN]OS?|DUCHA|VESTIDOR/.test(todo),
+    banos: /SS\.?\s*HH|S\.S\.H\.H|SERVICIOS HIGI|\bBA[ÑN]OS?\b|DUCHA|VESTIDOR/.test(todo),
   };
 }
 

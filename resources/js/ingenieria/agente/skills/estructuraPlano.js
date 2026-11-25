@@ -4,12 +4,12 @@
 import {L, line, circle, text, rect} from "../../cad/primitives.js";
 import {detectarColumnas, areasTributarias, deducirEjes, predimensionarZapatas, CARGAS_POR_DEFECTO} from "../../diseno/estructura.js";
 import {ejesDesdeColumnas} from "../../lectura/ejesDeducidos.js";
-import {leerVista} from "../../lectura/lectorPlano.js";
+import {leerVista, textoPlano} from "../../lectura/lectorPlano.js";
 import {laminaEstructuras} from "../../laminas/laminaEstructuras.js";
 import {laminasConPlantilla} from "../../laminas/laminasPlantilla.js";
 import {CAMPOS_TECNICOS, datosTecnicos, parametrosSismicos} from "../../criterios/datosProyecto.js";
 import {cajaTexto, seEncima, desencimarTextos, planearSeparacion} from "../../laminas/cajasTexto.js";
-import {rasgosDeArquitectura, geometriaDeLecturas, integrarGeometriaAprendida, proponer, textoPropuesta, casosDeUso, DECISIONES, nivelDeTitulo, nombreVisible} from "../../aprendizaje/casos.js";
+import {rasgosDeArquitectura, geometriaDeLecturas, integrarGeometriaAprendida, proponer, textoPropuesta, casosDeUso, DECISIONES, nivelDeTitulo, rangoDeNivelesDeTitulo, nombreVisible} from "../../aprendizaje/casos.js";
 import {CASOS, EVENTOS_USO} from "../../aprendizaje/casosAprendidos.js";
 import {registrarEvento, eventosDeUso, rasgosParaGuardar} from "../../aprendizaje/registro.js";
 import {metradoEstructuras, aplicarCorrecciones} from "../../metrado/metrado.js";
@@ -865,14 +865,30 @@ async function generarLaminas(args, ctx, {e, guardados, invalidos, quitadas}) {
         const plantasNiveles = [];
         if (niveles > 1) {
           for (const vista of ctx.readPlan().vistas) {
-            const nivel = nivelDeTitulo(vista.titulo);
-            if (!(nivel >= 2 && nivel <= niveles)) continue;
+            // Una planta típica ("2° A 8° NIVEL") vale para cada piso que cubre.
+            const r = rangoDeNivelesDeTitulo(vista.titulo) ?? (nivelDeTitulo(vista.titulo) ? {desde: nivelDeTitulo(vista.titulo), hasta: nivelDeTitulo(vista.titulo)} : null);
+            if (!r || r.hasta < 2 || r.desde > niveles) continue;
             try {
               const lv = leerVista(items, vista, escalaPorBurbuja(vista.radio));
               const l = {columnas: lv.columnas, ejes: lv.ejes, titulo: vista.titulo, columnetas: lv.listaColumnetas};
-              const previa = plantasNiveles.find((x) => x.nivel === nivel);
-              if (!previa) plantasNiveles.push({nivel, titulo: vista.titulo, lectura: l, caja: vista.caja, k: escalaPorBurbuja(vista.radio)});
-              else if (l.columnas.length > previa.lectura.columnas.length) Object.assign(previa, {titulo: vista.titulo, lectura: l, caja: vista.caja, k: escalaPorBurbuja(vista.radio)});
+              for (let nivel = Math.max(2, r.desde); nivel <= Math.min(niveles, r.hasta); nivel++) {
+                const previa = plantasNiveles.find((x) => x.nivel === nivel);
+                if (!previa) plantasNiveles.push({nivel, titulo: vista.titulo, lectura: l, caja: vista.caja, k: escalaPorBurbuja(vista.radio)});
+                else if (l.columnas.length > previa.lectura.columnas.length) Object.assign(previa, {titulo: vista.titulo, lectura: l, caja: vista.caja, k: escalaPorBurbuja(vista.radio)});
+              }
+            } catch { /* una vista ilegible no impide las láminas */ }
+          }
+        }
+        // Azotea (ilo 01–04, 08): parapetos y caseta sobre el último piso, como el "3° nivel" del ingeniero.
+        let plantaAzotea = null;
+        if (niveles > 1) {
+          for (const vista of ctx.readPlan().vistas) {
+            if (!/AZOTEA/i.test(textoPlano(String(vista.titulo ?? "")))) continue;
+            try {
+              const lv = leerVista(items, vista, escalaPorBurbuja(vista.radio));
+              const l = {columnas: lv.columnas, ejes: lv.ejes, titulo: vista.titulo, columnetas: lv.listaColumnetas};
+              const peso = (x) => x.columnas.length * 10 + (x.columnetas?.length ?? 0);
+              if (!plantaAzotea || peso(l) > peso(plantaAzotea.lectura)) plantaAzotea = {titulo: vista.titulo, lectura: l, caja: vista.caja, k: escalaPorBurbuja(vista.radio)};
             } catch { /* una vista ilegible no impide las láminas */ }
           }
         }
@@ -881,7 +897,7 @@ async function generarLaminas(args, ctx, {e, guardados, invalidos, quitadas}) {
         const volados = planta2 ? voladosDesdePlanta({lectura: planta2.lectura, items, k: planta2.k, caja: planta2.caja}) : [];
         const r = laminasConPlantilla({lectura, items, caja: e.caja, k, config: plantilla.config, cimentacion: args.cimentacion ?? cimentacionElegida ?? cimentacionAprendida, datos, estructura: {
           formatoReferencia: formatoDeReferencia(ctx.referenciaActual?.()?.referencia),
-          niveles, losaTecho, espesorLosa: espLosa, textosOcultos: ctx.readPlan().textosOcultos, plantasNiveles, volados,
+          niveles, losaTecho, espesorLosa: espLosa, textosOcultos: ctx.readPlan().textosOcultos, plantasNiveles, plantaAzotea, volados,
           ...(respondido("techoDosAguas") ? {techoDosAguas: elegido.techoDosAguas} : {}),
           // Biblioteca de pórticos del despacho (opcional): si el contexto la trae, los pórticos se
           // adaptan del más parecido que dibujó el ingeniero (planos/porticoBiblioteca.js).

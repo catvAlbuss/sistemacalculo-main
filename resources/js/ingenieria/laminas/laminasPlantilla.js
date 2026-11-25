@@ -152,6 +152,21 @@ const ordenEjes = (a, b) => b.nombre.localeCompare(a.nombre, "es", {numeric: tru
 // estructura: lo que propuso el agente (aprendizaje/casos.js) para este plano: niveles y si el
 // último nivel lleva losa de techo. Con varios niveles, los pórticos llevan sus entrepisos y la
 // losa dibujada es la del 1er nivel (entrepiso).
+// Desplazamiento entre dos vistas del mismo edificio por sus ejes del mismo nombre (x de los ejes
+// verticales, y de los horizontales). ejes: cuántos ejes en común se usaron.
+function desplazamientoPorEjes(ejesA = [], ejesB = []) {
+  const nombre = (n) => String(n ?? "").replace(/[´'`’]/g, "").trim().toUpperCase();
+  const dx = [], dy = [];
+  for (const a of ejesA) {
+    const b = ejesB.find((e) => nombre(e.nombre) === nombre(a.nombre));
+    if (!b) continue;
+    const vertical = Math.abs(a.q.x - a.p.x) < Math.abs(a.q.y - a.p.y);
+    if (vertical) dx.push((b.p.x + b.q.x) / 2 - (a.p.x + a.q.x) / 2); else dy.push((b.p.y + b.q.y) / 2 - (a.p.y + a.q.y) / 2);
+  }
+  const med = (v) => (v.length ? [...v].sort((p, q) => p - q)[Math.floor(v.length / 2)] : 0);
+  return {x: med(dx), y: med(dy), ejes: Math.min(dx.length, dy.length)};
+}
+
 export function laminasConPlantilla({lectura, items, caja, k = 1, config, cimentacion, datos = {}, fecha = new Date(), estructura = {}}) {
   const proyecto = proyectoDesdeArquitectura(items, lectura.titulo || "PROYECTO");
   // Datos del rótulo: el formulario del panel manda; si no, el rótulo de la arquitectura.
@@ -239,6 +254,29 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
       extras.push(g.t.contenido);
       // Columnetas de otra medida que solo aparecen arriba: también van al cuadro.
       for (const c of g.t.columnetasCodificadas ?? []) if (c.codigo && !columnetasExtra.some((x) => x.codigo === c.codigo) && !(lectura.columnetas ?? []).some((x) => x.codigo === c.codigo)) columnetasExtra.push(c);
+    }
+  }
+  // Azotea: tabiquería de parapetos (con las columnas del edificio llevadas a la vista de azotea por
+  // los ejes del mismo nombre, si allí no se dibujaron) y losa de la caseta si tiene columnas propias.
+  const az = estructura.plantaAzotea;
+  if (az && nNiveles >= 2) {
+    const desp = desplazamientoPorEjes(lectura.ejes, az.lectura.ejes);
+    const mover = (c) => ({...c, x: c.x + desp.x, y: c.y + desp.y, ...(c.nodo ? {nodo: {x: c.nodo.x + desp.x, y: c.nodo.y + desp.y}} : {}), ...(c.contorno ? {contorno: c.contorno.map((p) => ({x: p.x + desp.x, y: p.y + desp.y}))} : {})});
+    const propias = az.lectura.columnas ?? [];
+    const columnasAz = propias.length >= 2 ? propias : desp.ejes >= 2 ? lectura.columnas.map(mover) : [];
+    if (columnasAz.length >= 2 && (az.lectura.columnetas?.length ?? 0) >= 4) {
+      try {
+        const t = planoTabiqueria({lectura: {...az.lectura, columnas: columnasAz}, items, k: az.k}, {codigos: cc.columnetas});
+        t.contenido.titulo = "PLANO DE TABIQUERÍA AZOTEA";
+        extras.push(t.contenido);
+      } catch { /* sin tabiquería de azotea */ }
+    }
+    if (propias.length >= 4 && propias.length < 0.6 * lectura.columnas.length) {
+      try {
+        const aliA = planoAligerado({lectura: az.lectura, items, k: az.k, espesorFijo: estructura.espesorLosa ?? null, losaMaciza: false, conVacios: false, alero: 0, tipoCimentacion: cim.tipo});
+        aliA.contenido.titulo = "PLANO DE LOSA ALIGERADA AZOTEA (CASETA)";
+        extras.push(aliA.contenido);
+      } catch { /* sin losa de caseta */ }
     }
   }
   // Detalles (cortes de cimiento, escalera, cuadros) en coordenadas locales, para medirlos contra los
