@@ -38,7 +38,8 @@ const PLANTA = {
   [L.VIGAS_CIM]: {geo: C("0", 4), texto: C("Texto")},
   [L.ZAPATAS]: {geo: C("0", 6), texto: C("Texto")},
   [L.CIMIENTO]: {geo: C("0"), texto: C("Texto"), achurado: C(".N1 muros bajos")},
-  [L.MUROS_E]: {geo: C("0"), achurado: C(".N1 muros bajos")},
+  // Muros en planta como el ingeniero: contorno en ".N1 Muros Altos" (magenta) y franja achurada.
+  [L.MUROS_E]: {geo: C(".N1 Muros Altos", 6), achurado: C(".N1 muros bajos")},
   [L.VIGAS]: {geo: C("0", 4), texto: C("Texto")},
   [L.VIGUETAS]: {geo: C("viguetas", 2), texto: C(".D1 Texto")},
   [L.ALIGERADO]: {geo: C(".N1 Muros Altos")},

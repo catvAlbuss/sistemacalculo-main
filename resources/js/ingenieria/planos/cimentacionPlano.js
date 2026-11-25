@@ -483,7 +483,15 @@ export function planoCimientoCorrido({lectura, items, caja, k = 1}, opciones = {
   for (const g of geometria) {
     prim.push(pline(L.MUROS_E, g.pts.map(pt), g.cerrada === true));
     // Muros bajos (bajo ventanas: tabiques, alféizares) achurados, como el expediente.
-    if (g.cerrada && /tabique|bajo|alfeiz|parapet/i.test(g.capa ?? "") && g.pts.length >= 3) prim.push(hatch(L.MUROS_E, g.pts.map(pt), {patron: "ANSI31", escala: 0.2, angulo: 0}));
+    if (g.cerrada && /tabique|bajo|alfeiz|parapet/i.test(g.capa ?? "") && g.pts.length >= 3) prim.push(hatch(L.MUROS_E, g.pts.map(pt), {patron: "ANSI31", escala: 0.02, angulo: 0}));
+  }
+  // Franja del muro sobre el cimiento achurada (ANSI31, escala 0.02), como el ingeniero en su
+  // planta de cimiento corrido (módulo 8: ".N1 muros bajos" en cada tramo de muro).
+  for (const t of tramos) {
+    if (!(t.largo > 0.15 && t.espesor > 0.05)) continue;
+    const n = t.adentro, e = t.espesor / 2;
+    const q = (p, s) => pt({x: p.x + n.x * s, y: p.y + n.y * s});
+    prim.push(hatch(L.MUROS_E, [q(t.a, -e), q(t.b, -e), q(t.b, e), q(t.a, e)], {patron: "ANSI31", escala: 0.02, angulo: 0}));
   }
   // 3. Rótulo "Cimiento corrido" dentro de cada ambiente, junto a su muro, y marcas de corte.
   const hr = MEDIDAS.rotulo;
