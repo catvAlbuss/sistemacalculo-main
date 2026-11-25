@@ -1,10 +1,6 @@
 {
-  "_AgentePredimPanel-2b5RqF1p.css": {
-    "file": "assets/AgentePredimPanel-2b5RqF1p.css",
-    "src": "_AgentePredimPanel-2b5RqF1p.css"
-  },
-  "_AgentePredimPanel-JeZAHrau.js": {
-    "file": "assets/AgentePredimPanel-JeZAHrau.js",
+  "_AgentePredimPanel-Cud-nu94.js": {
+    "file": "assets/AgentePredimPanel-Cud-nu94.js",
     "name": "AgentePredimPanel",
     "isDynamicEntry": true,
     "imports": [
@@ -21,8 +17,12 @@
       "resources/js/ingenieria/lectura/diagnostico.js"
     ],
     "css": [
-      "assets/AgentePredimPanel-2b5RqF1p.css"
+      "assets/AgentePredimPanel-FoK1uffH.css"
     ]
+  },
+  "_AgentePredimPanel-FoK1uffH.css": {
+    "file": "assets/AgentePredimPanel-FoK1uffH.css",
+    "src": "_AgentePredimPanel-FoK1uffH.css"
   },
   "__commonjsHelpers-D6-XlEtG.js": {
     "file": "assets/_commonjsHelpers-D6-XlEtG.js",
@@ -48,8 +48,8 @@
     "file": "assets/arco-techo-Dd1A_g-k.css",
     "src": "_arco-techo-Dd1A_g-k.css"
   },
-  "_cad-agent-plugin-CyLaRnpN.js": {
-    "file": "assets/cad-agent-plugin-CyLaRnpN.js",
+  "_cad-agent-plugin-DpDt_959.js": {
+    "file": "assets/cad-agent-plugin-DpDt_959.js",
     "name": "cad-agent-plugin",
     "isDynamicEntry": true,
     "imports": [
@@ -87,8 +87,8 @@
     "file": "assets/export-BDpKkf8W.css",
     "src": "_export-BDpKkf8W.css"
   },
-  "_export-D92QccW_.js": {
-    "file": "assets/export-D92QccW_.js",
+  "_export-as_KBGBy.js": {
+    "file": "assets/export-as_KBGBy.js",
     "name": "export",
     "css": [
       "assets/export-BDpKkf8W.css"
@@ -171,6 +171,10 @@
     "file": "assets/state-Dtb9TNCH.js",
     "name": "state"
   },
+  "_steelEditor-DOmfWtVE.js": {
+    "file": "assets/steelEditor-DOmfWtVE.js",
+    "name": "steelEditor"
+  },
   "_sweetalert2.esm.all-0Z_61IYw.js": {
     "file": "assets/sweetalert2.esm.all-0Z_61IYw.js",
     "name": "sweetalert2.esm.all"
@@ -218,7 +222,7 @@
     ]
   },
   "node_modules/@babylonjs/core/Shaders/gaussianSplatting.fragment.js": {
-    "file": "assets/gaussianSplatting.fragment-BiPevqb5.js",
+    "file": "assets/gaussianSplatting.fragment-Ct4VSkqO.js",
     "name": "gaussianSplatting.fragment",
     "src": "node_modules/@babylonjs/core/Shaders/gaussianSplatting.fragment.js",
     "isDynamicEntry": true,
@@ -234,6 +238,7 @@
       "_pressureMap-B8RtmfVq.js",
       "_plotTheme-zW9Nz4dg.js",
       "_deflectionCalculator-BFw1L2Wc.js",
+      "_steelEditor-DOmfWtVE.js",
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
@@ -242,7 +247,7 @@
     ]
   },
   "node_modules/@babylonjs/core/Shaders/gaussianSplatting.vertex.js": {
-    "file": "assets/gaussianSplatting.vertex-DK8lIkXU.js",
+    "file": "assets/gaussianSplatting.vertex-DUrg5o6N.js",
     "name": "gaussianSplatting.vertex",
     "src": "node_modules/@babylonjs/core/Shaders/gaussianSplatting.vertex.js",
     "isDynamicEntry": true,
@@ -258,6 +263,7 @@
       "_pressureMap-B8RtmfVq.js",
       "_plotTheme-zW9Nz4dg.js",
       "_deflectionCalculator-BFw1L2Wc.js",
+      "_steelEditor-DOmfWtVE.js",
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
@@ -266,7 +272,7 @@
     ]
   },
   "node_modules/@babylonjs/core/Shaders/gaussianSplattingVoxel.fragment.js": {
-    "file": "assets/gaussianSplattingVoxel.fragment-CEBtFZLq.js",
+    "file": "assets/gaussianSplattingVoxel.fragment-D4lbJ1nj.js",
     "name": "gaussianSplattingVoxel.fragment",
     "src": "node_modules/@babylonjs/core/Shaders/gaussianSplattingVoxel.fragment.js",
     "isDynamicEntry": true,
@@ -282,6 +288,7 @@
       "_pressureMap-B8RtmfVq.js",
       "_plotTheme-zW9Nz4dg.js",
       "_deflectionCalculator-BFw1L2Wc.js",
+      "_steelEditor-DOmfWtVE.js",
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
@@ -290,7 +297,7 @@
     ]
   },
   "node_modules/@babylonjs/core/Shaders/gaussianSplattingVoxel.vertex.js": {
-    "file": "assets/gaussianSplattingVoxel.vertex-aVGwlafz.js",
+    "file": "assets/gaussianSplattingVoxel.vertex-vfImsehc.js",
     "name": "gaussianSplattingVoxel.vertex",
     "src": "node_modules/@babylonjs/core/Shaders/gaussianSplattingVoxel.vertex.js",
     "isDynamicEntry": true,
@@ -306,6 +313,7 @@
       "_pressureMap-B8RtmfVq.js",
       "_plotTheme-zW9Nz4dg.js",
       "_deflectionCalculator-BFw1L2Wc.js",
+      "_steelEditor-DOmfWtVE.js",
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
@@ -314,7 +322,7 @@
     ]
   },
   "node_modules/@babylonjs/core/Shaders/lod3D.fragment.js": {
-    "file": "assets/lod3D.fragment-DSb6FKs-.js",
+    "file": "assets/lod3D.fragment-Dls50qFX.js",
     "name": "lod3D.fragment",
     "src": "node_modules/@babylonjs/core/Shaders/lod3D.fragment.js",
     "isDynamicEntry": true,
@@ -330,6 +338,7 @@
       "_pressureMap-B8RtmfVq.js",
       "_plotTheme-zW9Nz4dg.js",
       "_deflectionCalculator-BFw1L2Wc.js",
+      "_steelEditor-DOmfWtVE.js",
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
@@ -338,7 +347,7 @@
     ]
   },
   "node_modules/@babylonjs/core/Shaders/meshBlending.fragment.js": {
-    "file": "assets/meshBlending.fragment-BW7ADBOt.js",
+    "file": "assets/meshBlending.fragment-CKlQNcfJ.js",
     "name": "meshBlending.fragment",
     "src": "node_modules/@babylonjs/core/Shaders/meshBlending.fragment.js",
     "isDynamicEntry": true,
@@ -354,6 +363,7 @@
       "_pressureMap-B8RtmfVq.js",
       "_plotTheme-zW9Nz4dg.js",
       "_deflectionCalculator-BFw1L2Wc.js",
+      "_steelEditor-DOmfWtVE.js",
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
@@ -362,7 +372,7 @@
     ]
   },
   "node_modules/@babylonjs/core/Shaders/noise.fragment.js": {
-    "file": "assets/noise.fragment-CfCKhN9w.js",
+    "file": "assets/noise.fragment-D1FLu39C.js",
     "name": "noise.fragment",
     "src": "node_modules/@babylonjs/core/Shaders/noise.fragment.js",
     "isDynamicEntry": true,
@@ -378,6 +388,7 @@
       "_pressureMap-B8RtmfVq.js",
       "_plotTheme-zW9Nz4dg.js",
       "_deflectionCalculator-BFw1L2Wc.js",
+      "_steelEditor-DOmfWtVE.js",
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
@@ -386,7 +397,7 @@
     ]
   },
   "node_modules/@babylonjs/core/Shaders/oitFinalSimpleBlend.fragment.js": {
-    "file": "assets/oitFinalSimpleBlend.fragment-CvVbkYHW.js",
+    "file": "assets/oitFinalSimpleBlend.fragment-BZMOEmgN.js",
     "name": "oitFinalSimpleBlend.fragment",
     "src": "node_modules/@babylonjs/core/Shaders/oitFinalSimpleBlend.fragment.js",
     "isDynamicEntry": true,
@@ -402,6 +413,7 @@
       "_pressureMap-B8RtmfVq.js",
       "_plotTheme-zW9Nz4dg.js",
       "_deflectionCalculator-BFw1L2Wc.js",
+      "_steelEditor-DOmfWtVE.js",
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
@@ -410,7 +422,7 @@
     ]
   },
   "node_modules/@babylonjs/core/Shaders/selection.fragment.js": {
-    "file": "assets/selection.fragment-CKbiyefG.js",
+    "file": "assets/selection.fragment-BFnuCRUr.js",
     "name": "selection.fragment",
     "src": "node_modules/@babylonjs/core/Shaders/selection.fragment.js",
     "isDynamicEntry": true,
@@ -426,6 +438,7 @@
       "_pressureMap-B8RtmfVq.js",
       "_plotTheme-zW9Nz4dg.js",
       "_deflectionCalculator-BFw1L2Wc.js",
+      "_steelEditor-DOmfWtVE.js",
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
@@ -434,7 +447,7 @@
     ]
   },
   "node_modules/@babylonjs/core/Shaders/selection.vertex.js": {
-    "file": "assets/selection.vertex-DynQyFWd.js",
+    "file": "assets/selection.vertex-Dkvhyyal.js",
     "name": "selection.vertex",
     "src": "node_modules/@babylonjs/core/Shaders/selection.vertex.js",
     "isDynamicEntry": true,
@@ -450,6 +463,7 @@
       "_pressureMap-B8RtmfVq.js",
       "_plotTheme-zW9Nz4dg.js",
       "_deflectionCalculator-BFw1L2Wc.js",
+      "_steelEditor-DOmfWtVE.js",
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
@@ -458,7 +472,7 @@
     ]
   },
   "node_modules/@babylonjs/core/Shaders/selectionOutline.fragment.js": {
-    "file": "assets/selectionOutline.fragment-BsJ6IcNI.js",
+    "file": "assets/selectionOutline.fragment-DyQnALi_.js",
     "name": "selectionOutline.fragment",
     "src": "node_modules/@babylonjs/core/Shaders/selectionOutline.fragment.js",
     "isDynamicEntry": true,
@@ -474,6 +488,7 @@
       "_pressureMap-B8RtmfVq.js",
       "_plotTheme-zW9Nz4dg.js",
       "_deflectionCalculator-BFw1L2Wc.js",
+      "_steelEditor-DOmfWtVE.js",
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
@@ -482,7 +497,7 @@
     ]
   },
   "node_modules/@babylonjs/core/Shaders/subSurfaceScattering.fragment.js": {
-    "file": "assets/subSurfaceScattering.fragment-DmO7r7q-.js",
+    "file": "assets/subSurfaceScattering.fragment-DUqUffsA.js",
     "name": "subSurfaceScattering.fragment",
     "src": "node_modules/@babylonjs/core/Shaders/subSurfaceScattering.fragment.js",
     "isDynamicEntry": true,
@@ -498,6 +513,7 @@
       "_pressureMap-B8RtmfVq.js",
       "_plotTheme-zW9Nz4dg.js",
       "_deflectionCalculator-BFw1L2Wc.js",
+      "_steelEditor-DOmfWtVE.js",
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
@@ -506,7 +522,7 @@
     ]
   },
   "node_modules/@babylonjs/core/Shaders/volumetricLightingBlendVolume.fragment.js": {
-    "file": "assets/volumetricLightingBlendVolume.fragment-BGRBrO2Z.js",
+    "file": "assets/volumetricLightingBlendVolume.fragment-04OzW-8U.js",
     "name": "volumetricLightingBlendVolume.fragment",
     "src": "node_modules/@babylonjs/core/Shaders/volumetricLightingBlendVolume.fragment.js",
     "isDynamicEntry": true,
@@ -522,6 +538,7 @@
       "_pressureMap-B8RtmfVq.js",
       "_plotTheme-zW9Nz4dg.js",
       "_deflectionCalculator-BFw1L2Wc.js",
+      "_steelEditor-DOmfWtVE.js",
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
@@ -530,7 +547,7 @@
     ]
   },
   "node_modules/@babylonjs/core/Shaders/volumetricLightingRenderVolume.fragment.js": {
-    "file": "assets/volumetricLightingRenderVolume.fragment-BQa-SrLM.js",
+    "file": "assets/volumetricLightingRenderVolume.fragment-EXdyMKlP.js",
     "name": "volumetricLightingRenderVolume.fragment",
     "src": "node_modules/@babylonjs/core/Shaders/volumetricLightingRenderVolume.fragment.js",
     "isDynamicEntry": true,
@@ -546,6 +563,7 @@
       "_pressureMap-B8RtmfVq.js",
       "_plotTheme-zW9Nz4dg.js",
       "_deflectionCalculator-BFw1L2Wc.js",
+      "_steelEditor-DOmfWtVE.js",
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
@@ -554,7 +572,7 @@
     ]
   },
   "node_modules/@babylonjs/core/Shaders/volumetricLightingRenderVolume.vertex.js": {
-    "file": "assets/volumetricLightingRenderVolume.vertex-AyfI_gqS.js",
+    "file": "assets/volumetricLightingRenderVolume.vertex-IuNuhwgv.js",
     "name": "volumetricLightingRenderVolume.vertex",
     "src": "node_modules/@babylonjs/core/Shaders/volumetricLightingRenderVolume.vertex.js",
     "isDynamicEntry": true,
@@ -570,6 +588,7 @@
       "_pressureMap-B8RtmfVq.js",
       "_plotTheme-zW9Nz4dg.js",
       "_deflectionCalculator-BFw1L2Wc.js",
+      "_steelEditor-DOmfWtVE.js",
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
@@ -578,7 +597,7 @@
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/gaussianSplatting.fragment.js": {
-    "file": "assets/gaussianSplatting.fragment-fpPeWJMY.js",
+    "file": "assets/gaussianSplatting.fragment-DH6QuFWx.js",
     "name": "gaussianSplatting.fragment",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/gaussianSplatting.fragment.js",
     "isDynamicEntry": true,
@@ -594,6 +613,7 @@
       "_pressureMap-B8RtmfVq.js",
       "_plotTheme-zW9Nz4dg.js",
       "_deflectionCalculator-BFw1L2Wc.js",
+      "_steelEditor-DOmfWtVE.js",
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
@@ -602,7 +622,7 @@
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/gaussianSplatting.vertex.js": {
-    "file": "assets/gaussianSplatting.vertex--f4UVtvh.js",
+    "file": "assets/gaussianSplatting.vertex-xjFxhzcf.js",
     "name": "gaussianSplatting.vertex",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/gaussianSplatting.vertex.js",
     "isDynamicEntry": true,
@@ -618,6 +638,7 @@
       "_pressureMap-B8RtmfVq.js",
       "_plotTheme-zW9Nz4dg.js",
       "_deflectionCalculator-BFw1L2Wc.js",
+      "_steelEditor-DOmfWtVE.js",
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
@@ -626,7 +647,7 @@
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/gaussianSplattingVoxel.fragment.js": {
-    "file": "assets/gaussianSplattingVoxel.fragment-Cn0hdV_z.js",
+    "file": "assets/gaussianSplattingVoxel.fragment-DWt77M1D.js",
     "name": "gaussianSplattingVoxel.fragment",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/gaussianSplattingVoxel.fragment.js",
     "isDynamicEntry": true,
@@ -642,6 +663,7 @@
       "_pressureMap-B8RtmfVq.js",
       "_plotTheme-zW9Nz4dg.js",
       "_deflectionCalculator-BFw1L2Wc.js",
+      "_steelEditor-DOmfWtVE.js",
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
@@ -650,7 +672,7 @@
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/gaussianSplattingVoxel.vertex.js": {
-    "file": "assets/gaussianSplattingVoxel.vertex-CnBYUnIf.js",
+    "file": "assets/gaussianSplattingVoxel.vertex-BGXHQzSe.js",
     "name": "gaussianSplattingVoxel.vertex",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/gaussianSplattingVoxel.vertex.js",
     "isDynamicEntry": true,
@@ -666,6 +688,7 @@
       "_pressureMap-B8RtmfVq.js",
       "_plotTheme-zW9Nz4dg.js",
       "_deflectionCalculator-BFw1L2Wc.js",
+      "_steelEditor-DOmfWtVE.js",
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
@@ -674,7 +697,7 @@
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/gpuRenderParticles.fragment.js": {
-    "file": "assets/gpuRenderParticles.fragment-BDhCEVGm.js",
+    "file": "assets/gpuRenderParticles.fragment-tAnLjeoa.js",
     "name": "gpuRenderParticles.fragment",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/gpuRenderParticles.fragment.js",
     "isDynamicEntry": true,
@@ -690,6 +713,7 @@
       "_pressureMap-B8RtmfVq.js",
       "_plotTheme-zW9Nz4dg.js",
       "_deflectionCalculator-BFw1L2Wc.js",
+      "_steelEditor-DOmfWtVE.js",
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
@@ -698,7 +722,7 @@
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/gpuRenderParticles.vertex.js": {
-    "file": "assets/gpuRenderParticles.vertex-BBoYyBcr.js",
+    "file": "assets/gpuRenderParticles.vertex-C3rfyhYx.js",
     "name": "gpuRenderParticles.vertex",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/gpuRenderParticles.vertex.js",
     "isDynamicEntry": true,
@@ -714,6 +738,7 @@
       "_pressureMap-B8RtmfVq.js",
       "_plotTheme-zW9Nz4dg.js",
       "_deflectionCalculator-BFw1L2Wc.js",
+      "_steelEditor-DOmfWtVE.js",
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
@@ -722,7 +747,7 @@
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/gsSortCount.compute.js": {
-    "file": "assets/gsSortCount.compute-BWh5JQHI.js",
+    "file": "assets/gsSortCount.compute-B_ZYug2R.js",
     "name": "gsSortCount.compute",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/gsSortCount.compute.js",
     "isDynamicEntry": true,
@@ -738,6 +763,7 @@
       "_pressureMap-B8RtmfVq.js",
       "_plotTheme-zW9Nz4dg.js",
       "_deflectionCalculator-BFw1L2Wc.js",
+      "_steelEditor-DOmfWtVE.js",
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
@@ -746,7 +772,7 @@
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/gsSortKeys.compute.js": {
-    "file": "assets/gsSortKeys.compute-D2kamAD1.js",
+    "file": "assets/gsSortKeys.compute-BA-PEpsE.js",
     "name": "gsSortKeys.compute",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/gsSortKeys.compute.js",
     "isDynamicEntry": true,
@@ -762,6 +788,7 @@
       "_pressureMap-B8RtmfVq.js",
       "_plotTheme-zW9Nz4dg.js",
       "_deflectionCalculator-BFw1L2Wc.js",
+      "_steelEditor-DOmfWtVE.js",
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
@@ -770,7 +797,7 @@
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/gsSortOutput.compute.js": {
-    "file": "assets/gsSortOutput.compute-B2OlFV0r.js",
+    "file": "assets/gsSortOutput.compute-hEqn_a7b.js",
     "name": "gsSortOutput.compute",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/gsSortOutput.compute.js",
     "isDynamicEntry": true,
@@ -786,6 +813,7 @@
       "_pressureMap-B8RtmfVq.js",
       "_plotTheme-zW9Nz4dg.js",
       "_deflectionCalculator-BFw1L2Wc.js",
+      "_steelEditor-DOmfWtVE.js",
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
@@ -794,7 +822,7 @@
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/gsSortScanLocal.compute.js": {
-    "file": "assets/gsSortScanLocal.compute-Ciqactv8.js",
+    "file": "assets/gsSortScanLocal.compute-DJz1HU6X.js",
     "name": "gsSortScanLocal.compute",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/gsSortScanLocal.compute.js",
     "isDynamicEntry": true,
@@ -810,6 +838,7 @@
       "_pressureMap-B8RtmfVq.js",
       "_plotTheme-zW9Nz4dg.js",
       "_deflectionCalculator-BFw1L2Wc.js",
+      "_steelEditor-DOmfWtVE.js",
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
@@ -818,7 +847,7 @@
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/gsSortScanSums.compute.js": {
-    "file": "assets/gsSortScanSums.compute-DrUsaKO6.js",
+    "file": "assets/gsSortScanSums.compute-BktLhM5z.js",
     "name": "gsSortScanSums.compute",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/gsSortScanSums.compute.js",
     "isDynamicEntry": true,
@@ -834,6 +863,7 @@
       "_pressureMap-B8RtmfVq.js",
       "_plotTheme-zW9Nz4dg.js",
       "_deflectionCalculator-BFw1L2Wc.js",
+      "_steelEditor-DOmfWtVE.js",
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
@@ -842,7 +872,7 @@
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/gsSortScatter.compute.js": {
-    "file": "assets/gsSortScatter.compute-GEHyDKwo.js",
+    "file": "assets/gsSortScatter.compute-C0o6blC6.js",
     "name": "gsSortScatter.compute",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/gsSortScatter.compute.js",
     "isDynamicEntry": true,
@@ -858,6 +888,7 @@
       "_pressureMap-B8RtmfVq.js",
       "_plotTheme-zW9Nz4dg.js",
       "_deflectionCalculator-BFw1L2Wc.js",
+      "_steelEditor-DOmfWtVE.js",
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
@@ -866,7 +897,7 @@
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/iblCopyVoxelBufferToGrid.compute.js": {
-    "file": "assets/iblCopyVoxelBufferToGrid.compute-Wgyng98Y.js",
+    "file": "assets/iblCopyVoxelBufferToGrid.compute-1t3MMg19.js",
     "name": "iblCopyVoxelBufferToGrid.compute",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/iblCopyVoxelBufferToGrid.compute.js",
     "isDynamicEntry": true,
@@ -882,6 +913,7 @@
       "_pressureMap-B8RtmfVq.js",
       "_plotTheme-zW9Nz4dg.js",
       "_deflectionCalculator-BFw1L2Wc.js",
+      "_steelEditor-DOmfWtVE.js",
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
@@ -890,7 +922,7 @@
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/lod3D.fragment.js": {
-    "file": "assets/lod3D.fragment-CEZgB4lT.js",
+    "file": "assets/lod3D.fragment-CarnzFIV.js",
     "name": "lod3D.fragment",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/lod3D.fragment.js",
     "isDynamicEntry": true,
@@ -906,6 +938,7 @@
       "_pressureMap-B8RtmfVq.js",
       "_plotTheme-zW9Nz4dg.js",
       "_deflectionCalculator-BFw1L2Wc.js",
+      "_steelEditor-DOmfWtVE.js",
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
@@ -914,7 +947,7 @@
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/meshBlending.fragment.js": {
-    "file": "assets/meshBlending.fragment-D-rywI-B.js",
+    "file": "assets/meshBlending.fragment-CVshtLKx.js",
     "name": "meshBlending.fragment",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/meshBlending.fragment.js",
     "isDynamicEntry": true,
@@ -930,6 +963,7 @@
       "_pressureMap-B8RtmfVq.js",
       "_plotTheme-zW9Nz4dg.js",
       "_deflectionCalculator-BFw1L2Wc.js",
+      "_steelEditor-DOmfWtVE.js",
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
@@ -938,7 +972,7 @@
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/noise.fragment.js": {
-    "file": "assets/noise.fragment-Rg7xu58Q.js",
+    "file": "assets/noise.fragment-BSmiHk7V.js",
     "name": "noise.fragment",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/noise.fragment.js",
     "isDynamicEntry": true,
@@ -954,6 +988,7 @@
       "_pressureMap-B8RtmfVq.js",
       "_plotTheme-zW9Nz4dg.js",
       "_deflectionCalculator-BFw1L2Wc.js",
+      "_steelEditor-DOmfWtVE.js",
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
@@ -962,7 +997,7 @@
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/oitFinalSimpleBlend.fragment.js": {
-    "file": "assets/oitFinalSimpleBlend.fragment-CD7SjCBj.js",
+    "file": "assets/oitFinalSimpleBlend.fragment-CFl8tqd7.js",
     "name": "oitFinalSimpleBlend.fragment",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/oitFinalSimpleBlend.fragment.js",
     "isDynamicEntry": true,
@@ -978,6 +1013,7 @@
       "_pressureMap-B8RtmfVq.js",
       "_plotTheme-zW9Nz4dg.js",
       "_deflectionCalculator-BFw1L2Wc.js",
+      "_steelEditor-DOmfWtVE.js",
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
@@ -986,7 +1022,7 @@
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/screenSpaceCurvature.fragment.js": {
-    "file": "assets/screenSpaceCurvature.fragment-CuFi281U.js",
+    "file": "assets/screenSpaceCurvature.fragment-Dc6ZOdJ8.js",
     "name": "screenSpaceCurvature.fragment",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/screenSpaceCurvature.fragment.js",
     "isDynamicEntry": true,
@@ -1002,6 +1038,7 @@
       "_pressureMap-B8RtmfVq.js",
       "_plotTheme-zW9Nz4dg.js",
       "_deflectionCalculator-BFw1L2Wc.js",
+      "_steelEditor-DOmfWtVE.js",
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
@@ -1010,7 +1047,7 @@
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/selection.fragment.js": {
-    "file": "assets/selection.fragment-DrHzXA7q.js",
+    "file": "assets/selection.fragment-QMRwvMeA.js",
     "name": "selection.fragment",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/selection.fragment.js",
     "isDynamicEntry": true,
@@ -1026,6 +1063,7 @@
       "_pressureMap-B8RtmfVq.js",
       "_plotTheme-zW9Nz4dg.js",
       "_deflectionCalculator-BFw1L2Wc.js",
+      "_steelEditor-DOmfWtVE.js",
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
@@ -1034,7 +1072,7 @@
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/selection.vertex.js": {
-    "file": "assets/selection.vertex-MOBfQ-Ot.js",
+    "file": "assets/selection.vertex-Cf2yDHaK.js",
     "name": "selection.vertex",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/selection.vertex.js",
     "isDynamicEntry": true,
@@ -1050,6 +1088,7 @@
       "_pressureMap-B8RtmfVq.js",
       "_plotTheme-zW9Nz4dg.js",
       "_deflectionCalculator-BFw1L2Wc.js",
+      "_steelEditor-DOmfWtVE.js",
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
@@ -1058,7 +1097,7 @@
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/selectionOutline.fragment.js": {
-    "file": "assets/selectionOutline.fragment-ChtuIaE_.js",
+    "file": "assets/selectionOutline.fragment-DdpJ4AtQ.js",
     "name": "selectionOutline.fragment",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/selectionOutline.fragment.js",
     "isDynamicEntry": true,
@@ -1074,6 +1113,7 @@
       "_pressureMap-B8RtmfVq.js",
       "_plotTheme-zW9Nz4dg.js",
       "_deflectionCalculator-BFw1L2Wc.js",
+      "_steelEditor-DOmfWtVE.js",
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
@@ -1082,7 +1122,7 @@
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/subSurfaceScattering.fragment.js": {
-    "file": "assets/subSurfaceScattering.fragment-Ck4hzjBS.js",
+    "file": "assets/subSurfaceScattering.fragment-B1Mhys4x.js",
     "name": "subSurfaceScattering.fragment",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/subSurfaceScattering.fragment.js",
     "isDynamicEntry": true,
@@ -1098,6 +1138,7 @@
       "_pressureMap-B8RtmfVq.js",
       "_plotTheme-zW9Nz4dg.js",
       "_deflectionCalculator-BFw1L2Wc.js",
+      "_steelEditor-DOmfWtVE.js",
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
@@ -1106,7 +1147,7 @@
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/volumetricLightingBlendVolume.fragment.js": {
-    "file": "assets/volumetricLightingBlendVolume.fragment-BhPwasfr.js",
+    "file": "assets/volumetricLightingBlendVolume.fragment-DnsdR9v3.js",
     "name": "volumetricLightingBlendVolume.fragment",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/volumetricLightingBlendVolume.fragment.js",
     "isDynamicEntry": true,
@@ -1122,6 +1163,7 @@
       "_pressureMap-B8RtmfVq.js",
       "_plotTheme-zW9Nz4dg.js",
       "_deflectionCalculator-BFw1L2Wc.js",
+      "_steelEditor-DOmfWtVE.js",
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
@@ -1130,7 +1172,7 @@
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/volumetricLightingRenderVolume.fragment.js": {
-    "file": "assets/volumetricLightingRenderVolume.fragment-Bm9Pdqhr.js",
+    "file": "assets/volumetricLightingRenderVolume.fragment-DXtfNdzw.js",
     "name": "volumetricLightingRenderVolume.fragment",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/volumetricLightingRenderVolume.fragment.js",
     "isDynamicEntry": true,
@@ -1146,6 +1188,7 @@
       "_pressureMap-B8RtmfVq.js",
       "_plotTheme-zW9Nz4dg.js",
       "_deflectionCalculator-BFw1L2Wc.js",
+      "_steelEditor-DOmfWtVE.js",
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
@@ -1154,7 +1197,7 @@
     ]
   },
   "node_modules/@babylonjs/core/ShadersWGSL/volumetricLightingRenderVolume.vertex.js": {
-    "file": "assets/volumetricLightingRenderVolume.vertex-BJ5cFZQU.js",
+    "file": "assets/volumetricLightingRenderVolume.vertex-D4Agd5L0.js",
     "name": "volumetricLightingRenderVolume.vertex",
     "src": "node_modules/@babylonjs/core/ShadersWGSL/volumetricLightingRenderVolume.vertex.js",
     "isDynamicEntry": true,
@@ -1170,6 +1213,7 @@
       "_pressureMap-B8RtmfVq.js",
       "_plotTheme-zW9Nz4dg.js",
       "_deflectionCalculator-BFw1L2Wc.js",
+      "_steelEditor-DOmfWtVE.js",
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
@@ -1178,13 +1222,13 @@
     ]
   },
   "node_modules/@mlightcad/cad-agent-plugin/dist/cad-agent-plugin-register.js": {
-    "file": "assets/cad-agent-plugin-register-zAQQOWV8.js",
+    "file": "assets/cad-agent-plugin-register-b1MKOscl.js",
     "name": "cad-agent-plugin-register",
     "src": "node_modules/@mlightcad/cad-agent-plugin/dist/cad-agent-plugin-register.js",
     "isDynamicEntry": true,
     "imports": [
       "_preload-helper-BfFHrpNk.js",
-      "_cad-agent-plugin-CyLaRnpN.js",
+      "_cad-agent-plugin-DpDt_959.js",
       "resources/js/etabs/main.js",
       "_three.module-De0dRVGu.js",
       "__commonjsHelpers-D6-XlEtG.js",
@@ -1196,7 +1240,7 @@
       "_color_scale-BGSv3LvJ.js"
     ],
     "dynamicImports": [
-      "_cad-agent-plugin-CyLaRnpN.js"
+      "_cad-agent-plugin-DpDt_959.js"
     ]
   },
   "node_modules/@mlightcad/cad-agent-plugin/dist/style.css": {
@@ -1204,7 +1248,7 @@
     "src": "node_modules/@mlightcad/cad-agent-plugin/dist/style.css"
   },
   "node_modules/@mlightcad/cad-google-drive-plugin/dist/cad-google-drive-plugin-register.js": {
-    "file": "assets/cad-google-drive-plugin-register-BZ1R_gKF.js",
+    "file": "assets/cad-google-drive-plugin-register-Ct0wD1uv.js",
     "name": "cad-google-drive-plugin-register",
     "src": "node_modules/@mlightcad/cad-google-drive-plugin/dist/cad-google-drive-plugin-register.js",
     "isDynamicEntry": true,
@@ -1216,7 +1260,7 @@
     ]
   },
   "node_modules/@mlightcad/cad-google-drive-plugin/dist/cad-google-drive-plugin.js": {
-    "file": "assets/cad-google-drive-plugin-BOEwjhAb.js",
+    "file": "assets/cad-google-drive-plugin-CyFhV2kB.js",
     "name": "cad-google-drive-plugin",
     "src": "node_modules/@mlightcad/cad-google-drive-plugin/dist/cad-google-drive-plugin.js",
     "isDynamicEntry": true,
@@ -1234,7 +1278,7 @@
     ]
   },
   "node_modules/@mlightcad/cad-onedrive-plugin/dist/cad-onedrive-plugin-register.js": {
-    "file": "assets/cad-onedrive-plugin-register-Bqgo-hri.js",
+    "file": "assets/cad-onedrive-plugin-register-CkSoeLNy.js",
     "name": "cad-onedrive-plugin-register",
     "src": "node_modules/@mlightcad/cad-onedrive-plugin/dist/cad-onedrive-plugin-register.js",
     "isDynamicEntry": true,
@@ -1246,7 +1290,7 @@
     ]
   },
   "node_modules/@mlightcad/cad-onedrive-plugin/dist/cad-onedrive-plugin.js": {
-    "file": "assets/cad-onedrive-plugin-CUnJFv5A.js",
+    "file": "assets/cad-onedrive-plugin-DcvaQj5r.js",
     "name": "cad-onedrive-plugin",
     "src": "node_modules/@mlightcad/cad-onedrive-plugin/dist/cad-onedrive-plugin.js",
     "isDynamicEntry": true,
@@ -1267,7 +1311,7 @@
     ]
   },
   "node_modules/@mlightcad/cad-pdf-plugin/dist/cad-pdf-plugin.js": {
-    "file": "assets/cad-pdf-plugin-Dxjgnl7t.js",
+    "file": "assets/cad-pdf-plugin-DCJh3-1W.js",
     "name": "cad-pdf-plugin",
     "src": "node_modules/@mlightcad/cad-pdf-plugin/dist/cad-pdf-plugin.js",
     "isDynamicEntry": true,
@@ -1285,7 +1329,7 @@
     ]
   },
   "node_modules/@mlightcad/cad-svg-plugin/dist/cad-svg-plugin.js": {
-    "file": "assets/cad-svg-plugin-Bfj5ACB2.js",
+    "file": "assets/cad-svg-plugin-BWgbaufv.js",
     "name": "cad-svg-plugin",
     "src": "node_modules/@mlightcad/cad-svg-plugin/dist/cad-svg-plugin.js",
     "isDynamicEntry": true,
@@ -1303,7 +1347,7 @@
     ]
   },
   "node_modules/@mlightcad/data-model/lib/index.js": {
-    "file": "assets/index-Ck3unS23.js",
+    "file": "assets/index-S8ewS6W1.js",
     "name": "index",
     "src": "node_modules/@mlightcad/data-model/lib/index.js",
     "isDynamicEntry": true,
@@ -1321,7 +1365,7 @@
     ]
   },
   "node_modules/@mlightcad/libredwg-web/dist/libredwg-web.js": {
-    "file": "assets/libredwg-web-C_xJSlCz.js",
+    "file": "assets/libredwg-web-CM9RzLFn.js",
     "name": "libredwg-web",
     "src": "node_modules/@mlightcad/libredwg-web/dist/libredwg-web.js",
     "isDynamicEntry": true,
@@ -1364,7 +1408,7 @@
     "src": "node_modules/jquery-ui/themes/base/images/ui-icons_ffffff_256x240.png"
   },
   "resources/css/app.css": {
-    "file": "assets/app-DYP-6Xq4.css",
+    "file": "assets/app-CV3k_uOE.css",
     "src": "resources/css/app.css",
     "isEntry": true
   },
@@ -1663,12 +1707,13 @@
     ]
   },
   "resources/js/adm_desing_vigas.js": {
-    "file": "assets/adm_desing_vigas-BQF41Ntu.js",
+    "file": "assets/adm_desing_vigas-DfJLEZjC.js",
     "name": "adm_desing_vigas",
     "src": "resources/js/adm_desing_vigas.js",
     "isEntry": true,
     "imports": [
-      "_export-D92QccW_.js",
+      "_steelEditor-DOmfWtVE.js",
+      "_export-as_KBGBy.js",
       "_state-Dtb9TNCH.js",
       "_printThis-eR5fzPta.js"
     ],
@@ -1785,15 +1830,16 @@
     ]
   },
   "resources/js/adm_vigas_general.js": {
-    "file": "assets/adm_vigas_general-CAAG59sE.js",
+    "file": "assets/adm_vigas_general-Daenv3ay.js",
     "name": "adm_vigas_general",
     "src": "resources/js/adm_vigas_general.js",
     "isEntry": true,
     "imports": [
-      "_export-D92QccW_.js",
+      "_export-as_KBGBy.js",
       "_preload-helper-BfFHrpNk.js",
       "_table_factory-B9rDAGra.js",
       "_deflectionCalculator-BFw1L2Wc.js",
+      "_steelEditor-DOmfWtVE.js",
       "_sweetalert2.esm.all-0Z_61IYw.js",
       "_state-Dtb9TNCH.js"
     ],
@@ -1862,7 +1908,7 @@
     "isEntry": true
   },
   "resources/js/analisis_estructural_de_armaduras.js": {
-    "file": "assets/analisis_estructural_de_armaduras-DWw81jwX.js",
+    "file": "assets/analisis_estructural_de_armaduras-D8djLyHd.js",
     "name": "analisis_estructural_de_armaduras",
     "src": "resources/js/analisis_estructural_de_armaduras.js",
     "isEntry": true,
@@ -1876,6 +1922,7 @@
       "_zapatas2Core-XufHv6tW.js",
       "__commonjsHelpers-D6-XlEtG.js",
       "_deflectionCalculator-BFw1L2Wc.js",
+      "_steelEditor-DOmfWtVE.js",
       "_engineError-CU3s0yX4.js",
       "_html2canvas.esm-5Cw11iw4.js",
       "_rizabalasociados-BgyDGUXy.js",
@@ -2157,7 +2204,7 @@
     ]
   },
   "resources/js/etabs/main.js": {
-    "file": "assets/main-BNm1bSM9.js",
+    "file": "assets/main-ZbAhC30s.js",
     "name": "main",
     "src": "resources/js/etabs/main.js",
     "isEntry": true,
@@ -2178,11 +2225,11 @@
       "node_modules/@mlightcad/cad-pdf-plugin/dist/cad-pdf-plugin.js",
       "node_modules/@mlightcad/cad-svg-plugin/dist/cad-svg-plugin.js",
       "node_modules/@mlightcad/cad-pdf-plugin/dist/cad-pdf-plugin.js",
-      "_cad-agent-plugin-CyLaRnpN.js",
+      "_cad-agent-plugin-DpDt_959.js",
       "node_modules/@mlightcad/cad-agent-plugin/dist/cad-agent-plugin-register.js",
       "node_modules/@mlightcad/cad-onedrive-plugin/dist/cad-onedrive-plugin-register.js",
       "node_modules/@mlightcad/cad-google-drive-plugin/dist/cad-google-drive-plugin-register.js",
-      "_AgentePredimPanel-JeZAHrau.js",
+      "_AgentePredimPanel-Cud-nu94.js",
       "node_modules/@mlightcad/data-model/lib/index.js"
     ],
     "css": [
@@ -2247,12 +2294,12 @@
     "src": "resources/js/etabs/product/icons/rotate.svg"
   },
   "resources/js/ingenieria/cad/drawingContext.js": {
-    "file": "assets/drawingContext-CurVd-8w.js",
+    "file": "assets/drawingContext-DHHNl_e7.js",
     "name": "drawingContext",
     "src": "resources/js/ingenieria/cad/drawingContext.js",
     "isDynamicEntry": true,
     "imports": [
-      "_AgentePredimPanel-JeZAHrau.js",
+      "_AgentePredimPanel-Cud-nu94.js",
       "resources/js/etabs/main.js",
       "_preload-helper-BfFHrpNk.js",
       "_three.module-De0dRVGu.js",
@@ -2266,12 +2313,12 @@
     ]
   },
   "resources/js/ingenieria/lectura/diagnostico.js": {
-    "file": "assets/diagnostico-DJ9J5Mb9.js",
+    "file": "assets/diagnostico-D6_FqjbA.js",
     "name": "diagnostico",
     "src": "resources/js/ingenieria/lectura/diagnostico.js",
     "isDynamicEntry": true,
     "imports": [
-      "_AgentePredimPanel-JeZAHrau.js",
+      "_AgentePredimPanel-Cud-nu94.js",
       "_preload-helper-BfFHrpNk.js",
       "resources/js/etabs/main.js",
       "_three.module-De0dRVGu.js",

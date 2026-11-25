@@ -260,6 +260,20 @@
       "missingPackageNotices": false
     },
     {
+      "name": "@mlightcad/cad-simple-viewer",
+      "version": "1.7.6",
+      "license": "MIT",
+      "repository": "https://github.com/mlightcad/cad-viewer",
+      "files": [
+        {
+          "name": "LICENSE",
+          "url": "/build/licenses/texts/_mlightcad_cad-simple-viewer-1.7.6/LICENSE"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
       "name": "@mlightcad/cad-svg-plugin",
       "version": "1.7.6",
       "license": "MIT",
@@ -296,6 +310,20 @@
         {
           "name": "LICENSE",
           "url": "/build/licenses/texts/_mlightcad_common-1.15.17/LICENSE"
+        }
+      ],
+      "reviewRequired": false,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "@mlightcad/data-model",
+      "version": "1.15.17",
+      "license": "MIT",
+      "repository": "https://github.com/mlightcad/realdwg-web",
+      "files": [
+        {
+          "name": "LICENSE",
+          "url": "/build/licenses/texts/_mlightcad_data-model-1.15.17/LICENSE"
         }
       ],
       "reviewRequired": false,
@@ -388,6 +416,34 @@
       ],
       "reviewRequired": true,
       "missingPackageNotices": false
+    },
+    {
+      "name": "@mlightcad/libredwg-converter",
+      "version": "3.15.17",
+      "license": "GPL-3.0",
+      "repository": "https://github.com/mlightcad/realdwg-web",
+      "files": [
+        {
+          "name": "LICENSE",
+          "url": "/build/licenses/texts/_mlightcad_libredwg-converter-3.15.17/LICENSE"
+        }
+      ],
+      "reviewRequired": true,
+      "missingPackageNotices": false
+    },
+    {
+      "name": "@mlightcad/libredwg-web",
+      "version": "0.7.17",
+      "license": "GPL-3.0",
+      "repository": "https://github.com/mlightcad/libredwg-web",
+      "files": [
+        {
+          "name": "GPL-3.0.txt",
+          "url": "/build/licenses/texts/_mlightcad_libredwg-web-0.7.17/GPL-3.0.txt"
+        }
+      ],
+      "reviewRequired": true,
+      "missingPackageNotices": true
     },
     {
       "name": "@mlightcad/libredwg-web",
