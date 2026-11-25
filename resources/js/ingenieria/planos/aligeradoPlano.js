@@ -168,7 +168,9 @@ const APOYO_MIN = 1.2, LUZ_MAX_VIGUETA = 7;
 // Celdas de la grilla entre ejes con vigas (paños del ingeniero). null si hay una sola celda.
 // Cada celda: {P (polígono con alero en los bordes), tipo: "aligerada" | "maciza" | "abertura", motivo,
 // dir: "u" | "v" | null (dirección de las viguetas que fija la grilla; null = la luz corta de cada paño)}.
-export function celdasDeGrilla({lectura, tramos, losa, u, v, items = [], k = 1, volados = [], muros = [], losaMaciza = true}) {
+export function celdasDeGrilla({lectura, tramos, losa, u, v, items = [], k = 1, volados = [], muros = [], losaMaciza = true, panosMacizos = null}) {
+  const clavePano = (ejes) => [...ejes].map((e) => String(e).replace(/\s+/g, "")).sort().join("|");
+  const pedidos = new Set((losaMaciza !== false ? panosMacizos ?? [] : []).map(clavePano));
   const conViga = new Set(tramos.map((t) => t.eje));
   const proy = (p, e) => p.x * e.x + p.y * e.y;
   const cortes = {u: [], v: []};
@@ -247,7 +249,8 @@ export function celdasDeGrilla({lectura, tramos, losa, u, v, items = [], k = 1, 
       const agua = dentro.some((t) => AGUA.test(t) && !/cisterna|bombas/i.test(t));
       // Sin losa maciza en los baños (decisión del ingeniero), el paño queda entero y aligerado:
       // partirlo al ambiente dejaba franjas de 0.5 m con sus propias viguetas (VINCHOS módulo 8).
-      const humedo = agua || (losaMaciza !== false && dentro.some(esHumedo));
+      const pedido = pedidos.has(clavePano([`${nu[i].n}–${nu[i + 1].n}`, `${nv[j].n}–${nv[j + 1].n}`]));
+      const humedo = agua || pedido || (losaMaciza !== false && dentro.some(esHumedo));
       const volado = nu[i].volado || nu[i + 1].volado || nv[j].volado || nv[j + 1].volado;
       if (volado) { celdas.push({P, tipo: "aligerada", motivo: "volado", dir, ejes: [`${nu[i].n}–${nu[i + 1].n}`, `${nv[j].n}–${nv[j + 1].n}`]}); continue; }
       // Solo si el paño no tiene el rótulo de otro ambiente (la franja entre apoyos puede juntar varios).
@@ -413,7 +416,9 @@ export function ambientesDeLosa({lectura, items = [], k = 1}) {
 // volados: los de voladosDesdePlanta (pasillo en voladizo), en el marco de esta planta.
 // alero: m de losa fuera de las columnas; null = el del criterio (techo). Una losa de entrepiso
 // termina en la cara de la viga (alero 0), como la dibuja el ingeniero.
-export function planoAligerado({lectura, items = [], k = 1, espesorFijo = null, losaMaciza = true, conVacios = true, volados = [], alero: aleroPedido = null, tipoCimentacion = null, pisos = 1, vigaSecundaria = null, aleroParaleloA = null}) {
+// panosMacizos: paños [["33–37´", "H–E´"], …] donde el ingeniero confirmó losa maciza (los que nombró la
+// pregunta del agente): van macizos aunque esta planta no rotule el baño.
+export function planoAligerado({lectura, items = [], k = 1, espesorFijo = null, losaMaciza = true, panosMacizos = null, conVacios = true, volados = [], alero: aleroPedido = null, tipoCimentacion = null, pisos = 1, vigaSecundaria = null, aleroParaleloA = null}) {
   const columnas = lectura.columnas;
   // Con volado los ejes pasan su borde (las burbujas quedan fuera de la losa).
   const bordeVolado = (() => {
@@ -535,7 +540,7 @@ export function planoAligerado({lectura, items = [], k = 1, espesorFijo = null, 
   // interiores y viga de cumbrera.
   // Caras de los muros (metros), para limitar la losa maciza al ambiente húmedo.
   const murosLosa = items.length ? murosDelEdificio({columnas, items, k}).geometria.flatMap((g) => g.pts.slice(1).map((q, i) => [g.pts[i], q]).concat(g.cerrada && g.pts.length > 2 ? [[g.pts.at(-1), g.pts[0]]] : [])) : [];
-  const celdas = partirEscaleras(celdasDeGrilla({lectura, tramos, losa, u, v, items, k, volados, muros: murosLosa, losaMaciza}), conVacios ? escalerasEnPlanta({columnas, items, k}, u) : [], u, v)
+  const celdas = partirEscaleras(celdasDeGrilla({lectura, tramos, losa, u, v, items, k, volados, muros: murosLosa, losaMaciza, panosMacizos}), conVacios ? escalerasEnPlanta({columnas, items, k}, u) : [], u, v)
     ?.map((c) => ((c.tipo === "maciza" && losaMaciza === false && c.motivo === "baños") || (c.tipo === "abertura" && conVacios === false) ? {...c, tipo: "aligerada", motivo: c.motivo === "vacío" ? null : c.motivo} : c)) ?? null;
   // Muros interiores largos: la losa se divide en paños con una viga sobre cada uno.
   // La viga central es la de cumbrera (módulo XIV: "VCUMBRERA" sobre el muro central).
@@ -737,7 +742,10 @@ export function planoAligerado({lectura, items = [], k = 1, espesorFijo = null, 
         ...vigasVolado],
       losa: {espesor, areaBruta: areaDe(losa), areaPanos: datosPanos.reduce((s, p) => s + (p.area ?? 0), 0), panos: datosPanos.map((p) => ({luz: p.luz, viguetas: p.viguetas, area: p.area, ancho: p.ancho})),
         maciza: especialesModelo.filter((x) => x.tipo === "maciza").reduce((s, x) => s + x.area, 0) + (cisternaUnica ? areaDe(pano) : 0),
-        vacios: especialesModelo.filter((x) => x.tipo === "abertura").reduce((s, x) => s + x.area, 0)},
+        vacios: especialesModelo.filter((x) => x.tipo === "abertura").reduce((s, x) => s + x.area, 0),
+        // Paños macizos dibujados por motivo (baños, descanso de escalera, cisterna): el mensaje
+        // del agente los nombra igual que el plano.
+        macizas: especialesModelo.filter((x) => x.tipo === "maciza").reduce((acc, x) => ({...acc, [x.motivo ?? "otro"]: (acc[x.motivo ?? "otro"] ?? 0) + 1}), {})},
     },
     cumbrera: (({tramo, d} = {}) => (tramo ? {a: tramo[0], b: tramo[1], d} : null))(vigasInternas.find((x) => x.nombre === "VCUMBRERA")), tiposViga: medidas.map((m) => ({tipo: tramos.find((t) => t.medida === m).tipo, medida: m})),
     contenido: {titulo: "PLANO DE ALIGERADO", primitivas: [...base.primitivas, ...prim], marco: base.marco, ejes: base.ejes, h, notas},

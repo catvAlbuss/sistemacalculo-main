@@ -208,7 +208,7 @@ test('with the template, plano_estructuras builds sheets E-01 and E-02 like the 
   assert.equal(nuevas.filter((e) => e.layer === '.D1 cotas' && /^BASE NPN=\+0\.00m$/.test(e.contents ?? '')).length, 4, 'one level set per frame');
   // Detalles con el criterio del expediente (criteriosEstructurales.js).
   const todo = nuevas.map((e) => e.contents ?? '').join(' | ');
-  for (const t of ['NFZ=-2.00m', 'Hz = 0.70 m', 'Df = -2.00 m', 'FALSA ZAPATA', 'ALERO 0.60', 'LOSA ALIGERADA E=20CM', 'Cimiento corrido', 'VCUMBRERA', 'Paño 01', 'Paño 02', 'CANALETA', '1Ø3/8"', 'DESPIECE DE', 'ESC: 1/50', 'CUMBRERA NFP=+4.10m', 'TECHO NFP=+3.58m', 'aluzinc TIPO TR4', 'PTE=33%', 'VSa', 'V-3', 'Muro de soga de ladrillo King Kong', "Concreto ciclópeo f'c=100","SC Concreto f'c=140", 'PLATEA (ZAPATA CORRIDA) Hz = 0.70 m',
+  for (const t of ['NFZ=-2.00m', 'Hz = 0.70 m', 'Df = -2.00 m', 'FALSA ZAPATA', 'ALERO 0.60', 'LOSA ALIGERADA E=20CM', 'Cimiento corrido', 'VCUMBRERA', 'Paño 01', 'Paño 02', 'CANALETA', '1Ø3/8"', 'DESPIECE DE', 'ESC: 1/50', 'CUMBRERA NFP=+4.10m', 'TECHO NFP=+3.58m', 'aluzinc TIPO TR4', 'PTE=33%', 'VSa', 'V-3', 'Muro de soga de ladrillo King Kong', "Concreto ciclópeo f'c=100","SC Concreto f'c=140", 'PLATEA DE CIMENTACIÓN Hz = 0.70 m',
     '2 □ 3/8"Ø: 1@0.05, 9@0.10, Rto.@0.20 C/E', '□ 3/8"Ø: 1@0.05, 8@0.10, Rto.@0.20 C/E', 'Recubrimiento: 4 cm', '1° Piso']) {
     assert.ok(todo.includes(t), `missing detail "${t}"`);
   }

@@ -229,7 +229,7 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
   })();
   // El alero es del techo: con varios niveles, la losa de entrepiso termina en la cara de la viga
   // (el pasillo en volado sí sigue: va en `volados`).
-  const ali = planoAligerado({lectura: plantaEntrepiso?.lectura ?? lectura, items, k: plantaEntrepiso?.k ?? k, espesorFijo: estructura.espesorLosa ?? null, losaMaciza: estructura.losaMaciza ?? Number(estructura.niveles) >= 2, volados, alero: nivelesLosa > 1 ? 0 : alero, tipoCimentacion: cim.tipo, ...vigasProyecto, aleroParaleloA});
+  const ali = planoAligerado({lectura: plantaEntrepiso?.lectura ?? lectura, items, k: plantaEntrepiso?.k ?? k, espesorFijo: estructura.espesorLosa ?? null, losaMaciza: estructura.losaMaciza ?? Number(estructura.niveles) >= 2, panosMacizos: estructura.panosMacizos ?? null, volados, alero: nivelesLosa > 1 ? 0 : alero, tipoCimentacion: cim.tipo, ...vigasProyecto, aleroParaleloA});
   const cuadro = cuadroColumnas(lectura.columnas, {niveles: Math.max(1, Number(estructura.niveles) || 1)}); // en NIVEL, los pisos que cubre
   // Con placas y columnas, el ingeniero hace dos cuadros: "CUADRO DE PLACAS" y "CUADRO DE COLUMNAS"
   // (así en 35 de los 44 cuadros de la biblioteca); el cuadro completo queda para el metrado.
@@ -248,11 +248,14 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
   // Planos de los niveles de arriba, en láminas extra: losa de techo y tabiquería de cada nivel
   // (los niveles con la misma tabiquería van en un solo plano: "2° Y 3° PISO").
   const extras = [];
+  // Losas que quedan dibujadas (para que el mensaje diga lo mismo que el plano).
+  const losasDibujadas = sinLosa ? [] : [{titulo: ali.contenido.titulo, espesor: ali.espesor, viguetas: ali.viguetas, macizas: ali.modelo?.losa?.macizas ?? {}}];
   if (nNiveles > 1 && losaTecho) {
     const plantaTecho = plantaNivel(nNiveles);
     const aliT = planoAligerado({lectura: plantaTecho?.lectura ?? lectura, items, k: plantaTecho?.k ?? k, espesorFijo: estructura.espesorLosa ?? null, losaMaciza: estructura.losaMaciza ?? Number(estructura.niveles) >= 2, conVacios: false, volados, alero, tipoCimentacion: cim.tipo, ...vigasProyecto, aleroParaleloA});
     aliT.contenido.titulo = "PLANO DE LOSA ALIGERADA TECHO";
     extras.push(aliT.contenido);
+    losasDibujadas.push({titulo: aliT.contenido.titulo, espesor: aliT.espesor, viguetas: aliT.viguetas, macizas: aliT.modelo?.losa?.macizas ?? {}});
   }
   const columnetasExtra = [];
   const plantas = (estructura.plantasNiveles ?? []).filter((p) => p.nivel >= 2 && p.nivel <= nNiveles && p.lectura?.columnas?.length >= 2);
@@ -301,6 +304,7 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
         const aliA = planoAligerado({lectura: az.lectura, items, k: az.k, espesorFijo: estructura.espesorLosa ?? null, losaMaciza: false, conVacios: false, alero: 0, tipoCimentacion: cim.tipo, ...vigasProyecto});
         aliA.contenido.titulo = "PLANO DE LOSA ALIGERADA AZOTEA (CASETA)";
         extras.push(aliA.contenido);
+        losasDibujadas.push({titulo: aliA.contenido.titulo, espesor: aliA.espesor, viguetas: aliA.viguetas, macizas: aliA.modelo?.losa?.macizas ?? {}});
       } catch { /* sin losa de caseta */ }
     }
   }
@@ -439,7 +443,7 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
       // El cuadro de columnas también en las láminas de pórticos (si cabe), como el ingeniero.
       {id: 'cuadroColumnas', tipo: 'cuadroColumnas', contenido: contenidos.cuadroColumnas, nominal: 1, repetible: true},
       // Detalles estándar del despacho (biblioteca): llenan el hueco libre como en sus láminas.
-      ...detallesEstandar(estructura.detallesEstandar ?? [], {espesor: ali.espesor}, {conLosa: !sinLosa}).map((d) => ({...d, nominal: 1, relleno: true})),
+      ...detallesEstandar(estructura.detallesEstandar ?? [], {espesor: ali.espesor}, {conLosa: !sinLosa, conCanaleta: Boolean(cumbrera) || items.some((it) => it.tipo === "texto" && /canaleta/i.test(it.texto ?? ""))}).map((d) => ({...d, nominal: 1, relleno: true})),
     ].filter((c) => c.contenido);
     for (const c of lista) c.caja = medir(c.contenido, c.titulado);
     paquete = componerPaqueteLaminas({marco: estructura.formatoReferencia ?? null, escalaPlanos: nominal, proyecto, contenidos: lista});
@@ -606,7 +610,8 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
       cimentacion: cim.tipo === "platea" ? "platea" : `${cim.zapatas.length} zapatas`,
       hz: cim.peralte, df: cim.df, sismo: dp.sismo,
       cimientoCorrido: cc.tramos, anchoCimiento: cc.ancho,
-      aligerado: {espesor: ali.espesor, viguetas: ali.viguetas, vigas: ali.vigas, panos: ali.panos?.length},
+      aligerado: sinLosa ? null : {espesor: ali.espesor, viguetas: ali.viguetas, vigas: ali.vigas, panos: ali.panos?.length},
+      losas: losasDibujadas,
       columnetas: cuadroCtas?.filas?.map((f) => `${f.codigo} ${f.refuerzo}`),
       rotulo: Object.keys(datosRotulo).filter((k2) => datosRotulo[k2]),
       porticos: dibujados.map(nombreDe), porticosSimilares: Object.fromEntries(dibujados.map((i) => [nombreDe(i), representante.get(i)])), altura, niveles: nNiveles, entrepisos, losaTecho,

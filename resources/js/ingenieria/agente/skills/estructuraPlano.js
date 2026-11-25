@@ -16,6 +16,7 @@ import {metradoEstructuras, aplicarCorrecciones} from "../../metrado/metrado.js"
 import {terminosAprendidos} from "../../metrado/terminologia.js";
 import {descargarPlanilla} from "../../metrado/planillaExcel.js";
 import {ambientesDeLosa, voladosDesdePlanta} from "../../planos/aligeradoPlano.js";
+import {verificarCoherencia} from "../coherencia.js";
 import {consultasDelPlano, aplicarRespuestas, textoConsultas, cimentacionRecomendada} from "../consultas.js";
 import {buscarUbicacion, textoUbicacion, categoriaPorUso} from "../../criterios/ubicacion.js";
 import {numeroModulo, vistasDelModulo, formatoDeReferencia, memoriaParaModulo} from "../referenciasProyecto.js";
@@ -821,6 +822,14 @@ async function avanzarConstruccion(ctx) {
   return {ok: true, mensaje: "La construcción ya terminó. Pide \"construye la estructura\" para empezar otra vez."};
 }
 
+// Paños macizos dibujados, por motivo, como los nombra el plano.
+function textoMacizas(losas = []) {
+  const t = {};
+  for (const l of losas) for (const [m, n] of Object.entries(l.macizas ?? {})) t[m] = (t[m] ?? 0) + n;
+  const partes = [t.baños && "maciza en baños", t.cisterna && "maciza en la cisterna o tanque", t.descanso && "descanso de escalera macizo", t.otro && "paños macizos"].filter(Boolean);
+  return partes.length ? `, ${partes.join(", ")}` : "";
+}
+
 async function generarLaminas(args, ctx, {e, guardados, invalidos, quitadas}) {
   const previo = [
     guardados.length ? `Guardé ${guardados.map((k) => ETIQUETA[k]).join(", ")} en Datos del proyecto.` : "",
@@ -908,6 +917,8 @@ async function generarLaminas(args, ctx, {e, guardados, invalidos, quitadas}) {
           // Detalles estándar del despacho (estribos, empalmes, nudo, isométrico…): llenan la lámina.
           ...(ctx.detallesEstandar?.length ? {detallesEstandar: ctx.detallesEstandar} : {}),
           losaMaciza: "losaMaciza" in elegido ? elegido.losaMaciza : undefined,
+          // Los paños que nombró la pregunta: si el ingeniero dijo que sí, esos van macizos.
+          panosMacizos: elegido.losaMaciza === true ? consultas?.consultas?.find((c) => c.clave === "losaMaciza")?.ejes ?? null : null,
           mallaCimentacion: "mallaCimentacion" in elegido ? elegido.mallaCimentacion
             : typeof propuesta.decisiones.mallaCimentacion?.valor === "boolean" ? propuesta.decisiones.mallaCimentacion.valor : false,
           casoSeleccionado: geometriaAprendida.casoSeleccionado ?? null,
@@ -963,11 +974,16 @@ async function generarLaminas(args, ctx, {e, guardados, invalidos, quitadas}) {
           if (quedan) extra.push(`Quedan ${quedan} pares de textos muy juntos; revísalos o pídeme "ordena la lámina".`);
         }
         const s = r.resumen;
+        // Lo que dice el agente lo dice el plano: cada dato del mensaje se busca en los textos
+        // dibujados; lo que no aparece se informa como diferencia, no se afirma.
+        const coherencia = verificarCoherencia(s, textosAgente().map((x) => x.contents ?? x.textString ?? ""),
+          {losaMaciza: typeof elegido.losaMaciza === "boolean" ? elegido.losaMaciza : undefined});
+        if (coherencia.faltan.length) extra.push(`Revisé las láminas contra este mensaje y NO encontré dibujado: ${coherencia.faltan.join("; ")}. Tómalo como pendiente de corregir.`);
         // Resumen para el ingeniero (lo que lee en el chat): lo esencial en pocas líneas. El
         // mensaje largo sigue para el modelo de IA y el detalle técnico.
         const m = r.modelo;
-        const losaTxt = !m.losa || (m.niveles <= 1 && m.losaTecho === false) ? "techo de cobertura liviana (sin losa)"
-          : `losa aligerada e=${s.aligerado.espesor.toFixed(2)} m${m.losa.maciza > 0 ? ", maciza en baños" : ""}${m.vigas.some((v) => v.tipo === "V VARIABLE") ? ", pasillo en volado" : ""}`;
+        const losaTxt = !m.losa || !s.aligerado || (m.niveles <= 1 && m.losaTecho === false) ? "techo de cobertura liviana (sin losa)"
+          : `losa aligerada e=${s.aligerado.espesor.toFixed(2)} m${textoMacizas(s.losas)}${m.vigas.some((v) => v.tipo === "V VARIABLE") ? ", pasillo en volado" : ""}`;
         const notasColocadas = (r.secciones ?? []).filter((s) => s.tipo === 'notas');
         const cuadrosColocados = (r.secciones ?? []).filter((s) => s.tipo === 'cuadroColumnas');
         const resumenCorto = [
@@ -980,12 +996,13 @@ async function generarLaminas(args, ctx, {e, guardados, invalidos, quitadas}) {
         return {
           ok: true,
           mensaje: `${previo ? `${previo} ` : ""}Generé las láminas ${lista(r.laminas.map((l) => `${l.codigo} (${l.plano.toLowerCase()})`))} de ${r.proyecto} debajo de la arquitectura, ${r.usarPlantilla === false ? 'con composición adaptada al contenido del plano actual' : 'con la plantilla de referencia indicada'}: ` +
-            `cimentación con ${s.cimentacion} (Hz = ${s.hz.toFixed(2)} m, Df = ${s.df.toFixed(2)} m), cimiento corrido ${s.anchoCimiento.toFixed(2)} m en ${s.cimientoCorrido} tramos, aligerado e=${s.aligerado.espesor.toFixed(2)} m (${s.aligerado.viguetas} viguetas), ` +
+            `cimentación con ${s.cimentacion} (Hz = ${s.hz.toFixed(2)} m, Df = ${s.df.toFixed(2)} m), cimiento corrido ${s.anchoCimiento.toFixed(2)} m en ${s.cimientoCorrido} tramos, ${(s.losas ?? []).length ? s.losas.map((l) => `${l.titulo.replace(/^PLANO DE /, "").toLowerCase()} e=${l.espesor.toFixed(2)} m (${l.viguetas} viguetas)`).join(", ") : "techo de cobertura liviana (sin losa)"}, ` +
             `${s.niveles > 1 ? `${s.niveles} niveles (entrepiso${s.entrepisos.length > 1 ? "s" : ""} NPT +${s.entrepisos.map((z) => z.toFixed(2)).join(", +")}${s.losaTecho ? "" : "; el último nivel solo con cobertura"}), ` : ""}` +
             `pórticos de los ejes ${s.porticos.join(", ")} (${s.techo ? `techo a dos aguas PTE ${Math.round(s.techo.pendiente * 100)}%, alero +${s.altura.toFixed(2)}, cumbrera +${s.techo.cumbrera.toFixed(2)}` : `techo +${s.altura.toFixed(2)}`}) y cuadro de columnas ${s.columnas.map((c) => `${c.tipo} ${c.refuerzo}`).join(", ")}` +
             `${s.sismo?.Z !== undefined || s.sismo?.U !== undefined ? `; parámetros sísmicos ${[s.sismo.Z !== undefined && `Z=${s.sismo.Z}`, s.sismo.U !== undefined && `U=${s.sismo.U}`, s.sismo.S !== undefined && `S=${s.sismo.S}`, s.sismo.Tp !== undefined && `Tp=${s.sismo.Tp}`].filter(Boolean).join(", ")}` : ""}.`,
           resumen: resumenCorto,
           laminas: r.laminas.map((l) => l.codigo),
+          coherencia,
           avisos: [...extra, ...r.avisos],
           // Sin panel que preguntara: lo que el ingeniero debe confirmar, con la recomendación usada.
           ...(consultas && !consultas.respondidas && (consultas.consultas.length || consultas.informes.length)

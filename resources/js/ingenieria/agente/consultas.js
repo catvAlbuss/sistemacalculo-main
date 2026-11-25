@@ -52,7 +52,7 @@ export function consultasDelPlano({rasgos = {}, propuesta = {}, ambientes = [], 
   for (const a of ambientes.filter((x) => x.tipo === "maciza" && x.motivo === "cisterna")) informes.push(`Losa maciza en la cisterna o tanque entre ejes ${a.ejes.join(" / ")}.`);
   if (macizas.length) {
     consultas.push({
-      clave: "losaMaciza", pregunta: `Encontré baños o SS.HH. entre ejes ${lista(macizas.map((a) => a.ejes.join(" / ")))}. ¿Losa maciza ahí?`,
+      clave: "losaMaciza", ejes: macizas.map((a) => a.ejes), pregunta: `Encontré baños o SS.HH. entre ejes ${lista(macizas.map((a) => a.ejes.join(" / ")))}. ¿Losa maciza ahí?`,
       opciones: [{valor: true, texto: "Sí, losa maciza en esos paños"}, {valor: false, texto: "No, aligerado en toda la planta"}],
       recomendado: niveles >= 2,
       porque: niveles >= 2

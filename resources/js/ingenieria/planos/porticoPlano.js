@@ -212,7 +212,7 @@ export function planoPortico({eje, columnas, altura = 3, espesorLosa = 0.2, viga
   if (platea) {
     prim.push(rect(L.PLATEA, xa - 0.3, -df, xb + 0.3, -df + hz));
     prim.push(hatch(L.PLATEA, [pt(xa - 0.3, -df), pt(xb + 0.3, -df), pt(xb + 0.3, -df + hz), pt(xa - 0.3, -df + hz)], {patron: "AR-CONC", escala: 0.04}));
-    prim.push(text(L.PLATEA, pt((xa + xb) / 2, -df + hz / 2), `PLATEA (ZAPATA CORRIDA) Hz = ${hz.toFixed(2)} m · ${CRITERIOS.platea.acero} sup. e inf.`, Math.min(h * 0.42, ((xb - xa + 0.6) * 0.92) / 52)));
+    prim.push(text(L.PLATEA, pt((xa + xb) / 2, -df + hz / 2), `PLATEA DE CIMENTACIÓN Hz = ${hz.toFixed(2)} m · ${CRITERIOS.platea.acero} sup. e inf.`, Math.min(h * 0.42, ((xb - xa + 0.6) * 0.92) / 52)));
     // Malla inferior y superior de la platea.
     prim.push(line(L.ACERO_LONG, pt(xa - 0.3 + rec, -df + rec + 0.03), pt(xb + 0.3 - rec, -df + rec + 0.03)), line(L.ACERO_LONG, pt(xa - 0.3 + rec, -df + hz - rec - 0.03), pt(xb + 0.3 - rec, -df + hz - rec - 0.03)));
   } else {

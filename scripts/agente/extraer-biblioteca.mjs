@@ -33,7 +33,6 @@ export const TIPOS = ['portico', 'corte_cimiento', 'corte_otro', 'escalera', 'cu
 // Detalles estándar del despacho: el ingeniero los repite iguales en todos los módulos (no dependen
 // del proyecto). Son los que llenan su lámina alrededor de las plantas.
 export const ESTANDAR = [
-  ['junta', /^JUNTA\s+SISMICA$/],
   ['encuentros', /^DETALLE\s+DE\s+\S+\s+EN\s+CASO\s+DE\s+ENCUENTROS\s+EN\s+PLANTA$/],
   ['empalmes', /^DETALLE\s+DE\s+LA\s+UBICACION\s+Y\s+LONGITUD/],
   ['refuerzo', /^DETALLE\s+DEL\s+REFUERZO$/],
@@ -41,6 +40,8 @@ export const ESTANDAR = [
   ['isometrico', /^DETALLE\s+(TIPICO\s+)?ISOMETRICO\s+(DE\s+)?LOSA\s+ALIGERADA/],
   ['estribos', /^DETALLE\s+DE\s+ESTRIBOS$/],
   ['leyenda', /^LEYENDA$/],
+  // "DETALLE DE CANALETA F'C=175KG/CM2": el f'c en el título no la vuelve una nota.
+  ['canaleta', /^DETALLE\s+DE\s+CANALETA\b/],
 ];
 export const claveEstandar = (titulo) => { const t = sinAcentos(tituloLimpio(titulo)).toUpperCase().replace(/\s+/g, ' '); return ESTANDAR.find(([, re]) => re.test(t))?.[0] ?? null; };
 
@@ -592,7 +593,9 @@ export function extraerPiezas(items, {prohibidas = new Set()} = {}) {
   const titulos = [];
   for (const t of textos) {
     const tipo = tipoDePieza(t.texto);
-    if (!tipo || (t.alto ?? 0) < minimoTitulo || enRotulo(t.centro)) continue;
+    // El detalle de canaleta lleva título más chico (0.05 frente a 0.25 de los planos). (La junta
+    // sísmica no es detalle: es un apartado de las especificaciones técnicas, que ya la traen.)
+    if (!tipo || (t.alto ?? 0) < (claveEstandar(t.texto) === 'canaleta' ? 0.3 : 1) * minimoTitulo || enRotulo(t.centro)) continue;
     titulos.push({t, tipo});
   }
   const todosLosTitulos = textos.filter((t) => (t.alto ?? 0) >= minimoTitulo && tipoDePieza(t.texto));

@@ -13,10 +13,10 @@ const r4 = (v) => Math.round(v * 10000) / 10000;
 // (allí va el cuadro de columnas), los de losa con el aligerado.
 export const FAMILIA_ESTANDAR = {
   refuerzo: "cimentacion", empalmes: "cimentacion", estribos: "cimentacion", encuentros: "cimentacion",
-  leyenda: "cimiento", isometrico: "losa", recubrimientos: "losa",
+  leyenda: "cimiento", isometrico: "losa", recubrimientos: "losa", canaleta: "portico",
 };
 // Orden de prioridad: lo que más aporta primero (si no cabe todo, quedan los primeros).
-const ORDEN = ["refuerzo", "empalmes", "isometrico", "estribos", "recubrimientos", "encuentros", "leyenda"];
+const ORDEN = ["refuerzo", "empalmes", "isometrico", "estribos", "recubrimientos", "encuentros", "canaleta", "leyenda"];
 
 const tamano = (p) => {
   const c = p.parametros?.caja, f = p.parametros?.factor;
@@ -25,11 +25,14 @@ const tamano = (p) => {
 
 // Una pieza por detalle: la versión que más se repite (mismo tamaño en la lámina, al decímetro)
 // y, entre ellas, la más completa. Fuera las que no entran en un cuarto de lámina.
+// Tamaño máximo por detalle (unidades de lámina): la canaleta es un corte chico; una "canaleta"
+// del tamaño de un pórtico es el pórtico donde va anotada.
+const MAXIMO = {canaleta: {w: 4, h: 4}};
 export function elegirEstandar(piezas, {maxW = 14, maxH = 12} = {}) {
   const porClave = new Map();
   for (const p of piezas ?? []) {
-    const clave = p.parametros?.clave, t = tamano(p);
-    if (!clave || !t || t.w > maxW || t.h > maxH || !(p.entidades?.length >= 8)) continue;
+    const clave = p.parametros?.clave, t = tamano(p), m = MAXIMO[clave] ?? {w: maxW, h: maxH};
+    if (!clave || !t || t.w > m.w || t.h > m.h || !(p.entidades?.length >= 8)) continue;
     (porClave.get(clave) ?? porClave.set(clave, []).get(clave)).push({p, t, firma: `${Math.round(t.w * 10)}x${Math.round(t.h * 10)}`});
   }
   const elegidas = [];
@@ -82,9 +85,10 @@ export function contenidoEstandar(pieza, datos = {}) {
 
 // Lista para la composición: {id, tipo: 'estandar', familia, contenido}; van al hueco libre
 // de su lámina (o de otra) y nunca abren una lámina solos.
-export function detallesEstandar(piezas, datos = {}, {conLosa = true} = {}) {
+// conCanaleta: el techo la lleva (dos aguas o "CANALETA" anotada en la arquitectura).
+export function detallesEstandar(piezas, datos = {}, {conLosa = true, conCanaleta = false} = {}) {
   return elegirEstandar(piezas)
-    .filter(({clave}) => conLosa || FAMILIA_ESTANDAR[clave] !== "losa")
+    .filter(({clave}) => (conLosa || FAMILIA_ESTANDAR[clave] !== "losa") && (conCanaleta || clave !== "canaleta"))
     .map(({clave, pieza}) => ({id: `estandar-${clave}`, clave, tipo: "estandar", familia: FAMILIA_ESTANDAR[clave] ?? null, contenido: contenidoEstandar(pieza, datos)}))
     .filter((d) => d.contenido);
 }
