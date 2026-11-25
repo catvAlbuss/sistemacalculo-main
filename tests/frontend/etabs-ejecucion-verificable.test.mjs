@@ -76,7 +76,7 @@ test('technical validation preserves sheets; repeated valid generation preserves
     datosProyecto: () => datos, guardarDatosProyecto: (d) => Object.assign(datos, d),
     eventosDeUso: async () => [], registrarAprendizaje: async () => ({ok: true}),
     pedirDatos: async (pedido) => { form++; return {decisiones: Object.fromEntries(pedido.consultas.map((q) => [q.clave, q.opciones[0].valor]))}; },
-    loadTemplate: async () => ({db: null, config: {modo: 'adaptativa', escalaPlanos: 2}}),
+    loadTemplate: async () => ({db: null, config: {modo: 'adaptativa', escalaPlanos: 1}}),
     generaciones: () => generations,
     borrarGeneracion: (k) => { deletes++; delete generations[k]; return 10; },
     iniciarGeneracion: (k) => { clave = k; }, cerrarGeneracion: () => {},

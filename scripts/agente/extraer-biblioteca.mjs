@@ -40,6 +40,8 @@ export const ESTANDAR = [
   ['isometrico', /^DETALLE\s+(TIPICO\s+)?ISOMETRICO\s+(DE\s+)?LOSA\s+ALIGERADA/],
   ['estribos', /^DETALLE\s+DE\s+ESTRIBOS$/],
   ['leyenda', /^LEYENDA$/],
+  ['ladrillo', /^ESPECIFICACION\s+(DE\s+)?LADRILLO\s*-?\s*MORTERO/],
+  ['aligerado', /^DETALLE\s+(TIPICO\s+)?(DE\s+)?ALIGERADO\b/],
   // "DETALLE DE CANALETA F'C=175KG/CM2": el f'c en el título no la vuelve una nota.
   ['canaleta', /^DETALLE\s+DE\s+CANALETA\b/],
 ];
@@ -566,6 +568,14 @@ const resistencias = (textos) => [...new Set(textos.flatMap((t) => [...limpiarTe
 // Entidad en coordenadas locales (metros reales).
 function local(it, P, esc) {
   const e = {tipo: it.tipo, capa: it.capa};
+  // Achurado: contorno(s) y patrón; la escala del patrón en las mismas unidades que los puntos.
+  if (it.tipo === 'achurado') {
+    Object.assign(e, {puntos: it.puntos.map(P), solido: Boolean(it.solido), ...(it.patron ? {patron: it.patron} : {}), escalaMil: r3(((it.escala ?? 1) / esc) * 1000), ...(it.angulo ? {angulo: it.angulo} : {})});
+    // escalaMil: escala del patrón × 1000 (con 3 decimales no se pierde al publicar).
+    if (it.lazos) e.lazos = it.lazos.map((l) => l.map(P));
+    if (it.color) e.color = it.color;
+    return e;
+  }
   if (it.color) e.color = it.color;
   if (it.puntos) { e.puntos = it.puntos.map(P); if (it.cerrada) e.cerrada = true; }
   if (it.tipo === 'circulo') { e.centro = P(it.centro); e.radio = r3(it.radio / esc); }
@@ -579,7 +589,7 @@ function local(it, P, esc) {
  * @param {{prohibidas?: Set<string>}} opciones  palabras del cliente a descartar
  * @returns {{piezas: object[], descartes: object[], unidadesPorMetro: number}}
  */
-export function extraerPiezas(items, {prohibidas = new Set()} = {}) {
+export function extraerPiezas(items, {prohibidas = new Set(), achurados = []} = {}) {
   const burbujas = burbujasDeEje(items);
   const k = unidadesDelPlano(burbujas);
   const textos = items.filter((i) => i.tipo === 'texto' && i.centro);
@@ -627,6 +637,8 @@ export function extraerPiezas(items, {prohibidas = new Set()} = {}) {
       const pb = prefijoBloque(it);
       return pb === pref || (pb == null && tipoTitulo !== 'notas');
     });
+    // Achurados del ingeniero (concreto, relleno, muros) dentro de la caja de la pieza.
+    const achuradosDentro = achurados.filter((h) => h.puntos.every((q) => contiene(caja, q)) && !h.puntos.some((q) => enRotulo(q)));
     const textosPieza = dentro.filter((i) => i.tipo === 'texto');
     if (tipoTitulo === 'notas' ? textosPieza.length < 4 : dentro.length - textosPieza.length < 8) { descartes.push({tipo: tipoTitulo, titulo: nombre, motivo: 'la caja quedó casi vacía (solo el título)'}); continue; }
     // Corte: de cimiento corrido si sus textos lo dicen.
@@ -647,6 +659,7 @@ export function extraerPiezas(items, {prohibidas = new Set()} = {}) {
       if (it.tipo === 'texto' && esTextoDeCliente(it.texto, prohibidas)) { descartadosCliente.push(it.id); continue; }
       entidades.push(local(it, P, esc));
     }
+    for (const h of achuradosDentro) entidades.push(local(h, P, esc));
     const cajaLocal = {x0: r3((caja.x0 - ox) / esc), y0: r3((caja.y0 - oy) / esc), x1: r3((caja.x1 - ox) / esc), y1: r3((caja.y1 - oy) / esc)};
     const nivelesLocales = niveles.map((n) => ({sigla: n.sigla, etiqueta: n.etiqueta, cota: n.cota, y: r3((n.y - oy) / esc)}));
     const parametros = {};
@@ -784,7 +797,7 @@ async function main() {
     const codigo = codigoDeProyecto(p.grupo);
     if (!c) { indice.noAisladas.push({proyecto: codigo, modulo: p.id, motivo: 'sin caché (correr volcar-planos.mjs)'}); continue; }
     const t0 = Date.now();
-    const {piezas, descartes} = extraerPiezas(c.items, {prohibidas: prohibidasDe.get(p.grupo) ?? new Set()});
+    const {piezas, descartes} = extraerPiezas(c.items, {prohibidas: prohibidasDe.get(p.grupo) ?? new Set(), achurados: c.achurados ?? []});
     let n = 0;
     for (const pieza of piezas) {
       const h = huella(pieza);

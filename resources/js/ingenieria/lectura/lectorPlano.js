@@ -63,7 +63,11 @@ const tipoDe = (entity) => String(entity.dxfTypeName ?? "").toUpperCase();
 // Recorre el espacio modelo con los bloques explotados. Devuelve elementos simples:
 // {tipo: "linea"|"poli"|"circulo"|"texto", capa, puntos, cerrada, centro, radio, texto, bloque}.
 // Las capas "0" heredan la capa del bloque que las inserta, como en AutoCAD.
-export function aplanarModelo(entidades, {capasApagadas = new Set()} = {}) {
+// achurados: arreglo donde dejar los HATCH ({tipo: "achurado", capa, puntos (contorno exterior),
+// lazos, patron, solido, escala, angulo}); sin él se ignoran (la lectura de la arquitectura no
+// los usa). La biblioteca de detalles los necesita: sin ellos los cortes del ingeniero quedan en
+// alambre (sin concreto, relleno ni muros achurados).
+export function aplanarModelo(entidades, {capasApagadas = new Set(), achurados = null} = {}) {
   const items = [];
   const bloques = new Map();
   // Trazabilidad: id = camino de identificadores del DWG (INSERT/…/entidad) y color propio si lo tiene.
@@ -101,6 +105,19 @@ export function aplanarModelo(entidades, {capasApagadas = new Set()} = {}) {
         agregar(entity, ids, {tipo: "poli", capa, puntos, cerrada: entity.closed === true, bloque: ruta});
       } else if (tipo === "CIRCLE" && entity.center) {
         agregar(entity, ids, {tipo: "circulo", capa, centro: aplicar(m, entity.center), radio: entity.radius * escalaDe(m), bloque: ruta});
+      } else if (tipo === "HATCH" && achurados) {
+        const lazos = (entity._geo?.loops ?? []).map((lazo) => {
+          let pts = [];
+          try { pts = lazo.vertices ?? lazo.getPoints?.(48) ?? []; } catch { pts = []; }
+          return pts.filter((q) => Number.isFinite(q?.x) && Number.isFinite(q?.y)).map((q) => aplicar(m, q));
+        }).filter((l) => l.length >= 3);
+        if (lazos.length) {
+          const c = entity?.color?.colorIndex;
+          achurados.push({tipo: "achurado", capa, puntos: lazos[0], ...(lazos.length > 1 ? {lazos} : {}), solido: Boolean(entity.isSolidFill),
+            patron: entity.isSolidFill ? null : entity.patternName || "ANSI31", escala: (Number(entity.patternScale) || 1) * escalaDe(m),
+            angulo: Math.round(((Number(entity.patternAngle) || 0) * 180) / Math.PI * 10) / 10, bloque: ruta,
+            ...(Number.isInteger(c) && c !== 256 && c !== 0 ? {color: c} : {})});
+        }
       } else if (tipo === "TEXT" || tipo === "MTEXT" || tipo === "ATTDEF") {
         const at = entity.position ?? entity.location;
         if (at && tipo !== "ATTDEF") agregar(entity, ids, {tipo: "texto", capa, centro: aplicar(m, at), texto: textoPlano(entity.textString ?? entity.contents), alto: (entity.height ?? 0) * escalaDe(m), ...rotacionTexto(entity, m), bloque: ruta});

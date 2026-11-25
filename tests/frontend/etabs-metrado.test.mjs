@@ -135,7 +135,7 @@ test('module 14 from architecture: the agent metrado matches the engineer where 
   await db.read(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength), {readOnly: true}, dm.AcDbFileType.DWG);
   const base = new URL('../../public/assets/plantillas/estructuras-laminas', import.meta.url).href;
   const cargarPlantilla = async () => {
-    if (!existsSync('public/assets/plantillas/estructuras-laminas.dxf')) return {db: null, config: {modo: 'adaptativa', escalaPlanos: 2}};
+    if (!existsSync('public/assets/plantillas/estructuras-laminas.dxf')) return {db: null, config: {modo: 'adaptativa', escalaPlanos: 1}};
     const t = new dm.AcDbDatabase(); const d = readFileSync(new URL(base + '.dxf'));
     await t.read(d.buffer.slice(d.byteOffset, d.byteOffset + d.byteLength), {readOnly: true}, dm.AcDbFileType.DXF);
     return {db: t, config: JSON.parse(readFileSync(new URL(base + '.json'), 'utf8'))};

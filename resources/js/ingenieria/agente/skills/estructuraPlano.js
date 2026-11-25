@@ -1003,6 +1003,7 @@ async function generarLaminas(args, ctx, {e, guardados, invalidos, quitadas}) {
           resumen: resumenCorto,
           laminas: r.laminas.map((l) => l.codigo),
           coherencia,
+          fueraDeLamina: r.fueraDeLamina ?? [],
           avisos: [...extra, ...r.avisos],
           // Sin panel que preguntara: lo que el ingeniero debe confirmar, con la recomendación usada.
           ...(consultas && !consultas.respondidas && (consultas.consultas.length || consultas.informes.length)

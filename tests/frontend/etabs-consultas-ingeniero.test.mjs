@@ -53,7 +53,7 @@ test('module 1: the engineer answers in the form and the sheets follow his decis
   const {SKILLS} = await import('../../resources/js/ingenieria/agente/skills/index.js');
   const leer = async (ruta, tipo) => { const db = new dm.AcDbDatabase(); const b = readFileSync(ruta); await db.read(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength), {readOnly: true}, tipo); return db; };
   const db = await leer(join(PLANOS, 'estructuras', m1.arquitectura), dm.AcDbFileType.DWG);
-  const plantilla = existsSync('public/assets/plantillas/estructuras-laminas.dxf') ? {db: await leer('public/assets/plantillas/estructuras-laminas.dxf', dm.AcDbFileType.DXF), config: JSON.parse(readFileSync('public/assets/plantillas/estructuras-laminas.json', 'utf8'))} : {db: null, config: {modo: 'adaptativa', escalaPlanos: 2}};
+  const plantilla = existsSync('public/assets/plantillas/estructuras-laminas.dxf') ? {db: await leer('public/assets/plantillas/estructuras-laminas.dxf', dm.AcDbFileType.DXF), config: JSON.parse(readFileSync('public/assets/plantillas/estructuras-laminas.json', 'utf8'))} : {db: null, config: {modo: 'adaptativa', escalaPlanos: 1}};
   const ctx = createDrawingContext({getDatabase: () => db, dm, loadTemplate: async () => plantilla, getProjectData: () => ({}), afterDraw: () => {}});
   let preguntado = null;
   const guardados = [];

@@ -24,10 +24,10 @@ export function leerCache(archivo) {
 
 async function main() {
   const forzar = process.argv.includes('--forzar');
-  let archivos = process.argv.slice(2).filter((a) => a !== '--forzar');
+  let archivos = process.argv.slice(2).filter((a) => !a.startsWith('--'));
   if (!archivos.length) {
     const pares = JSON.parse(readFileSync(join(BASE, 'pares.json'), 'utf8'));
-    archivos = paresDelManifiesto(BASE, pares, existsSync).flatMap((p) => [p.rutaArquitectura, p.rutaEstructura]);
+    archivos = paresDelManifiesto(BASE, pares, existsSync).flatMap((p) => (process.argv.includes('--estructuras') ? [p.rutaEstructura] : [p.rutaArquitectura, p.rutaEstructura]));
   }
   mkdirSync(CACHE, {recursive: true});
   const {AcDbLibreDwgMainThreadConverter} = await import('@mlightcad/libredwg-converter/node');
@@ -40,12 +40,15 @@ async function main() {
     const db = new dm.AcDbDatabase();
     const b = readFileSync(archivo);
     await db.read(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength), {readOnly: true}, /\.dxf$/i.test(archivo) ? dm.AcDbFileType.DXF : dm.AcDbFileType.DWG);
-    const {items} = aplanarModelo(db.tables.blockTable.modelSpace.newIterator().toArray());
+    // Los achurados (HATCH) van aparte: solo los usa la biblioteca de detalles.
+    const achurados = [];
+    const {items} = aplanarModelo(db.tables.blockTable.modelSpace.newIterator().toArray(), {achurados});
     // Coordenadas a 4 decimales: el JSON baja a la mitad sin perder nada útil.
     const r = (p) => (p ? {x: Math.round(p.x * 1e4) / 1e4, y: Math.round(p.y * 1e4) / 1e4} : p);
     const compacto = items.map((it) => ({...it, puntos: it.puntos?.map(r), centro: r(it.centro)}));
-    writeFileSync(destino, JSON.stringify({archivo: basename(archivo), items: compacto}));
-    console.log(`${basename(archivo)}: ${items.length} elementos (${((Date.now() - t0) / 1000).toFixed(0)} s)`);
+    const achuradosCompactos = achurados.map((h) => ({...h, puntos: h.puntos.map(r), ...(h.lazos ? {lazos: h.lazos.map((l) => l.map(r))} : {})}));
+    writeFileSync(destino, JSON.stringify({archivo: basename(archivo), items: compacto, achurados: achuradosCompactos}));
+    console.log(`${basename(archivo)}: ${items.length} elementos, ${achurados.length} achurados (${((Date.now() - t0) / 1000).toFixed(0)} s)`);
   }
 }
 

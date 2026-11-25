@@ -7,16 +7,39 @@
 // Cada pieza viene en coordenadas locales; × parametros.factor da unidades de lámina
 // (1 = 1 m a 1/50), el tamaño con el que el ingeniero la dibujó en su lámina.
 
+import {anchoTexto} from "./rotulo.js";
+
 const r4 = (v) => Math.round(v * 10000) / 10000;
+
+// Caja aproximada de un texto según su punto de inserción (1 arriba-izq … 9 abajo-der).
+function cajaDeTexto(p) {
+  const w = anchoTexto(p.value, p.h), h = p.h, a = Number.isInteger(p.ancla) ? p.ancla : 5;
+  const col = (a - 1) % 3, fila = Math.floor((a - 1) / 3);
+  const x0 = p.at[0] - (col * w) / 2, y1 = p.at[1] + (fila * h) / 2;
+  return {x0, x1: x0 + w, y0: y1 - h, y1};
+}
+const chocan = (a, b) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
+// En el DWG del ingeniero las notas largas tienen ancho fijo (saltan de línea); copiadas quedan en
+// una línea y pueden tocarse: la que choca sube de a media altura hasta quedar libre.
+function separarNotas(prim) {
+  const textos = prim.filter((p) => p.type === "text" && !p.rot);
+  const puestas = [];
+  for (const t of textos.sort((a, b) => a.at[1] - b.at[1])) {
+    for (let i = 0; i < 12 && puestas.some((c) => chocan(c, cajaDeTexto(t))); i++) t.at = [t.at[0], r4(t.at[1] + t.h * 0.6)];
+    puestas.push(cajaDeTexto(t));
+  }
+  return prim;
+}
 
 // Familia de lámina donde va cada detalle (la del ingeniero): los de columna con la cimentación
 // (allí va el cuadro de columnas), los de losa con el aligerado.
 export const FAMILIA_ESTANDAR = {
   refuerzo: "cimentacion", empalmes: "cimentacion", estribos: "cimentacion", encuentros: "cimentacion",
   leyenda: "cimiento", isometrico: "losa", recubrimientos: "losa", canaleta: "portico",
+  aligerado: "losa", ladrillo: "portico",
 };
 // Orden de prioridad: lo que más aporta primero (si no cabe todo, quedan los primeros).
-const ORDEN = ["refuerzo", "empalmes", "isometrico", "estribos", "recubrimientos", "encuentros", "canaleta", "leyenda"];
+const ORDEN = ["aligerado", "ladrillo", "refuerzo", "empalmes", "isometrico", "estribos", "recubrimientos", "encuentros", "canaleta", "leyenda"];
 
 const tamano = (p) => {
   const c = p.parametros?.caja, f = p.parametros?.factor;
@@ -71,6 +94,9 @@ export function contenidoEstandar(pieza, datos = {}) {
       const value = reescribir(e.texto, datos);
       if (!value.trim() || !e.centro || suelto(e)) continue;
       prim.push({type: "text", ...base, at: T(e.centro), value, h: r4((e.alto ?? 0.1) * f), rot: e.rot ?? e.rotacion ?? 0, ...(Number.isInteger(e.ancla) ? {ancla: e.ancla} : {})});
+    } else if (e.tipo === "achurado" && e.puntos?.length >= 3) {
+      // Concreto, relleno, ladrillo… como los dibujó el ingeniero (patrón y escala del suyo).
+      prim.push({type: "hatch", ...base, points: e.puntos.map(T), ...(e.solido ? {solido: true} : {patron: e.patron ?? "ANSI31", escala: r4(((e.escalaMil ?? 1000) / 1000) * f), angulo: e.angulo ?? 0})});
     } else if (e.tipo === "circulo" && e.centro) {
       prim.push({type: "circle", ...base, c: T(e.centro), r: r4(e.radio * f)});
     } else if ((e.tipo === "linea" || e.tipo === "poli") && e.puntos?.length >= 2) {
@@ -80,6 +106,7 @@ export function contenidoEstandar(pieza, datos = {}) {
     }
   }
   if (!prim.length) return null;
+  separarNotas(prim);
   return {titulo: pieza.titulo, primitivas: prim, marco: {x0: 0, y0: 0, x1: r4((c.x1 - c.x0) * f), y1: r4((c.y1 - c.y0) * f)}, sinEscala: true, estandar: true};
 }
 

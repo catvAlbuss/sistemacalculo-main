@@ -135,7 +135,7 @@ test('structural sizing rules used on the sheet', () => {
 const plantillaDxf = 'public/assets/plantillas/estructuras-laminas.dxf';
 const plantillaJson = 'public/assets/plantillas/estructuras-laminas.json';
 async function cargarPlantilla() {
-  if (!existsSync(plantillaDxf)) return {db: null, config: {modo: 'adaptativa', escalaPlanos: 2}};
+  if (!existsSync(plantillaDxf)) return {db: null, config: {modo: 'adaptativa', escalaPlanos: 1}};
   const db = new dm.AcDbDatabase();
   const d = readFileSync(plantillaDxf);
   await db.read(d.buffer.slice(d.byteOffset, d.byteOffset + d.byteLength), {readOnly: true}, dm.AcDbFileType.DXF);

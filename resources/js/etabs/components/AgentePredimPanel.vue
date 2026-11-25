@@ -519,11 +519,19 @@ const cargarBibliotecaPorticos = () => {
 // aparte de los pórticos; con 403/404 o sin red las láminas salen sin ellos.
 let estandarActivo = false;
 let estandarPromise = null;
+const piezasDe = (tipo) => fetch(`/software/etabs/agente/biblioteca/${tipo}`, {headers: {Accept: "application/json"}, credentials: "same-origin"})
+  .then(async (r) => (r.status === 200 ? (await r.json())?.piezas ?? null : null))
+  .catch(() => null);
 const cargarDetallesEstandar = () => {
   if (!estandarActivo) return Promise.resolve(null);
-  return estandarPromise ??= fetch("/software/etabs/agente/biblioteca/estandar", {headers: {Accept: "application/json"}, credentials: "same-origin"})
-    .then(async (r) => (r.status === 200 ? (await r.json())?.piezas ?? null : null))
-    .catch(() => null);
+  return estandarPromise ??= piezasDe("estandar");
+};
+// Cortes de cimiento corrido del despacho adaptados al proyecto (97 % de semejanza con los del
+// ingeniero frente a 76 % los generados; evaluar-detalles.mjs, sin piezas del mismo proyecto).
+let cortesPromise = null;
+const cargarCortesDespacho = () => {
+  if (!estandarActivo) return Promise.resolve(null);
+  return cortesPromise ??= piezasDe("corte_cimiento");
 };
 
 // ---- Contexto del documento abierto (creado una vez) ----
@@ -564,6 +572,8 @@ const getContext = () => {
       if (biblioteca) ctx.bibliotecaPorticos = biblioteca;
       const estandar = await cargarDetallesEstandar();
       if (estandar?.length) ctx.detallesEstandar = estandar;
+      const cortes = await cargarCortesDespacho();
+      if (cortes?.length) ctx.bibliotecaDetalles = {piezas: cortes};
       return {db: null, config: {modo: 'adaptativa', escalaPlanos: 1}};
     },
   });

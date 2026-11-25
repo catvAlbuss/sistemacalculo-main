@@ -128,15 +128,21 @@ export function componerPaqueteLaminas({contenidos, marco, escalaPlanos = 1, rep
     }
     return true;
   };
+  const ocupacionHoja = (hoja) => hoja.colocados.reduce((acc, {r}) => acc + r.w * r.h, 0) / (utilW * utilH);
   const diferidos = [];
   for (const fm of familias) {
     if (!fm.items.length) continue;
     const ultima = hojas.at(-1);
     const principales = fm.items.filter((it) => !AUXILIARES.test(it.tipo));
-    // Pórticos: primero en el hueco de la lámina anterior (el ingeniero pone dos o tres junto a la
-    // losa) y los que no entren, en láminas nuevas.
-    const llenaHueco = ultima && fm.tipos.includes("portico") && principales.length && cabeEntera(ultima, principales.slice(0, 1));
-    const propias = ultima && (llenaHueco || cabeEntera(ultima, principales.length ? principales : fm.items)) ? [ultima] : [nuevaHoja()];
+    // Cada familia de planos abre su lámina, como el ingeniero (medido en 22 módulos: losa con
+    // cimentación 1/22, losa con pórticos 1/22, cimiento con pórticos 0/17). Lo que queda libre lo
+    // llenan los cuadros y los detalles estándar. Una familia sin planos (solo cuadros o notas)
+    // va en el hueco de la anterior si cabe entera. Excepción del módulo chico: si juntas ocupan
+    // menos del 40 % de la lámina van juntas (módulo 14: 34 %, dos láminas; módulo 8: 48 % y
+    // módulo 15: 59 %, separadas, como el ingeniero).
+    const areaFamilia = principales.reduce((acc, it) => acc + it.w * it.h, 0) / (utilW * utilH);
+    const comparte = ultima && cabeEntera(ultima, principales.length ? principales : fm.items) && (!principales.length || ocupacionHoja(ultima) + areaFamilia < 0.4);
+    const propias = comparte ? [ultima] : [nuevaHoja()];
     for (const it of fm.items) {
       // Primero en las láminas de esta familia (rellena huecos); si no entra, lámina nueva.
       if (propias.some((hoja) => colocar(hoja, it))) continue;
@@ -172,7 +178,7 @@ export function componerPaqueteLaminas({contenidos, marco, escalaPlanos = 1, rep
   // familia (los de columna con la cimentación, los de losa con el aligerado) y si no en otra.
   // Nunca abren una lámina: si no caben, no van (como el ingeniero, que llena lo que sobra).
   // Una lámina ya cargada (≥ 55 %) cede el detalle a la más vacía, para no dejar una casi en blanco.
-  const ocupacion = (hoja) => hoja.colocados.reduce((s, {r}) => s + r.w * r.h, 0) / (utilW * utilH);
+  const ocupacion = ocupacionHoja;
   for (const it of items.filter((x) => x.relleno)) {
     const orden = [...hojas].sort((a, b) => {
       const pa = it.familia && a.tipos.has(it.familia) && ocupacion(a) < 0.55 ? 0 : 1, pb = it.familia && b.tipos.has(it.familia) && ocupacion(b) < 0.55 ? 0 : 1;

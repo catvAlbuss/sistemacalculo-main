@@ -64,6 +64,9 @@ function aPrimitivas(ents, fx, fy, {texto = (e) => e.texto, quitar = () => false
       else prim.push({type: "pline", layer: capaDe(e), points: pts, closed: Boolean(e.cerrada), ...color(e)});
     } else if (e.tipo === "circulo") {
       prim.push({type: "circle", layer: capaDe(e), c: Q(e.centro), r: r4(e.radio * escala), ...color(e)});
+    } else if (e.tipo === "achurado" && e.puntos?.length >= 3) {
+      // Concreto, relleno, falso piso… como el ingeniero: el contorno sigue al detalle adaptado.
+      prim.push({type: "hatch", layer: capaDe(e), points: e.puntos.map(Q), ...(e.solido ? {solido: true} : {patron: e.patron ?? "ANSI31", escala: r4(((e.escalaMil ?? 1000) / 1000) * escala), angulo: e.angulo ?? 0}), ...color(e)});
     }
   }
   return prim;

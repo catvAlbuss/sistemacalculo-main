@@ -9,7 +9,7 @@ import {SKILLS} from '../../resources/js/ingenieria/agente/skills/index.js';
 import {instalarRecorteXclip} from '../../resources/js/etabs/visor/recorteXclip.js';
 import {PLANOS} from './planos.mjs';
 import {paresDelManifiesto} from './pares-entrenamiento.mjs';
-import {cargarPlantillaAdaptativa, cargarDetallesEstandar} from './plantilla.mjs';
+import {cargarPlantillaAdaptativa, cargarDetallesEstandar, cargarCortesDespacho} from './plantilla.mjs';
 
 const filtro = process.argv[2] ?? 'vinchos/modulo-08';
 const BASE = join(PLANOS, 'estructuras');
@@ -27,7 +27,7 @@ let datos = {hz: '0.60', df: '2.00', zona: '3', proyecto: 'P', entidad: 'E', esp
 const formularios = [];
 const ctx = createDrawingContext({getDatabase: () => db, dm, loadTemplate: async () => plantilla, getProjectData: () => ({...datos}), setProjectData: (d) => { datos = {...datos, ...d}; }, afterDraw: () => {}});
 ctx.memoria ??= {};
-ctx.detallesEstandar = cargarDetallesEstandar();
+ctx.detallesEstandar = cargarDetallesEstandar(); ctx.bibliotecaDetalles = cargarCortesDespacho();
 ctx.pedirDatos = async (pedido) => { formularios.push(pedido); return {decisiones: Object.fromEntries(pedido.consultas.map((c) => [c.clave, String(c.recomendado)]))}; };
 const skill = SKILLS.find((s) => s.name === 'construir_estructura');
 let r = await skill.run({accion: 'iniciar'}, ctx);

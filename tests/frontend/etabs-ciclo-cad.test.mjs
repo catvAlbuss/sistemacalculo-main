@@ -21,7 +21,7 @@ test('module VIII runs generation and automatic verification on a real CAD datab
   await db.read(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), {readOnly: true}, dm.AcDbFileType.DWG);
   const data = {hz: .7, df: 2, zona: 3, suelo: 'S2', categoria: 'A2', niveles: 1, proyecto: 'Prueba', entidad: 'Prueba', especialista: 'Prueba', cip: 'Prueba'};
   const ctx = createDrawingContext({getDatabase: () => db, dm, getProjectData: () => data,
-    loadTemplate: async () => ({db: null, config: {modo: 'adaptativa', escalaPlanos: 2}})});
+    loadTemplate: async () => ({db: null, config: {modo: 'adaptativa', escalaPlanos: 1}})});
   ctx.nombreDocumento = () => `vinchos ${basename(pair.rutaArquitectura)}`;
   ctx.eventosDeUso = async () => [];
   ctx.registrarAprendizaje = async () => ({ok: true});

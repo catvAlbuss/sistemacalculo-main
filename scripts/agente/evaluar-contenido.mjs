@@ -12,7 +12,7 @@ import {instalarRecorteXclip} from '../../resources/js/etabs/visor/recorteXclip.
 import {textoLimpio} from '../../resources/js/ingenieria/agente/coherencia.js';
 import {PLANOS} from './planos.mjs';
 import {paresDelManifiesto} from './pares-entrenamiento.mjs';
-import {cargarPlantillaAdaptativa, cargarDetallesEstandar} from './plantilla.mjs';
+import {cargarPlantillaAdaptativa, cargarDetallesEstandar, cargarCortesDespacho} from './plantilla.mjs';
 import {leerCache} from './volcar-planos.mjs';
 
 // Qué es cada cosa de la lámina, por las palabras de su título (las del despacho).
@@ -60,6 +60,7 @@ dm.AcDbDatabaseConverterManager.instance.register(dm.AcDbFileType.DWG, new AcDbL
 instalarRecorteXclip({AcDbLibreDwgConverter: (await import('@mlightcad/libredwg-converter')).AcDbLibreDwgConverter, AcDbBlockReference: dm.AcDbBlockReference});
 const DATOS = {hz: '0.60', df: '2.00', zona: '3', suelo: 'S2', categoria: 'A2', normaE030: '2018'};
 const estandar = cargarDetallesEstandar();
+const cortesDespacho = cargarCortesDespacho();
 const faltas = new Map();
 let suma = 0, n = 0;
 for (const p of pares) {
@@ -71,7 +72,7 @@ for (const p of pares) {
     const db = new dm.AcDbDatabase(); const b = readFileSync(p.rutaArquitectura);
     await db.read(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength), {readOnly: true}, dm.AcDbFileType.DWG);
     const ctx = createDrawingContext({getDatabase: () => db, dm, loadTemplate: cargarPlantillaAdaptativa, getProjectData: () => ({...DATOS}), setProjectData: () => {}, afterDraw: () => {}});
-    ctx.memoria ??= {}; ctx.detallesEstandar = estandar;
+    ctx.memoria ??= {}; ctx.detallesEstandar = estandar; ctx.bibliotecaDetalles = cortesDespacho;
     const r = await SKILLS.find((s) => s.name === 'plano_estructuras').run({}, ctx);
     if (!r.ok) { console.log(`${p.grupo}/${p.id}: sin láminas`); continue; }
     const delAgente = contenidosDe(ctx.entidadesDelAgente().filter((e) => /TEXT/i.test(e.dxfTypeName)).map((e) => ({t: e.contents ?? '', h: e.height})));

@@ -31,7 +31,7 @@ class PublicarBibliotecaAgente extends Command
 
     public const VERSION = '1.0.0';
 
-    private const CAMPOS_ENTIDAD = ['tipo', 'capa', 'color', 'puntos', 'cerrada', 'centro', 'radio', 'alto', 'texto', 'rotacion', 'rot', 'ancla'];
+    private const CAMPOS_ENTIDAD = ['tipo', 'capa', 'color', 'puntos', 'cerrada', 'centro', 'radio', 'alto', 'texto', 'rotacion', 'rot', 'ancla', 'lazos', 'solido', 'patron', 'escalaMil', 'angulo'];
 
     /** @var string regex de palabras prohibidas */
     private string $prohibidas = '';

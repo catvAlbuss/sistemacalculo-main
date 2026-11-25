@@ -140,7 +140,7 @@ test('adaptive generation checks every available module without copying another 
     const datos = {hz: 0.7, df: 2, zona: 3, suelo: 'S2', categoria: 'A2', niveles: caso.rasgos.niveles};
     let primitivas = [];
     const ctx = {memoria: {}, nombreDocumento: () => `${pair.grupo} ${basename(pair.rutaArquitectura)}`, readPlan: () => ({items: cache.items, vistas}),
-      datosProyecto: () => datos, eventosDeUso: async () => [], loadTemplate: async () => ({db: null, config: {modo: 'adaptativa', escalaPlanos: 2}}),
+      datosProyecto: () => datos, eventosDeUso: async () => [], loadTemplate: async () => ({db: null, config: {modo: 'adaptativa', escalaPlanos: 1}}),
       draw: (p) => { primitivas.push(...p); return {entidades: p.length}; }, insertTemplate: () => assert.fail('no copiar una plantilla de otro módulo')};
     ctx.referenciaActual = () => referenciaDelDocumento(ctx.nombreDocumento(), undefined, ctx.memoria.estructura?.titulo);
     if (pair.grupo === 'ilo' && id === 'modulo-11') {

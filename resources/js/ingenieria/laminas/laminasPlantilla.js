@@ -60,8 +60,19 @@ export function cajaDibujo(primitivas) {
     else if (p.type === "circle" || p.type === "arc") { add([p.c[0] - p.r, p.c[1] - p.r]); add([p.c[0] + p.r, p.c[1] + p.r]); }
     else if (p.type === "text") {
       // Ancho aproximado del texto según su alineación (sin rotar: los verticales son cortos).
-      const w = anchoTexto(p.value ?? "", p.h ?? 0), vertical = Math.abs(Math.sin(((p.rot ?? 0) * Math.PI) / 180)) > 0.7;
-      const [dx, dy] = vertical ? [p.h / 2, w / 2] : [w / 2, p.h / 2];
+      // Varias líneas (\P): la más ancha y el alto de todas.
+      const lineas = String(p.value ?? "").split("\\P");
+      const w = Math.max(...lineas.map((l) => anchoTexto(l, p.h ?? 0))), H = (p.h ?? 0) * (1 + 1.6 * (lineas.length - 1));
+      const vertical = Math.abs(Math.sin(((p.rot ?? 0) * Math.PI) / 180)) > 0.7;
+      if (Number.isInteger(p.ancla) && !vertical) {
+        // Punto de inserción del MTEXT (1 arriba-izq … 9 abajo-der): los textos copiados del
+        // ingeniero crecen hacia la derecha y abajo de su punto, no alrededor (antes se salían).
+        const col = (p.ancla - 1) % 3, fila = Math.floor((p.ancla - 1) / 3);
+        const x0 = p.at[0] - (col * w) / 2, y1 = p.at[1] + (fila * H) / 2;
+        add([x0, y1 - H]); add([x0 + w, y1]);
+        continue;
+      }
+      const [dx, dy] = vertical ? [H / 2, w / 2] : [w / 2, H / 2];
       const cx = p.align === "izq" && !vertical ? p.at[0] + w / 2 : p.at[0];
       add([cx - dx, p.at[1] - dy]); add([cx + dx, p.at[1] + dy]);
     }
@@ -393,7 +404,8 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
     // Sin pieza del despacho (modo adaptativo): el corte se dibuja con los datos de este proyecto.
     const dato = (cc.cortesDetalle ?? []).find((c) => c.numero === numero) ?? {};
     const g = adaptativa ? corteCimientoCorrido({numero, ancho: cc.ancho, alto: CRITERIOS.cimientoCorrido.alto, espesorMuro: dato.espesorMuro, exterior: dato.exterior ?? numero !== 3, conPuerta: dato.conPuerta ?? numero === 1, npt: CRITERIOS.terreno.npt}) : null;
-    if (b) cortesAdaptados.push(b.contenido); else if (g) cortesAdaptados.push(g);
+    // El corte del despacho ya trae su título ("CORTE 1-1 / ESC: 1/25"): no se le pone otro.
+    if (b) cortesAdaptados.push({...b.contenido, tituloPropio: true}); else if (g) cortesAdaptados.push(g);
     detallesLocales.push({tipo: "corte_cimiento", numero, titulo: `CORTE ${numero}-${numero}`, unidades: "m", origen: b ? "biblioteca" : g ? "generado con los datos del proyecto" : "plantilla", primitivas: b?.contenido.primitivas ?? g?.primitivas ?? [], ...(b ? {biblioteca: b.biblioteca, ...(g ? {generador: g.primitivas} : {})} : {})});
     const lugar = b && (bibliotecaDetalles.cortesPlantilla ?? []).find((c) => c.numero === numero);
     if (lugar) cortesColocados.push({lugar, primitivas: transformar(b.contenido.primitivas, (x, y) => [lugar.origen.x + x * lugar.escala, lugar.origen.y + y * lugar.escala], lugar.escala)});
@@ -418,12 +430,16 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
     };
     const tipoExtra = (c) => (/TABIQUER/i.test(c.titulo) ? "tabiqueria" : /ESCALERA/i.test(c.titulo) ? "escalera" : /LOSA|ALIGERAD/i.test(c.titulo) ? "losaTecho" : "otro");
     const notas = notasTecnicas({sismo: dp.sismo, df: cim.df, hz: cim.peralte, altura: Math.max(altura, ...porticos.map((p) => p.cumbrera ?? 0)), losaTecho: !sinLosa, cimentacion: cim.tipo, conCimiento: Boolean(cc.tramos), conAlbanileria: Boolean(cc.tramos || (lectura.columnetas ?? []).length)});
+    const estandar = detallesEstandar(estructura.detallesEstandar ?? [], {espesor: ali.espesor}, {conLosa: !sinLosa, conCanaleta: Boolean(cumbrera) || items.some((it) => it.tipo === "texto" && /canaleta/i.test(it.texto ?? ""))});
+    const estandarDe = (clave) => estandar.some((d) => d.clave === clave);
     const lista = [
       {id: 'cimentacion', tipo: 'cimentacion', contenido: contenidos.cimentacion, titulado: true},
       ...(cc.tramos ? [{id: 'cimiento', tipo: 'cimiento', contenido: contenidos.cimiento, titulado: true}] : []),
-      ...cortesAdaptados.map((contenido, i) => ({id: `corte${i + 1}`, tipo: 'corte', contenido, nominal: 2, titulado: Boolean(contenido.titulo)})),
+      ...cortesAdaptados.map((contenido, i) => ({id: `corte${i + 1}`, tipo: 'corte', contenido, nominal: 2, titulado: Boolean(contenido.titulo) && !contenido.tituloPropio})),
       {id: 'aligerado', tipo: 'losa', contenido: contenidos.aligerado, titulado: true},
-      ...(sinLosa ? [] : [{id: 'detalleAligerado', tipo: 'detalleLosa', contenido: detalleTipicoAligerado(ali.espesor), nominal: 5, titulado: true}]),
+      // El detalle típico de aligerado y la especificación de ladrillo: los del ingeniero (biblioteca)
+      // si están; si no, los generados.
+      ...(sinLosa || estandarDe("aligerado") ? [] : [{id: 'detalleAligerado', tipo: 'detalleLosa', contenido: detalleTipicoAligerado(ali.espesor), nominal: 5, titulado: true}]),
       ...extras.map((contenido, i) => ({id: `extra${i}`, tipo: tipoExtra(contenido), contenido, titulado: true})),
       ...porticosDibujo.map((p, i) => ({id: `portico${i + 1}`, tipo: 'portico', contenido: p.contenido, nominal: 1, titulado: true})),
       // Cuadro de vigas (22 de 28 expedientes lo tienen): una columna por sección del modelo.
@@ -433,17 +449,18 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
       {id: 'cuadroColumnetas', tipo: 'cuadroColumnetas', contenido: contenidos.cuadroColumnetas, nominal: 1},
       {id: 'notas', tipo: 'notas', contenido: notas, nominal: 1},
       // Empalmes y ganchos estándar del despacho (E.060), como en sus especificaciones técnicas.
-      {id: 'empalmes', tipo: 'cuadroEmpalmes', contenido: detalleEmpalmesGanchos(), nominal: 1, titulado: true},
+      {id: 'empalmes', tipo: 'cuadroEmpalmes', contenido: detalleEmpalmesGanchos(), nominal: 1, titulado: true, relleno: true},
       // Tablas y detalles estándar que el despacho pone en toda lámina (criterio E.060/E.070, no
       // dependen del proyecto): longitudes de desarrollo, desencofrado, ladrillo-mortero y viguetas.
-      {id: 'desarrollo', tipo: 'cuadroEmpalmes', contenido: cuadroLongitudesDesarrollo(), nominal: 1, titulado: true},
-      {id: 'desencofrado', tipo: 'notas', contenido: tablaDesencofrado(), nominal: 1, titulado: true},
-      {id: 'ladrillo', tipo: 'detalleLosa', contenido: especificacionLadrillo(), nominal: 1, titulado: true},
-      ...(sinLosa ? [] : [{id: 'cuadroViguetas', tipo: 'cuadroColumnetas', contenido: cuadroViguetas(ali.espesor), nominal: 1, titulado: true}]),
+      // Las tablas van de relleno: a la lámina con más espacio (las viguetas, con la losa).
+      {id: 'desarrollo', tipo: 'cuadroEmpalmes', contenido: cuadroLongitudesDesarrollo(), nominal: 1, titulado: true, relleno: true},
+      {id: 'desencofrado', tipo: 'notas', contenido: tablaDesencofrado(), nominal: 1, titulado: true, relleno: true},
+      ...(estandarDe("ladrillo") ? [] : [{id: 'ladrillo', tipo: 'detalleLosa', contenido: especificacionLadrillo(), nominal: 1, titulado: true}]),
+      ...(sinLosa ? [] : [{id: 'cuadroViguetas', tipo: 'cuadroColumnetas', contenido: cuadroViguetas(ali.espesor), nominal: 1, titulado: true, relleno: true, familia: 'losa'}]),
       // El cuadro de columnas también en las láminas de pórticos (si cabe), como el ingeniero.
       {id: 'cuadroColumnas', tipo: 'cuadroColumnas', contenido: contenidos.cuadroColumnas, nominal: 1, repetible: true},
       // Detalles estándar del despacho (biblioteca): llenan el hueco libre como en sus láminas.
-      ...detallesEstandar(estructura.detallesEstandar ?? [], {espesor: ali.espesor}, {conLosa: !sinLosa, conCanaleta: Boolean(cumbrera) || items.some((it) => it.tipo === "texto" && /canaleta/i.test(it.texto ?? ""))}).map((d) => ({...d, nominal: 1, relleno: true})),
+      ...estandar.map((d) => ({...d, nominal: 1, relleno: true})),
     ].filter((c) => c.contenido);
     for (const c of lista) c.caja = medir(c.contenido, c.titulado);
     paquete = componerPaqueteLaminas({marco: estructura.formatoReferencia ?? null, escalaPlanos: nominal, proyecto, contenidos: lista});
@@ -489,6 +506,7 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
   const escalas = new Set();
   const ubicaciones = [];
   const secciones = [];
+  const fueraDeLamina = [];
   hojas.forEach(({lamina, extra, porticos: deHoja, copia, planos, soloMarco, plano: planoHoja}, i) => {
     const nombrePlano = planoHoja || lamina.plano;
     const codigo = `E-${String(previas + i + 1).padStart(2, "0")}`;
@@ -506,6 +524,9 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
         if (!contenido) continue;
         const e = espacio.extension, s = espacio.escala, c = espacio.caja;
         const primitivas = transformar(contenido.primitivas, (x, y) => [c.x + (x - e.x0) * s, c.y + (y - e.y0) * s], s);
+        // Nada fuera del marco de su lámina (con 2 cm de holgura por el ancho estimado de los textos).
+        const cd = cajaDibujo(primitivas), mf = lamina.marco, tol = 0.02 * Math.min(mf.x1 - mf.x, mf.y1 - mf.y);
+        if (cd && (cd.x0 < mf.x - tol || cd.x1 > mf.x1 + tol || cd.y0 < mf.y - tol || cd.y1 > mf.y1 + tol)) fueraDeLamina.push(`${contenido.titulo ?? espacio.id} (${codigo})`);
         const estilo = /^cuadro/.test(espacio.tipo) ? "cuadro" : espacio.tipo === "portico" ? "portico" : "planta";
         const colocadas = mover(aplicarEstilo(primitivas, estilo));
         prim.push(...colocadas);
@@ -601,7 +622,7 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
     : `La arquitectura no rotula los NPT de los niveles superiores: supuse +${[...entrepisos, altura].map((z) => z.toFixed(2)).join(", +")} (altura del 1er nivel). Dímelos para corregir.`);
   if (!cc.tramos) avisos.push("No encontré muros sobre los ejes: el plano de cimiento corrido quedó sin cimientos.");
   return {
-    desplazamiento: O, copias, excluirPlantilla, primitivas: prim, laminas, proyecto, avisos, revisionInterna, ubicaciones,
+    desplazamiento: O, copias, excluirPlantilla, primitivas: prim, laminas, proyecto, avisos: [...avisos, ...(fueraDeLamina.length ? [`Se sale del marco de la lámina: ${fueraDeLamina.join("; ")}. Revísalo antes de entregar.`] : [])], revisionInterna, ubicaciones, fueraDeLamina,
     usarPlantilla: !adaptativa, formato: paquete?.formato ?? null, secciones,
     // Para la copia de la plantilla: parámetros sísmicos del proyecto en lugar de los del expediente.
     textosPlantilla: dp.textos,

@@ -20,7 +20,7 @@ import {readFileSync, writeFileSync, mkdirSync, mkdtempSync, existsSync} from 'n
 import {resolve, join, extname, sep} from 'node:path';
 import {tmpdir} from 'node:os';
 import {runBrowserFixture, removeTempDir} from '../../tests/frontend/browserFixture.mjs';
-import {RUTA_ESTANDAR} from './plantilla.mjs';
+import {RUTA_ESTANDAR, RUTA_CORTES} from './plantilla.mjs';
 
 const [dxf, salida = 'storage/framework/testing/ver-en-visor', zonasArg] = process.argv.slice(2);
 if (!dxf || !existsSync(dxf)) { console.error('Uso: node scripts/agente/ver-en-visor.mjs <dibujo.dxf | arquitectura.dwg> [carpeta] [zonas.json]'); process.exit(1); }
@@ -61,6 +61,7 @@ const servidor = createServer((req, res) => {
   if (ruta === '/software/etabs/agente/llm/estado') { res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify({listo: true, memoria: 'completa', vision: true, estandar: !process.env.AGENTE_SIN_ESTANDAR && existsSync(RUTA_ESTANDAR)})); return; }
   // Detalles estándar del despacho (en producción los sirve Laravel con sesión y rol).
   if (ruta === '/software/etabs/agente/biblioteca/estandar' && existsSync(RUTA_ESTANDAR)) { res.setHeader('Content-Type', 'application/json'); res.end(readFileSync(RUTA_ESTANDAR)); return; }
+  if (ruta === '/software/etabs/agente/biblioteca/corte_cimiento' && existsSync(RUTA_CORTES)) { res.setHeader('Content-Type', 'application/json'); res.end(readFileSync(RUTA_CORTES)); return; }
   if (ruta === plano) { const datos = readFileSync(dxf); res.setHeader('Content-Type', 'application/octet-stream'); res.setHeader('Content-Length', datos.length); res.end(req.method === 'HEAD' ? undefined : datos); return; }
   if (dev && !ruta.startsWith('/assets/')) {
     const pedido = request({hostname: vite.hostname === 'localhost' ? 'localhost' : vite.hostname, port: vite.port, path: req.url, method: 'GET', headers: {accept: req.headers.accept ?? '*/*'}}, (r) => { res.writeHead(r.statusCode, r.headers); r.pipe(res); });

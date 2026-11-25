@@ -12,3 +12,10 @@ export function cargarDetallesEstandar() {
   if (process.env.AGENTE_SIN_ESTANDAR || !existeArchivo(RUTA_ESTANDAR)) return null;
   try { return JSON.parse(leerArchivo(RUTA_ESTANDAR, 'utf8')).piezas ?? null; } catch { return null; }
 }
+
+// Cortes de cimiento del despacho publicados (los que el panel pide a /biblioteca/corte_cimiento).
+export const RUTA_CORTES = 'storage/app/private/agente/biblioteca-publicable/corte_cimiento.json';
+export function cargarCortesDespacho() {
+  if (process.env.AGENTE_SIN_ESTANDAR || !existeArchivo(RUTA_CORTES)) return null;
+  try { const piezas = JSON.parse(leerArchivo(RUTA_CORTES, 'utf8')).piezas ?? []; return piezas.length ? {piezas} : null; } catch { return null; }
+}

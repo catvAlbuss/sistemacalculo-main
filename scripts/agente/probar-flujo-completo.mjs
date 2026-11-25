@@ -14,7 +14,7 @@ import {SKILLS} from '../../resources/js/ingenieria/agente/skills/index.js';
 import {instalarRecorteXclip} from '../../resources/js/etabs/visor/recorteXclip.js';
 import {PLANOS} from './planos.mjs';
 import {paresDelManifiesto} from './pares-entrenamiento.mjs';
-import {cargarPlantillaAdaptativa, cargarDetallesEstandar} from './plantilla.mjs';
+import {cargarPlantillaAdaptativa, cargarDetallesEstandar, cargarCortesDespacho} from './plantilla.mjs';
 
 const args = process.argv.slice(2);
 const filtro = args.find((a) => !a.startsWith('--'));
@@ -44,13 +44,14 @@ for (const p of planos) {
     const db = await leer(p.ruta);
     const ctx = createDrawingContext({getDatabase: () => db, dm, loadTemplate: async () => plantilla, getProjectData: () => ({...DATOS}), setProjectData: () => {}, afterDraw: () => {}});
     ctx.memoria ??= {};
-    ctx.detallesEstandar = cargarDetallesEstandar();
+    ctx.detallesEstandar = cargarDetallesEstandar(); ctx.bibliotecaDetalles = cargarCortesDespacho();
     const r = await skill('plano_estructuras').run({}, ctx);
     if (!r.ok) { fila.error = `láminas: ${r.error ?? 'sin detalle'}`; filas.push({...fila, s: (Date.now() - t0) / 1000}); console.log(linea(filas.at(-1))); continue; }
     fila.laminas = r.laminas?.length ?? 0;
     fila.avisos = r.avisos?.length ?? 0;
     // Lo que dice el agente lo dice el plano (agente/coherencia.js).
     fila.incoherente = r.coherencia?.faltan ?? [];
+    fila.fuera = r.fueraDeLamina ?? [];
     fila.niveles = ctx.memoria.modeloEstructural?.niveles ?? null;
     const rev = await skill('revisar_laminas').run({}, ctx);
     fila.encimados = rev.encimados ?? null;
@@ -75,7 +76,7 @@ for (const p of planos) {
 }
 
 function linea(f) {
-  return `${f.ok ? 'OK ' : 'MAL'} ${f.plano.padEnd(24)} láminas ${String(f.laminas).padStart(2)} · niveles ${f.niveles ?? '—'} · encimados ${f.encimados ?? '—'}${f.ordenar ? ` (ordenar: mueve ${f.ordenar.movidos}, quedan ${f.ordenar.quedan})` : ''} · partidas ${String(f.partidas).padStart(3)}${f.raras.length ? ` (${f.raras.length} en cero/raras)` : ''} · excel ${f.excel ? 'sí' : 'no'}${f.incoherente?.length ? ` · NO DIBUJADO: ${f.incoherente.join('; ')}` : ''} · ${f.s}s${f.error ? ` · ${f.error}` : ''}`;
+  return `${f.ok ? 'OK ' : 'MAL'} ${f.plano.padEnd(24)} láminas ${String(f.laminas).padStart(2)} · niveles ${f.niveles ?? '—'} · encimados ${f.encimados ?? '—'}${f.ordenar ? ` (ordenar: mueve ${f.ordenar.movidos}, quedan ${f.ordenar.quedan})` : ''} · partidas ${String(f.partidas).padStart(3)}${f.raras.length ? ` (${f.raras.length} en cero/raras)` : ''} · excel ${f.excel ? 'sí' : 'no'}${f.incoherente?.length ? ` · NO DIBUJADO: ${f.incoherente.join('; ')}` : ''}${f.fuera?.length ? ` · FUERA DE LÁMINA: ${f.fuera.join('; ')}` : ''} · ${f.s}s${f.error ? ` · ${f.error}` : ''}`;
 }
 const bien = filas.filter((f) => f.ok).length;
 console.log(`\n${bien}/${filas.length} planos completaron arquitectura → láminas → metrado → Excel.`);
