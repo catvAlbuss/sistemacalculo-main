@@ -17,6 +17,8 @@ import {
 
 // Clave del modelo que deja el agente NovaCad para abrir aquí (ver importarModeloDelAgente).
 export const MODELO_DEL_AGENTE = "novacad:modelo-analisis";
+// Copia del último modelo abierto: el menú 🤖 Agente ▸ "Abrir el modelo del agente" lo reabre.
+export const ULTIMO_MODELO_DEL_AGENTE = "novacad:modelo-analisis:ultimo";
 
 export const e2kImportMixin = {
 
@@ -2346,15 +2348,20 @@ export const e2kImportMixin = {
   },
 
   // Modelo de análisis que armó el agente NovaCad desde la arquitectura (predim2 → "Enviar a
-  // análisis"): llega por localStorage del mismo sitio y se abre una sola vez.
-  importarModeloDelAgente() {
+  // análisis"): llega por localStorage del mismo sitio. Al entrar con ?desde=agente se abre el
+  // pendiente una sola vez; desde el menú (desdeMenu) se abre el pendiente o, si no hay, el último.
+  importarModeloDelAgente({desdeMenu = false} = {}) {
     let pendiente = null;
     try {
-      if (!/[?&]desde=agente\b/.test(window.location.search)) return false;
-      pendiente = JSON.parse(window.localStorage.getItem(MODELO_DEL_AGENTE) || "null");
-      window.localStorage.removeItem(MODELO_DEL_AGENTE);
+      if (!desdeMenu && !/[?&]desde=agente\b/.test(window.location.search)) return false;
+      const nuevo = window.localStorage.getItem(MODELO_DEL_AGENTE);
+      pendiente = JSON.parse(nuevo || (desdeMenu ? window.localStorage.getItem(ULTIMO_MODELO_DEL_AGENTE) : null) || "null");
+      if (nuevo) { window.localStorage.setItem(ULTIMO_MODELO_DEL_AGENTE, nuevo); window.localStorage.removeItem(MODELO_DEL_AGENTE); }
     } catch (_e) { return false; }
-    if (!pendiente?.texto) return false;
+    if (!pendiente?.texto) {
+      if (desdeMenu) this.showMessage?.("No hay un modelo del agente. En NovaCad (Predim) genera las láminas y pide «envía a análisis».", "warning");
+      return false;
+    }
     const ok = this.importarE2kTexto(pendiente.texto, pendiente.nombre || "modelo_agente.e2k");
     if (ok) this.showMessage?.(`🤖 Modelo del agente NovaCad abierto: ${pendiente.nombre || "modelo"}. Revisa los supuestos antes de analizar.`, "success");
     return ok;

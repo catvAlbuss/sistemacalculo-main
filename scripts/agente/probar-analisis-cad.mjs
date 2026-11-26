@@ -15,6 +15,8 @@ import {runBrowserFixture, removeTempDir} from '../../tests/frontend/browserFixt
 // --limite=0.3: exige un ratio D/C menor que 1 para forzar que el agente suba acero (prueba del ajuste).
 const archivoE2k = process.argv.slice(2).find((a) => !a.startsWith('--'));
 const LIMITE = Number(process.argv.find((a) => a.startsWith('--limite='))?.slice(9)) || 1;
+// --captura=<archivo.png>: solo abre el modelo y el menú 🤖 Agente y guarda una captura (sin análisis).
+const CAPTURA = process.argv.find((a) => a.startsWith('--captura='))?.slice(10) ?? null;
 if (!archivoE2k || !existsSync(archivoE2k)) { console.error('Uso: node scripts/agente/probar-analisis-cad.mjs <modelo.e2k>'); process.exit(1); }
 const browser = ['C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe', 'C:/Program Files/Microsoft/Edge/Application/msedge.exe'].find(existsSync);
 const RAIZ = resolve('.');
@@ -38,7 +40,7 @@ const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta n
 ${sinOrigen(vista.cabeza)}${vista.estilos}${sinOrigen(vista.scripts)}</head>
 <body class="h-full"><main class="h-full">${vista.cuerpo}</main><pre id="result" style="display:none">WAIT</pre>
 <script>
-  const LIMITE = ${LIMITE};
+  const LIMITE = ${LIMITE}, CAPTURA = ${CAPTURA ? 'true' : 'false'};
   window.__errores = [];
   window.addEventListener('error', (e) => window.__errores.push(String(e.message)));
   // Los avisos de SweetAlert se confirman solos (no hay quien haga clic).
@@ -53,6 +55,11 @@ ${sinOrigen(vista.cabeza)}${vista.estilos}${sinOrigen(vista.scripts)}</head>
       const e2k = await (await fetch('/modelo.e2k')).text();
       if (!cad.importarE2kTexto(e2k, 'modelo.e2k')) return fin('FAIL no importó el .e2k');
       await espera(500);
+      if (CAPTURA) {
+        [...document.querySelectorAll('button')].find((b) => b.textContent.trim().endsWith('Agente'))?.click();
+        await espera(800);
+        return fin('READY');
+      }
       cad._initSeismic();
       Object.assign(cad.seismicConfig, {numModes: 12, combination: 'CQC', direction: 'both', saInG: true, g: 9.81, useRigidDiaphragms: true, driftSystem: 'concreto', driftLimit: 0.007});
       await cad.runSeismicAnalysis();
@@ -106,7 +113,13 @@ await new Promise((ok) => servidor.listen(0, '127.0.0.1', ok));
 const url = `http://127.0.0.1:${servidor.address().port}/`;
 const dir = mkdtempSync(join(tmpdir(), 'analisis-cad-'));
 try {
-  const r = await runBrowserFixture(browser, join(dir, 'x.html'), {profile: join(dir, 'perfil'), url, width: 1500, height: 950, webgl: true, timeoutMs: 600000});
+  const interact = CAPTURA ? async (send) => {
+    const {data} = await send('Page.captureScreenshot', {format: 'png'});
+    writeFileSync(CAPTURA, Buffer.from(data, 'base64'));
+    await send('Runtime.evaluate', {expression: 'document.querySelector("#result").textContent = "PASS {}"'});
+  } : undefined;
+  const r = await runBrowserFixture(browser, join(dir, 'x.html'), {profile: join(dir, 'perfil'), url, width: 1500, height: 950, webgl: true, timeoutMs: 600000, interact});
+  if (CAPTURA) { console.log(r.startsWith('PASS') ? `Captura: ${CAPTURA}` : r.slice(0, 500)); process.exit(r.startsWith('PASS') ? 0 : 1); }
   if (!r.startsWith('PASS')) { console.log(r.slice(0, 2000)); process.exitCode = 1; }
   else {
     const d = JSON.parse(r.slice(5));
