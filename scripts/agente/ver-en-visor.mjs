@@ -87,6 +87,8 @@ try {
         return r.result.value;
       };
       const inicioCarga = Date.now();
+      // VISOR_RECORTES=<json>: recortes XCLIP de una copia de recuperación (se reactivan antes de abrir).
+      if (process.env.VISOR_RECORTES) await evaluar(`window.__novacadPrueba.recortesDeCopia(${readFileSync(process.env.VISOR_RECORTES, 'utf8')})`);
       await evaluar(`window.__abierto = null; window.__novacadPrueba.abrir(location.origin + '${plano}').then((r) => { window.__abierto = String(r); }, (e) => { window.__abierto = 'error: ' + e; }), true`);
       // Esperar a que el dibujo termine de cargarse (el número de entidades se estabiliza).
       let previo = -1;

@@ -105,6 +105,8 @@ import { MlCadViewer } from "@mlightcad/cad-viewer";
 import { AcApDocManager, AcEdOpenMode } from "@mlightcad/cad-simple-viewer";
 import { crearRecuperacion, describirCopia } from "./composables/useDrawingRecovery.js";
 import { instalarRobustezVisor, instalarAperturaPorPeso } from "./visor/robustezVisor.js";
+import { activarRecortesDeCopia, recortesParaCopia } from "./visor/recorteXclip.js";
+import { AcDbBlockReference } from "@mlightcad/data-model";
 
 import DatosGeneralesPanel from "./components/DatosGeneralesPanel.vue";
 import FoundationOverlay from "./components/FoundationOverlay.vue";
@@ -217,6 +219,7 @@ const recuperacion = crearRecuperacion({
     const doc = AcApDocManager.instance?.curDocument;
     return doc?.database ? {database: doc.database, nombre: doc.docTitle || doc.fileName} : null;
   },
+  recortesDe: (database) => recortesParaCopia(database, AcDbBlockReference),
 });
 const copiaRecuperable = ref(null);
 const graficoPerdido = ref(false);
@@ -228,6 +231,8 @@ const reabrirCopia = () => {
   if (!copia) return;
   copiaRecuperable.value = null;
   graficoPerdido.value = false;
+  // El recorte XCLIP (viñeta de ubicación) no vuelve con el DXF de la copia: se reactiva aparte.
+  activarRecortesDeCopia(copia.recortes);
   selectedFile.value = recuperacion.archivo(copia);
 };
 const descartarCopia = async () => {
@@ -248,6 +253,8 @@ const autoguardado = setInterval(() => enReposo(() => guardarCopia()), 90000);
 if (window.__NOVACAD_PRUEBA__) {
   window.__novacadPrueba = {
     abrir: (url) => AcApDocManager.instance.openUrl(url),
+    // Como reabrir la copia de recuperación: los recortes XCLIP guardados aparte.
+    recortesDeCopia: (lista) => activarRecortesDeCopia(lista),
     // Monta el panel del agente (que agrega herramienta() para correr sus skills).
     abrirAgente: () => { agentVisible.value = true; return true; },
     // Hacia dónde mira la cámara (diagnóstico de encuadre).
@@ -276,8 +283,11 @@ watch(drawingSurfaceRef, (element, anterior) => {
   anterior?.removeEventListener("webglcontextlost", alPerderGrafico, true);
   element?.addEventListener("webglcontextlost", alPerderGrafico, true);
 }, {flush: "post"});
-// Al abrir otro archivo, el aviso de un plano anterior ya no aplica.
-watch(selectedFile, () => { if (!graficoPerdido.value) copiaRecuperable.value = null; });
+// Al abrir otro archivo, el aviso de un plano anterior ya no aplica (y los recortes de la copia tampoco).
+watch(selectedFile, (archivo) => {
+  if (!graficoPerdido.value) copiaRecuperable.value = null;
+  if (!/\(recuperado\)\.dxf$/i.test(String(archivo?.name ?? ""))) activarRecortesDeCopia(null);
+});
 onBeforeUnmount(() => {
   guardarCopia();
   clearInterval(autoguardado);

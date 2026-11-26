@@ -233,15 +233,54 @@ function registroRecortado(registro, poli, clave, ClaseInsercion, profundidad) {
   return proxy;
 }
 
+// Recortes de la COPIA DE RECUPERACIÓN (useDrawingRecovery.js): la copia es un DXF exportado por la
+// librería y al leerlo de nuevo el recorte no vuelve (el visor solo lee SPATIAL_FILTER al abrir DWG),
+// así que el terreno de la viñeta de ubicación aparecía entero al volver a la página. La copia
+// guarda {h: handle de la inserción, bloque, poli} y aquí se reactivan mientras esa copia esté abierta.
+let RECORTES_DE_COPIA = null; // handle → {bloque, poli}
+const nombreDeBloque = (e) => { try { return e?.blockName ?? e?.name ?? ""; } catch { return ""; } };
+
+export function activarRecortesDeCopia(lista) {
+  RECORTES_DE_COPIA = Array.isArray(lista) && lista.length
+    ? new Map(lista.filter((r) => r?.h && Array.isArray(r.poli) && r.poli.length >= 3).map((r) => [normalizarHandle(r.h), {bloque: r.bloque, poli: r.poli}]))
+    : null;
+  return RECORTES_DE_COPIA?.size ?? 0;
+}
+
 export function recorteDeInsercion(insercion) {
   const propio = insercion?.[POLIGONO];
   if (propio) return {poli: propio, clave: insercion[CLAVE]};
   const xd = normalizarHandle(insercion?.extensionDictionary);
-  if (!xd) return null;
   let db = null;
-  try { db = insercion.database; } catch { return null; }
-  const poli = db && RECORTES.get(db)?.get(xd);
-  return poli ? {poli, clave: normalizarHandle(insercion.objectId) || xd} : null;
+  try { db = insercion.database; } catch { db = null; }
+  const poli = xd && db ? RECORTES.get(db)?.get(xd) : null;
+  if (poli) return {poli, clave: normalizarHandle(insercion.objectId) || xd};
+  if (RECORTES_DE_COPIA) {
+    const h = normalizarHandle(insercion?.objectId);
+    const r = h && RECORTES_DE_COPIA.get(h);
+    // Mismo handle Y mismo bloque: un handle suelto podría ser de otro dibujo.
+    if (r && r.bloque === nombreDeBloque(insercion)) return {poli: r.poli, clave: `copia:${h}`};
+  }
+  return null;
+}
+
+// Recortes de las inserciones del dibujo (espacio modelo y bloques, un nivel), para guardarlos con
+// la copia de recuperación.
+export function recortesParaCopia(db, ClaseInsercion = null) {
+  const out = [];
+  const vistos = new Set();
+  const revisar = (registro) => {
+    for (const e of registro.newIterator()) {
+      if (!esInsercion(e, ClaseInsercion)) continue;
+      const r = recorteDeInsercion(e);
+      const h = normalizarHandle(e.objectId);
+      if (r && h && !vistos.has(h)) { vistos.add(h); out.push({h, bloque: nombreDeBloque(e), poli: r.poli.map(({x, y}) => ({x, y}))}); }
+    }
+  };
+  try {
+    for (const registro of db.tables.blockTable.newIterator()) revisar(registro);
+  } catch { /* sin tablas: sin recortes */ }
+  return out;
 }
 
 // Recortes del modelo crudo de LibreDWG: diccionario de extensión de la inserción → polígono.
