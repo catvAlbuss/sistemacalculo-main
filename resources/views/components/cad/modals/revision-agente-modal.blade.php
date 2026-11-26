@@ -19,9 +19,14 @@
                     <input type="number" step="0.5" min="1" max="8" x-model.number="opciones.R" @change="recalcular()"
                            class="w-20 p-1 rounded border border-gray-600 bg-gray-700 text-white">
                 </label>
-                <label class="flex items-center gap-2">
-                    <input type="checkbox" x-model="opciones.regular" @change="recalcular()"> Estructura regular (Ia = Ip = 1)
+                <label class="flex flex-col gap-1">Regularidad
+                    <select x-model="opciones.regularidad" @change="recalcular()" class="p-1 rounded border border-gray-600 bg-gray-700 text-white">
+                        <option value="auto">Automática (según la revisión)</option>
+                        <option value="regular">Regular (0.75·R, 80 %)</option>
+                        <option value="irregular">Irregular (0.85·R, 90 %)</option>
+                    </select>
                 </label>
+                <span class="text-gray-400" x-show="datos.irregularidad" x-text="'Ia = ' + (datos.irregularidad?.Ia ?? 1) + ' · Ip = ' + (datos.irregularidad?.Ip ?? 1)"></span>
                 <label class="flex flex-col gap-1">Sistema (límite de deriva)
                     <select x-model="opciones.material" @change="recalcular()" class="p-1 rounded border border-gray-600 bg-gray-700 text-white">
                         <option value="concreto">Concreto armado (0.007)</option>
@@ -78,10 +83,18 @@
                 <span class="font-semibold">Supuestos de esta revisión:</span>
                 <span x-text="(datos.supuestos || []).join(' ')"></span>
             </div>
-            <p class="mt-2 text-[11px] text-gray-500">Revisión automática con los números del análisis: no reemplaza la verificación del ingeniero responsable. Pendiente: irregularidades (Tablas 8 y 9) y C/R ≥ 0.11.</p>
+            <div class="mt-3 rounded border border-sky-800 bg-sky-950/40 px-3 py-2 text-xs" x-show="explicacion || explicando || errorIA">
+                <div class="font-semibold text-sky-300 mb-1">Explicación del agente (IA, sobre estos mismos números)</div>
+                <div x-show="explicando" class="text-gray-400">Pensando…</div>
+                <div x-show="errorIA" class="text-red-300" x-text="errorIA"></div>
+                <div class="whitespace-pre-line text-gray-200" x-show="explicacion" x-text="explicacion"></div>
+            </div>
+            <p class="mt-2 text-[11px] text-gray-500">Revisión automática con los números del análisis y del diseño: no reemplaza la verificación del ingeniero responsable.</p>
         </div>
 
         <div class="flex justify-end gap-2 px-4 py-3 border-t border-gray-700">
+            <button @click="disenarColumnas()" class="px-3 py-1.5 bg-gray-600 hover:bg-gray-500 text-white rounded text-xs">Diseñar todas las columnas</button>
+            <button @click="explicar()" :disabled="explicando" class="px-3 py-1.5 bg-sky-700 hover:bg-sky-600 disabled:opacity-50 text-white rounded text-xs">Explicar con IA</button>
             <button @click="recalcular()" class="px-3 py-1.5 bg-gray-600 hover:bg-gray-500 text-white rounded text-xs">Volver a revisar</button>
             <button @click="open = false" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded text-xs">Cerrar</button>
         </div>
@@ -93,18 +106,32 @@
         return {
             open: false,
             datos: {},
-            opciones: {R: 8, regular: true, material: 'concreto'},
+            opciones: {R: 8, regularidad: 'auto', material: 'concreto'},
+            explicacion: '',
+            explicando: false,
+            errorIA: '',
             init() {
                 window.addEventListener('open-revision-agente-modal', (e) => {
                     this.datos = e.detail || {};
                     const p = this.datos.parametros || {};
-                    this.opciones = {R: p.R ?? 8, regular: p.regular !== false, material: p.material || 'concreto'};
+                    this.opciones = {R: p.R ?? 8, regularidad: p.regularidad || 'auto', material: p.material || 'concreto'};
+                    this.explicacion = ''; this.errorIA = '';
                     this.open = true;
                 });
             },
             recalcular() {
                 const nuevos = window.cadSystem?.calcularRevisionAgente?.(this.opciones);
-                if (nuevos) { this.datos = nuevos; window.cadSystem.revisionAgente = nuevos; }
+                if (nuevos) { this.datos = nuevos; window.cadSystem.revisionAgente = nuevos; this.explicacion = ''; }
+            },
+            async disenarColumnas() {
+                this.open = false;
+                await window.cadSystem?.disenarTodasLasColumnas?.();
+            },
+            async explicar() {
+                this.explicando = true; this.errorIA = ''; this.explicacion = '';
+                try { this.explicacion = await window.cadSystem.explicarRevisionAgente(); }
+                catch (e) { this.errorIA = e.message || 'No se pudo consultar a la IA.'; }
+                finally { this.explicando = false; }
             },
             textoEstado(e) {
                 return {cumple: 'Cumple', no_cumple: 'No cumple', observacion: 'Observación', sin_datos: 'Sin datos', info: 'Dato'}[e] || e;
