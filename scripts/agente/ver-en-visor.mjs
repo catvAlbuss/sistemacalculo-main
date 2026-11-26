@@ -121,6 +121,11 @@ try {
           }
         }
       }
+      // VISOR_DESCOMPONER=1: selecciona el primer bloque del dibujo (no recortado), corre DESCOMPONER y
+      // dice cuántos bloques e entidades había antes y después (prueba del comando en el visor real).
+      if (process.env.VISOR_DESCOMPONER) {
+        console.log('descomponer:', await evaluar('window.__novacadPrueba.probarDescomponer()'));
+      }
       // VISOR_PANEL=1 (con VISOR_SOLO_ABRIR): abre el panel del agente para fotografiarlo, sin pedirle nada.
       if (process.env.VISOR_PANEL) { await evaluar('window.__novacadPrueba.abrirAgente()'); await pausa(6000); }
       // VISOR_CLIC="texto": además aprieta el botón del panel con ese texto (como el ingeniero) y espera.

@@ -76,7 +76,7 @@
     <Teleport v-if="ribbonSlot" :to="ribbonSlot.host">
       <PredimRibbonGroup :slot-style="ribbonSlot.style" :cimentacion-open="cimentacionPanelVisible" :agent-open="agentVisible"
         :has-results="!!results" :foundation-pending="!!pendingFoundation" @open-cimentacion="toggleFoundationFromRibbon"
-        @open-agent="agentVisible = !agentVisible" @open-results="resultsVisible = true" @about="aboutVisible = true" />
+        @open-agent="agentVisible = !agentVisible" @open-results="resultsVisible = true" @about="aboutVisible = true" @descomponer="AcApDocManager.instance?.sendStringToExecute('DESCOMPONER')" />
     </Teleport>
     <Teleport v-if="statusSlot" :to="statusSlot"><NovaCadStatus @about="aboutVisible = true" /></Teleport>
     <NovaCadAbout v-if="aboutVisible" @close="aboutVisible = false" />
@@ -233,6 +233,9 @@ const reabrirCopia = () => {
   graficoPerdido.value = false;
   // El recorte XCLIP (viñeta de ubicación) no vuelve con el DXF de la copia: se reactiva aparte.
   activarRecortesDeCopia(copia.recortes);
+  // Copia guardada antes de conservar los recortes: el DXF de la librería no escribe el recorte
+  // (SPATIAL_FILTER), así que el terreno de la viñeta de ubicación puede salir entero. Se avisa.
+  if (!Array.isArray(copia.recortes)) avisoPeso.value = "Esta copia se guardó con una versión anterior: si ves el terreno del plano de ubicación completo, descártala y vuelve a abrir el DWG original (las copias nuevas ya conservan el recorte).";
   selectedFile.value = recuperacion.archivo(copia);
 };
 const descartarCopia = async () => {
@@ -252,9 +255,22 @@ const autoguardado = setInterval(() => enReposo(() => guardarCopia()), 90000);
 // prueba define window.__NOVACAD_PRUEBA__ se expone cómo abrir un DXF y encuadrar una zona.
 if (window.__NOVACAD_PRUEBA__) {
   window.__novacadPrueba = {
-    abrir: (url) => AcApDocManager.instance.openUrl(url),
+    abrir: (url) => AcApDocManager.instance.openUrl(url, {mode: AcEdOpenMode.Write}),
     // Como reabrir la copia de recuperación: los recortes XCLIP guardados aparte.
     recortesDeCopia: (lista) => activarRecortesDeCopia(lista),
+    // DESCOMPONER sobre el primer bloque con contenido (no recortado): cuenta bloques antes y después.
+    probarDescomponer: async () => {
+      const dm = await import("@mlightcad/data-model");
+      const m = AcApDocManager.instance, db = m.curDocument.database, ms = db.tables.blockTable.modelSpace;
+      const todas = () => ms.newIterator().toArray();
+      const bloque = todas().find((e) => e instanceof dm.AcDbBlockReference && !e.extensionDictionary && (db.tables.blockTable.getAt(e.blockName)?.newIterator().toArray().length ?? 0) > 3);
+      if (!bloque) return "sin bloques";
+      const cuenta = () => ({bloques: todas().filter((e) => e instanceof dm.AcDbBlockReference).length, entidades: todas().length});
+      const antes = cuenta();
+      (m.curView ?? m.mainView).selectionSet.add(bloque.objectId);
+      await m.executeCommandString("DESCOMPONER");
+      return JSON.stringify({bloque: bloque.blockName, antes, despues: cuenta(), sigue: todas().includes(bloque)});
+    },
     // Monta el panel del agente (que agrega herramienta() para correr sus skills).
     abrirAgente: () => { agentVisible.value = true; return true; },
     // Hacia dónde mira la cámara (diagnóstico de encuadre).
