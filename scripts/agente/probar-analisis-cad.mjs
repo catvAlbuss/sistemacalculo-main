@@ -17,6 +17,8 @@ const archivoE2k = process.argv.slice(2).find((a) => !a.startsWith('--'));
 const LIMITE = Number(process.argv.find((a) => a.startsWith('--limite='))?.slice(9)) || 1;
 // --captura=<archivo.png>: solo abre el modelo y el menú 🤖 Agente y guarda una captura (sin análisis).
 const CAPTURA = process.argv.find((a) => a.startsWith('--captura='))?.slice(10) ?? null;
+// --chat: con --captura, conversa con el agente del CAD por su panel (como el ingeniero) y fotografía el chat.
+const CHAT = process.argv.includes('--chat');
 // --paquete=<archivo.json>: guarda el paquete de «Enviar diseño al agente» (para probar-aplicar-diseno.mjs).
 const SALIDA_PAQUETE = process.argv.find((a) => a.startsWith('--paquete='))?.slice(10) ?? null;
 if (!archivoE2k || !existsSync(archivoE2k)) { console.error('Uso: node scripts/agente/probar-analisis-cad.mjs <modelo.e2k>'); process.exit(1); }
@@ -42,7 +44,7 @@ const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta n
 ${sinOrigen(vista.cabeza)}${vista.estilos}${sinOrigen(vista.scripts)}</head>
 <body class="h-full"><main class="h-full">${vista.cuerpo}</main><pre id="result" style="display:none">WAIT</pre>
 <script>
-  const LIMITE = ${LIMITE}, CAPTURA = ${CAPTURA ? 'true' : 'false'};
+  const LIMITE = ${LIMITE}, CAPTURA = ${CAPTURA ? 'true' : 'false'}, CHAT = ${CHAT ? 'true' : 'false'};
   window.__errores = [];
   window.addEventListener('error', (e) => window.__errores.push(String(e.message)));
   // Los avisos de SweetAlert se confirman solos (no hay quien haga clic).
@@ -57,6 +59,20 @@ ${sinOrigen(vista.cabeza)}${vista.estilos}${sinOrigen(vista.scripts)}</head>
       const e2k = await (await fetch('/modelo.e2k')).text();
       if (!cad.importarE2kTexto(e2k, 'modelo.e2k')) return fin('FAIL no importó el .e2k');
       await espera(500);
+      if (CAPTURA && CHAT) {
+        cad.openAgenteCadChat();
+        await espera(300);
+        const panel = document.querySelector('[x-data^="agenteCadChat"]')._x_dataStack[0];
+        for (const t of ['analiza el sismo', '¿cuánto es la deriva en X?', 'diseña las columnas', 'envía el diseño a NovaCad']) {
+          await panel.enviar(t);
+          await espera(300);
+        }
+        console.log('CHAT ' + JSON.stringify(panel.mensajes.map((m) => [m.role, m.content])));
+        window.__chat = panel.mensajes.map((m) => [m.role, m.content]);
+        document.querySelectorAll('.swal2-container, [x-data^="columnaDesignModal"]').forEach((e) => { e.style.display = 'none'; });
+        await espera(500);
+        return fin('READY');
+      }
       if (CAPTURA) {
         [...document.querySelectorAll('button')].find((b) => b.textContent.trim().endsWith('Agente'))?.click();
         await espera(800);
@@ -116,8 +132,14 @@ const url = `http://127.0.0.1:${servidor.address().port}/`;
 const dir = mkdtempSync(join(tmpdir(), 'analisis-cad-'));
 try {
   const interact = CAPTURA ? async (send) => {
-    const {data} = await send('Page.captureScreenshot', {format: 'png'});
-    writeFileSync(CAPTURA, Buffer.from(data, 'base64'));
+    if (CHAT) {
+      const chat = await send('Runtime.evaluate', {expression: 'JSON.stringify(window.__chat || [])', returnByValue: true});
+      for (const [rol, texto] of JSON.parse(chat.result.value)) console.log(`${rol === 'user' ? '👤' : '🤖'} ${texto}`);
+    }
+    try {
+      const {data} = await send('Page.captureScreenshot', {format: 'png'});
+      writeFileSync(CAPTURA, Buffer.from(data, 'base64'));
+    } catch (e) { console.log('Sin captura:', e.message); }
     await send('Runtime.evaluate', {expression: 'document.querySelector("#result").textContent = "PASS {}"'});
   } : undefined;
   const r = await runBrowserFixture(browser, join(dir, 'x.html'), {profile: join(dir, 'perfil'), url, width: 1500, height: 950, webgl: true, timeoutMs: 600000, interact});

@@ -15,6 +15,14 @@
                         Agente NovaCad
                     </div>
 
+                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2 font-semibold"
+                        @click.stop="cadSystem.openAgenteCadChat()">
+                        <span>💬</span>
+                        <span class="flex-1 truncate">Conversar con el agente</span>
+                        <span class="text-xs text-emerald-400 italic">Chat</span>
+                    </button>
+                    <div class="border-t border-gray-700 my-1"></div>
+
                     <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
                         @click.stop="cadSystem.importarModeloDelAgente({desdeMenu: true})">
                         <span>📥</span>
