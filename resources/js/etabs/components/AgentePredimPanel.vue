@@ -17,6 +17,23 @@
       <button v-if="revision.activa && !revision.sinPermiso" type="button" :aria-current="vistaAgente === 'revisiones' ? 'page' : undefined" @click="vistaAgente = 'revisiones'"><svg viewBox="0 0 24 24" aria-hidden="true"><path :d="ICON.revisar" /></svg>Revisiones <span v-if="revision.eventos.length" class="ag-count">{{ revision.eventos.length }}</span><span v-if="revision.error" class="ag-review-alert" aria-label="Error al cargar revisiones">!</span></button>
     </nav>
 
+    <!-- En qué va el proyecto y qué conviene hacer ahora (flujoProyecto.js): un solo botón. -->
+    <section v-show="vistaAgente === 'asistente'" class="ag-flow" aria-label="Etapas del proyecto">
+      <ol class="ag-flow-steps">
+        <li v-for="e in flujo.etapas" :key="e.id" :class="`is-${e.estado}`" :aria-current="e.estado === 'actual' ? 'step' : undefined">
+          <span class="ag-flow-dot" aria-hidden="true">{{ e.estado === 'hecho' ? '✓' : '' }}</span>{{ e.titulo }}
+        </li>
+      </ol>
+      <div class="ag-flow-next">
+        <button type="button" class="ag-btn ag-flow-main" :disabled="busy || !paso.herramienta" @click="accion(paso)">{{ paso.texto }}<span v-if="paso.herramienta" aria-hidden="true"> →</span></button>
+        <small v-if="paso.detalle">{{ paso.detalle }}</small>
+        <div v-if="paso.alternativas?.length" class="ag-flow-alt">
+          <span>O bien:</span>
+          <button v-for="a in paso.alternativas" :key="a.texto" type="button" :disabled="busy" @click="accion(a)">{{ a.texto }}</button>
+        </div>
+      </div>
+    </section>
+
     <div v-show="vistaAgente === 'revisiones'" class="ag-feed ag-review-feed" aria-label="Revisiones técnicas">
       <section v-if="vistaAgente === 'revisiones' && revision.activa && !revision.sinPermiso" class="ag-review">
         <div class="ag-section-heading">
@@ -97,14 +114,21 @@
 
       <section v-if="!runs.length || verMenu" ref="menuRef" class="ag-start">
         <h3>¿Qué necesitas hacer?</h3>
-        <p>Trabajemos sobre tu plano.</p>
+        <p>Usa el botón de arriba, elige otra opción o escríbelo con tus palabras («saca el metrado», «revisa como ingeniero»…).</p>
         <div class="ag-caps">
-          <button v-for="c in CAPACIDADES" :key="c.titulo" type="button" class="ag-cap" :class="{ 'is-principal': c.principal }" :disabled="busy" @click="ejecutar(c.herramienta, c.args, c.pedido)">
-            <span class="ag-cap-ic"><svg viewBox="0 0 24 24"><path :d="ICON[c.icono]" /></svg></span>
-            <strong>{{ c.titulo }}</strong>
+          <button v-for="c in ACCIONES_PRINCIPALES.filter((a) => a.herramienta !== paso.herramienta)" :key="c.texto" type="button" class="ag-cap" :disabled="busy || !planoListo" @click="accion(c)">
+            <span class="ag-cap-ic"><svg viewBox="0 0 24 24"><path :d="ICON[ICONO_ACCION[c.herramienta] ?? 'chispa']" /></svg></span>
+            <strong>{{ c.texto }}</strong>
             <small>{{ c.detalle }}</small>
           </button>
         </div>
+        <details class="ag-more ag-mas">
+          <summary>Más acciones</summary>
+          <div class="ag-mas-list">
+            <button v-for="c in MAS_ACCIONES" :key="c.texto" type="button" :disabled="busy || !planoListo" @click="accion(c)"><strong>{{ c.texto }}</strong><small>{{ c.detalle }}</small></button>
+          </div>
+        </details>
+        <p v-if="!planoListo" class="ag-read-sum">Abre primero la arquitectura (DWG): la leo sola y te digo si está lista.</p>
       </section>
 
       <article v-for="(run, i) in runs" :key="i" class="ag-run">
@@ -148,12 +172,15 @@
       <div v-if="adjuntos.length" class="ag-attach">
         <span v-for="(a, j) in adjuntos" :key="j" class="ag-chip-img"><img :src="a.url" alt="" /><button type="button" aria-label="Quitar foto" @click="adjuntos.splice(j, 1)">✕</button></span>
       </div>
+      <div v-if="runs.length && chips.length && !busy" class="ag-chips" role="group" aria-label="Sugerencias">
+        <button v-for="c in chips" :key="c.texto" type="button" @click="accion(c)">{{ c.texto }}</button>
+      </div>
       <div class="ag-box">
         <button type="button" class="ag-icon" aria-label="Adjuntar fotos de observaciones" title="Adjuntar fotos de observaciones" :disabled="busy || adjuntos.length >= 6" @click="fileRef.click()"><svg viewBox="0 0 24 24"><path :d="ICON.clip" /></svg></button>
         <input ref="fileRef" type="file" accept="image/jpeg,image/png,image/webp" multiple hidden @change="adjuntar" />
-        <textarea v-model="draftText" rows="1" aria-label="Instrucción para el agente" :placeholder="motorListo ? 'Escribe una instrucción…' : 'Sin IA: usa las acciones de arriba'" :disabled="busy || !motorListo"
+        <textarea v-model="draftText" rows="1" aria-label="Instrucción para el agente" :placeholder="motorListo ? 'Escribe lo que necesitas…' : 'Escribe lo que necesitas (ej. «estructura y analiza»)'" :disabled="busy"
           @input="autoAlto" @paste="pegar" @keydown.enter.exact.prevent="send()"></textarea>
-        <button v-if="!busy" type="submit" class="ag-send" :disabled="!motorListo || (!draftText.trim() && !adjuntos.length)" aria-label="Enviar"><svg viewBox="0 0 24 24"><path :d="ICON.enviar" /></svg></button>
+        <button v-if="!busy" type="submit" class="ag-send" :disabled="!draftText.trim() && !adjuntos.length" aria-label="Enviar"><svg viewBox="0 0 24 24"><path :d="ICON.enviar" /></svg></button>
         <button v-else type="button" class="ag-send is-stop" aria-label="Detener" :disabled="!controller" @click="cancel"><svg viewBox="0 0 24 24"><path :d="ICON.detener" /></svg></button>
       </div>
       <p class="ag-compose-help">Puedes adjuntar fotos o pegar una captura con Ctrl+V.</p>
@@ -311,7 +338,8 @@
 
 <script setup>
 import {computed, nextTick, onBeforeUnmount, onMounted, reactive, ref} from "vue";
-import {AGENTE_SERVIDOR, analizarResultado, respuestaHonesta, runAgent} from "../../ingenieria/agente/agentRunner.js";
+import {AGENTE_SERVIDOR, analizarResultado, respuestaHonesta, runAgent, rutaDirecta} from "../../ingenieria/agente/agentRunner.js";
+import {estadoDelProyecto, siguientePaso, sugerencias, ACCIONES_PRINCIPALES, MAS_ACCIONES} from "../../ingenieria/agente/flujoProyecto.js";
 import {CAMPOS_PROYECTO} from "../../ingenieria/laminas/rotulo.js";
 import {CAMPOS_TECNICOS} from "../../ingenieria/criterios/datosProyecto.js";
 import {COLUMNAS_PLANILLA, EDITABLES, corregirFila, filasPlanilla, renombrarFila} from "../../ingenieria/metrado/metrado.js";
@@ -350,13 +378,8 @@ const ICON = {
 // Acciones directas: corren la herramienta sin pasar por el modelo de IA (sin costo y sin
 // esperar al motor). El texto libre del cuadro de abajo sí va al modelo.
 // Acciones del menú: la principal (paso a paso) arriba y destacada; el resto, cortas.
-const CAPACIDADES = [
-  {titulo: "Construir paso a paso", icono: "estructura", detalle: "Te pregunta lo dudoso y luego dibuja las láminas", herramienta: "construir_estructura", pedido: "Construye la estructura paso a paso", principal: true},
-  {titulo: "Analizar", icono: "analizar", detalle: "Propone la estructura", herramienta: "proponer_estructura", pedido: "Analiza este plano y propón la estructura"},
-  {titulo: "Estructurar", icono: "estructura", detalle: "Láminas directo", herramienta: "plano_estructuras", pedido: "Genera el plano de estructuras"},
-  {titulo: "Metrar", icono: "metrado", detalle: "Partidas y Excel", herramienta: "metrar_estructura", pedido: "Saca el metrado de estructuras"},
-  {titulo: "Revisar láminas", icono: "revisar", detalle: "Encimados y rótulo", herramienta: "revisar_laminas", pedido: "Revisa las láminas"},
-];
+// Ícono de cada acción del menú.
+const ICONO_ACCION = {ciclo_completo: "estructura", plano_estructuras: "estructura", metrar_estructura: "metrado", revisar_norma: "revisar", revisar_laminas: "revisar", construir_estructura: "estructura", proponer_estructura: "analizar"};
 const GENERAR = {texto: "Generar el plano de estructuras", herramienta: "plano_estructuras"};
 const REVISAR = {texto: "Revisar las láminas", herramienta: "revisar_laminas"};
 
@@ -375,6 +398,14 @@ const PASOS = {
   estado_proyecto: {titulo: "Resumí en qué vamos", icono: "analizar", siguientes: [GENERAR]},
   ver_metrado: {titulo: "Revisé las partidas del metrado", icono: "metrado", siguientes: []},
   construir_estructura: {titulo: "Avancé la construcción", vivo: "Analizando la etapa…", icono: "estructura", siguientes: []},
+  ciclo_completo: {titulo: "Inicié el ciclo con Análisis Estructural", vivo: "Preparando láminas y modelo de análisis…", icono: "estructura", siguientes: []},
+  modelo_analisis: {titulo: "Armé el modelo de análisis", vivo: "Armando el modelo de análisis…", icono: "analizar", siguientes: [{texto: "Abrir Análisis Estructural", herramienta: "abrir_analisis"}]},
+  abrir_analisis: {titulo: "Abrí Análisis Estructural", icono: "analizar", siguientes: []},
+  aplicar_diseno: {titulo: "Apliqué el diseño a las láminas", vivo: "Aplicando el diseño a las láminas…", icono: "estructura", siguientes: [{texto: "Revisar como ingeniero", herramienta: "revisar_norma"}, {texto: "Sacar el metrado", herramienta: "metrar_estructura"}]},
+  revisar_norma: {titulo: "Revisé las láminas contra la norma", vivo: "Revisando los 15 puntos de la norma…", icono: "revisar", siguientes: []},
+  aprender_correcciones: {titulo: "Aprendí de tus correcciones", vivo: "Leyendo tus correcciones…", icono: "corregir", siguientes: []},
+  estado_aprendizaje: {titulo: "Revisé lo que aprendí de ti", icono: "chispa", siguientes: []},
+  olvidar_aprendizaje: {titulo: "Olvidé tus correcciones", icono: "borrar", siguientes: []},
 };
 
 // ---- Motor (solo su estado: proveedor, clave y modelo viven en el .env del servidor) ----
@@ -682,11 +713,13 @@ async function diagnosticar() {
     lectura.value = {estado: "no", nombre: doc?.docTitle ?? "", resumen: `No pude leer el plano: ${error?.message ?? error}`, vistas: [], niveles: [], textos: 0, unidades: "", entidades: {total: 0, leidas: 0}, problemas: [], avisos: []};
   }
   verLectura.value = lectura.value.estado !== "lista";
+  refrescarFlujo();
 }
 let quitarEscucha = null;
 let desmontado = false;
 onMounted(async () => {
   consultarMotor();
+  refrescarFlujo();
   try {
     const manager = (await cargarVisor()).AcApDocManager.instance;
     if (desmontado) return;
@@ -719,6 +752,7 @@ onMounted(async () => {
 // localStorage; si este panel lo estaba esperando, lo aplica solo a las láminas.
 const alLlegarDiseno = (e) => {
   if (e.key !== "novacad:diseno-analisis" || !e.newValue) return;
+  refrescarFlujo();
   getContext().then((ctx) => {
     if (!ctx.memoria?.esperandoAnalisis) return;
     delete ctx.memoria.esperandoAnalisis;
@@ -797,6 +831,25 @@ async function guardarObservacion(texto, fotos, ctx) {
   } catch { return false; }
 }
 
+// ---- Flujo del proyecto (etapas, siguiente paso, sugerencias) ----
+const memoriaVista = ref({});
+const disenoPendiente = ref(false);
+async function refrescarFlujo() {
+  try {
+    const m = (await getContext()).memoria ?? {};
+    memoriaVista.value = {modeloEstructural: Boolean(m.modeloEstructural), resultadosSismicos: Boolean(m.resultadosSismicos), revisionAnalisis: Boolean(m.revisionAnalisis),
+      disenoColumnas: Boolean(m.disenoColumnas), metrado: Boolean(m.metrado), esperandoAnalisis: Boolean(m.esperandoAnalisis)};
+    let paquete = null;
+    try { paquete = JSON.parse(localStorage.getItem("novacad:diseno-analisis") || "null"); } catch { /* sin almacenamiento */ }
+    disenoPendiente.value = Boolean(paquete?.fecha && m.esperandoAnalisis && Date.parse(paquete.fecha) >= m.esperandoAnalisis);
+  } catch { /* sin contexto todavía */ }
+}
+const flujo = computed(() => estadoDelProyecto(memoriaVista.value, lectura.value.estado));
+const paso = computed(() => siguientePaso(memoriaVista.value, lectura.value.estado, {disenoPendiente: disenoPendiente.value}));
+const chips = computed(() => sugerencias(memoriaVista.value, lectura.value.estado));
+const planoListo = computed(() => ["lista", "parcial"].includes(lectura.value.estado));
+const accion = (a) => (a?.herramienta ? ejecutar(a.herramienta, a.args ?? {}, a.pedido ?? a.texto) : null);
+
 // ---- Ejecuciones ----
 const runs = ref([]);
 const draftText = ref("");
@@ -861,6 +914,7 @@ async function cerrarRun(run, steps, reply, inicio, ctx) {
     run.metrado = "disponible";
   }
   run.meta = `${((performance.now() - inicio) / 1000).toFixed(1)} s`;
+  refrescarFlujo();
 }
 
 // Acción directa: la herramienta corre en el navegador, sin el modelo de IA.
@@ -904,7 +958,17 @@ Análisis: ${analisis}`;
 // Pedido libre: va al modelo de IA del servidor, que elige las herramientas.
 async function send(text = draftText.value, accionSolicitada = null) {
   const value = text.trim() || (adjuntos.value.length ? "Revisa estas observaciones" : "");
-  if (!value || busy.value || !motorListo.value) return;
+  if (!value || busy.value) return;
+  if (!motorListo.value) {
+    draftText.value = "";
+    const ruta = rutaDirecta(value);
+    if (ruta) return ejecutar(ruta.tool, ruta.args ?? {}, value);
+    const run = nuevoRun(value);
+    run.vivo = "";
+    run.respuesta = "Sin el motor de IA entiendo pedidos directos. Elige una de estas opciones o escríbelo así:";
+    run.opciones = (chips.value.length ? chips.value : ACCIONES_PRINCIPALES).map((a) => ({texto: a.texto, herramienta: a.herramienta, args: a.args ?? {}}));
+    return;
+  }
   const fotos = adjuntos.value.splice(0);
   draftText.value = "";
   const history = runs.value.flatMap((r) => [{role: "user", content: r.pedido, imagenes: r.fotos}, ...(r.respuesta ? [{role: "assistant", content: r.respuesta}] : [])]);
@@ -1173,6 +1237,34 @@ async function exportarMetrado() {
 .ag-meta { display:block;margin-top:8px;font-size:10.5px;color:var(--pr-muted); }
 
 .ag-compose { flex:none;padding:12px;border-top:1px solid var(--pr-line); }
+/* Etapas del proyecto y siguiente paso (flujoProyecto.js). */
+.ag-flow { flex:none;padding:10px 16px 12px;border-bottom:1px solid var(--pr-line);background:var(--pr-panel); }
+.ag-flow-steps { display:flex;justify-content:space-between;gap:2px;margin:0 0 10px;padding:0;list-style:none;font-size:10.5px;color:var(--pr-muted); }
+.ag-flow-steps li { display:flex;align-items:center;gap:4px;flex:none;white-space:nowrap; }
+.ag-flow-steps li + li::before { content:"";flex:0 0 6px;height:1px;background:var(--pr-line); }
+.ag-flow-dot { display:inline-grid;place-items:center;width:16px;height:16px;flex:none;border-radius:50%;border:1.5px solid var(--pr-line);font-size:10px;line-height:1; }
+.ag-flow-steps li.is-hecho { color:var(--pr-text); }
+.ag-flow-steps li.is-hecho .ag-flow-dot { border-color:var(--ag-a);background:var(--ag-a);color:#fff; }
+.ag-flow-steps li.is-actual { color:var(--pr-text);font-weight:600; }
+.ag-flow-steps li.is-actual .ag-flow-dot { border-color:var(--ag-a);box-shadow:0 0 0 3px color-mix(in srgb,var(--ag-a) 22%,transparent); }
+.ag-flow-steps li.is-en_curso .ag-flow-dot { border-color:var(--ag-a);border-top-color:transparent;animation:ag-girar 1s linear infinite; }
+@keyframes ag-girar { to { transform:rotate(360deg); } }
+.ag-flow-next { display:flex;flex-direction:column;gap:4px; }
+.ag-flow-main { width:100%;height:38px;white-space:normal;line-height:1.2; }
+.ag-flow-next > small { color:var(--pr-muted);font-size:11px;line-height:1.4; }
+.ag-flow-alt { display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;font-size:11.5px;color:var(--pr-muted); }
+.ag-flow-alt button { padding:0;border:0;background:none;color:var(--ag-a);font:inherit;cursor:pointer; }
+.ag-flow-alt button:disabled { opacity:.5;cursor:default; }
+.ag-mas { margin-top:10px; }
+.ag-mas-list { display:grid;gap:2px;margin-top:6px; }
+.ag-mas-list button { display:flex;flex-direction:column;gap:1px;padding:7px 8px;border:0;border-radius:8px;background:transparent;color:var(--pr-text);text-align:left;font:inherit;cursor:pointer; }
+.ag-mas-list button:hover:not(:disabled) { background:var(--pr-soft); }
+.ag-mas-list button:disabled { opacity:.55;cursor:default; }
+.ag-mas-list strong { font-size:12.5px; }
+.ag-mas-list small { font-size:11px;color:var(--pr-muted);line-height:1.35; }
+.ag-chips { display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px; }
+.ag-chips button { padding:5px 10px;border:1px solid var(--pr-line);border-radius:999px;background:var(--pr-panel);color:var(--pr-text);font:inherit;font-size:11.5px;cursor:pointer; }
+.ag-chips button:hover { border-color:var(--ag-a);color:var(--ag-a); }
 .ag-compose-help { margin:7px 4px 0;color:var(--pr-muted);font-size:10.5px;line-height:1.4; }
 .ag-ver-plano { display:flex;align-items:flex-start;gap:6px;cursor:pointer; }
 .ag-ver-plano input { margin:1px 0 0;flex:none; }

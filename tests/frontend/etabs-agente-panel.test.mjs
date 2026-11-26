@@ -5,6 +5,9 @@ import {parse} from '@vue/compiler-sfc';
 import {compile} from '@vue/compiler-dom';
 import * as Vue from 'vue';
 import {renderToString} from '@vue/server-renderer';
+import {estadoDelProyecto, siguientePaso, sugerencias, ACCIONES_PRINCIPALES, MAS_ACCIONES} from '../../resources/js/ingenieria/agente/flujoProyecto.js';
+
+const flujoDe = (m, l, o = {}) => ({flujo: estadoDelProyecto(m, l), paso: siguientePaso(m, l, o), chips: sugerencias(m, l), planoListo: ['lista', 'parcial'].includes(l), lectura: {estado: l}});
 
 // Render the actual panel template, without invoking the CAD viewer or network.
 const source = readFileSync(new URL('../../resources/js/etabs/components/AgentePredimPanel.vue', import.meta.url), 'utf8');
@@ -17,7 +20,8 @@ async function panel(overrides = {}) {
     busy: false, controller: null, estadoTono: 'ok', estadoTexto: 'Disponible', ICON: {}, runs: [],
     vistaAgente: 'asistente', revision: {activa: true, sinPermiso: false, cargando: false, error: '', eventos, revisando: {}, errores: {}},
     lectura: {estado: 'vacio'}, verLectura: false, ESTADO_LECTURA: {},
-    verMenu: false, CAPACIDADES: [], adjuntos: [], draftText: '', motorListo: true,
+    verMenu: false, adjuntos: [], draftText: '', motorListo: true,
+    ...flujoDe({}, 'vacio'), ACCIONES_PRINCIPALES, MAS_ACCIONES, ICONO_ACCION: {}, accion: noop,
     modal: {abierto: false}, met: {abierto: false},
     emit: noop, irAlMenu: noop, abrirDatos: noop, reset: noop, cargarPendientes: noop,
     revisarEvento: noop, ejecutar: noop, send: noop, adjuntar: noop, autoAlto: noop,
@@ -89,4 +93,22 @@ test('the client sees creating progress while internal tool activity stays colla
   const done = await panel({busy: false, runs: [{...run, vivo: '', respuesta: 'Proyecto comprobado.'}]});
   assert.match(done, /<details[^>]*class="ag-activity"[^>]*>/);
   assert.doesNotMatch(done, /<details[^>]*class="ag-activity"[^>]*open/);
+});
+
+test('etapas, un botón con el siguiente paso y sugerencias según la etapa', async () => {
+  const vacio = await panel();
+  assert.match(vacio, /Abre la arquitectura \(DWG\) para empezar/);
+  assert.match(vacio, /Abre primero la arquitectura/);
+  const listo = await panel(flujoDe({}, 'lista'));
+  assert.match(listo, /Hacer todo: láminas, análisis y diseño/);
+  assert.match(listo, /O bien:[\s\S]*Solo las láminas[\s\S]*Paso a paso/);
+  assert.match(listo, /Más acciones/);
+  assert.doesNotMatch(listo, /class="ag-chips"/, 'al empezar no se repiten las acciones como sugerencias');
+  assert.equal(listo.match(/Hacer todo: láminas, análisis y diseño/g).length, 1, 'la acción principal aparece una sola vez');
+  const esperando = await panel(flujoDe({modeloEstructural: true, esperandoAnalisis: true}, 'lista'));
+  assert.match(esperando, /Analizando en Análisis Estructural…/);
+  assert.match(esperando, /is-en_curso/);
+  const sinMotor = await panel({...flujoDe({}, 'lista'), motorListo: false});
+  assert.match(sinMotor, /estructura y analiza/);
+  assert.doesNotMatch(sinMotor.match(/<textarea[^>]*>/)[0], /disabled/, 'sin IA también se escribe');
 });

@@ -338,7 +338,20 @@ Análisis: ${analisis}` : hechos, steps: [step], usage: {prompt: 0, completion: 
       onProgress({fase: 'pensando', mensaje: 'Preparando tu proyecto…'});
       respuesta = await chatConReintento({settings, messages, tools: round < maxRondas ? tools : undefined, fetchImpl, signal});
     } catch (error) {
-      if (!steps.length || error?.name === "AbortError") throw error;
+      if (error?.name === "AbortError") throw error;
+      // La IA no respondió antes de hacer nada: la acción del botón (o el pedido inequívoco) igual se
+      // ejecuta en el navegador, sin IA — un botón nunca debe depender del servidor del modelo.
+      const plan = !steps.length ? (accionSolicitada ? {tool: accionSolicitada.herramienta, args: accionSolicitada.args ?? {}} : rutaDirecta(text)) : null;
+      const skillPlan = plan && skills.find((s) => s.name === plan.tool);
+      if (skillPlan) {
+        let result;
+        try { result = await skillPlan.run({...(plan.args ?? {})}, context); } catch (e) { result = {ok: false, error: e?.message ?? String(e)}; }
+        const step = {tool: plan.tool, args: plan.args ?? {}, result};
+        steps.push(step);
+        onStep(step);
+        return {reply: `${respuestaHonesta("", steps)}\n\n(La IA no respondió —${error.message}—: hice la acción directamente, sin ella.)`, steps, usage, directa: true};
+      }
+      if (!steps.length) throw error;
       return {reply: `${respuestaHonesta("", steps)}\n\nNo pude completar el análisis con IA: ${error.message}`, steps, usage};
     }
     const {message, usage: used} = respuesta;
