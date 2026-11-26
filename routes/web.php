@@ -262,6 +262,11 @@ Route::middleware(["auth", "verified", "check.subscription", "throttle:calculati
         // Aprendizaje del agente por uso: correcciones del ingeniero a las decisiones del agente.
         Route::post('/etabs/agente/aprendizaje', [\App\Http\Controllers\AgenteAprendizajeController::class, 'guardar'])->name('etabs.agente.aprendizaje.guardar');
         Route::get('/etabs/agente/aprendizaje', [\App\Http\Controllers\AgenteAprendizajeController::class, 'listar'])->name('etabs.agente.aprendizaje.listar');
+        // Tablero de progreso del agente (métricas internas + nota del ingeniero).
+        Route::get('/etabs/agente/progreso', [\App\Http\Controllers\AgenteProgresoController::class, 'index'])
+            ->middleware('role_or_permission:root|gerencia|agente.aprendizaje.aprobar')->name('etabs.agente.progreso');
+        Route::post('/etabs/agente/progreso/nota', [\App\Http\Controllers\AgenteProgresoController::class, 'guardarNota'])
+            ->middleware('role_or_permission:root|gerencia|agente.aprendizaje.aprobar')->name('etabs.agente.progreso.nota');
         // Aprendizaje del dibujo con el cliente (correcciones del ingeniero a las láminas, por usuario).
         Route::post('/etabs/agente/aprendizaje/dibujo', [\App\Http\Controllers\AgenteAprendizajeDibujoController::class, 'guardar'])->name('etabs.agente.aprendizaje.dibujo.guardar');
         Route::get('/etabs/agente/aprendizaje/dibujo', [\App\Http\Controllers\AgenteAprendizajeDibujoController::class, 'datos'])->name('etabs.agente.aprendizaje.dibujo.datos');

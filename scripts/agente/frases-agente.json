@@ -1,0 +1,215 @@
+{
+  "_": "Pedidos como los escribe un ingeniero y la herramienta que debe elegir el agente SIN IA (rutas directas). null = no es un pedido directo (va a la IA). Lo usa progreso.mjs para medir cuánto entiende el agente.",
+  "novacad": [
+    [
+      "genera las láminas de estructuras",
+      "plano_estructuras"
+    ],
+    [
+      "dibuja el plano de cimentación",
+      "plano_estructuras"
+    ],
+    [
+      "estructura este plano",
+      "plano_estructuras"
+    ],
+    [
+      "hazme el metrado",
+      "metrar_estructura"
+    ],
+    [
+      "saca el metrado de estructuras",
+      "metrar_estructura"
+    ],
+    [
+      "envía a análisis",
+      "modelo_analisis"
+    ],
+    [
+      "pásalo a análisis estructural",
+      "modelo_analisis"
+    ],
+    [
+      "exporta el e2k para etabs",
+      "modelo_analisis"
+    ],
+    [
+      "abre análisis estructural",
+      "abrir_analisis"
+    ],
+    [
+      "aplica el diseño",
+      "aplicar_diseno"
+    ],
+    [
+      "trae el diseño del análisis",
+      "aplicar_diseno"
+    ],
+    [
+      "aprende de mis correcciones",
+      "aprender_correcciones"
+    ],
+    [
+      "ya corregí la cimentación, aprende",
+      "aprender_correcciones"
+    ],
+    [
+      "¿qué aprendiste de mí?",
+      "estado_aprendizaje"
+    ],
+    [
+      "olvida lo que aprendiste",
+      "olvidar_aprendizaje"
+    ],
+    [
+      "borra las láminas",
+      "quitar_laminas"
+    ],
+    [
+      "ordena la lámina",
+      "ordenar_lamina"
+    ],
+    [
+      "hay textos encimados, corrígelos",
+      "revisar_laminas"
+    ],
+    [
+      "construye la estructura paso a paso",
+      "construir_estructura"
+    ],
+    [
+      "¿por qué platea?",
+      "proponer_estructura"
+    ],
+    [
+      "¿en qué vamos?",
+      "estado_proyecto"
+    ],
+    [
+      "revisa como ingeniero",
+      "revisar_norma"
+    ],
+    [
+      "¿qué le falta a las láminas?",
+      "revisar_norma"
+    ],
+    [
+      "estructura y analiza",
+      "ciclo_completo"
+    ],
+    [
+      "haz todo el ciclo completo",
+      "ciclo_completo"
+    ],
+    [
+      "¿qué opinas de la arquitectura de este colegio?",
+      null
+    ]
+  ],
+  "analisis": [
+    [
+      "crea un edificio de 3 pisos de 4x3 vanos de 5 m",
+      "crearModelo"
+    ],
+    [
+      "arma un colegio de 2 niveles con vanos de 6 y 4.5 m",
+      "crearModelo"
+    ],
+    [
+      "modela una vivienda de 4 pisos",
+      "crearModelo"
+    ],
+    [
+      "analiza el sismo",
+      "analizarSismo"
+    ],
+    [
+      "corre el análisis espectral",
+      "analizarSismo"
+    ],
+    [
+      "ejecuta el análisis",
+      "analizarSismo"
+    ],
+    [
+      "revisa con la E.030",
+      "revisar"
+    ],
+    [
+      "¿cumple la norma?",
+      "revisar"
+    ],
+    [
+      "verifica el modelo",
+      "revisar"
+    ],
+    [
+      "diseña las columnas",
+      "disenarColumnas"
+    ],
+    [
+      "verifica todas las columnas",
+      "disenarColumnas"
+    ],
+    [
+      "ajusta el acero de las que fallan",
+      "ajustarArmado"
+    ],
+    [
+      "¿qué armado necesita?",
+      "ajustarArmado"
+    ],
+    [
+      "rigidiza para cumplir la deriva",
+      "rigidizar"
+    ],
+    [
+      "agranda las columnas",
+      "rigidizar"
+    ],
+    [
+      "haz que cumpla la deriva",
+      "rigidizar"
+    ],
+    [
+      "envía el diseño a NovaCad",
+      "enviarDiseno"
+    ],
+    [
+      "manda el diseño a las láminas",
+      "enviarDiseno"
+    ],
+    [
+      "abre el modelo del agente",
+      "abrirModeloAgente"
+    ],
+    [
+      "¿cuánto es la deriva en Y?",
+      "dato"
+    ],
+    [
+      "¿cuál es el periodo fundamental?",
+      "dato"
+    ],
+    [
+      "¿cuánto da el cortante basal?",
+      "dato"
+    ],
+    [
+      "¿es irregular por torsión?",
+      "dato"
+    ],
+    [
+      "ayuda",
+      "ayuda"
+    ],
+    [
+      "¿qué sección conviene para una luz de 7 m?",
+      null
+    ],
+    [
+      "explícame por qué no cumple la deriva",
+      null
+    ]
+  ]
+}
