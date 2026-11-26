@@ -19,6 +19,7 @@
     x-init="initSys($refs.cad, $refs.distanceInput, $id('materiales'))">
     <x-cad.modals.new-model/>
     <x-cad.modals.my-models-modal/>
+    <x-cad.modals.revision-agente-modal/>
     <x-cad.modals.joint-restraints-modal/>
     <x-cad.modals.joint-diaphragms-modal/>
     <x-cad.modals.shell-diaphragms-modal/>

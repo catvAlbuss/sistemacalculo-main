@@ -177,6 +177,8 @@ export function modeloE2k({estructura, modelo, datos = {}, nombre = "modelo", R0
   const faltanSismo = ["Z", "S", "Tp", "TL"].filter((key) => !(sismo[key] > 0));
   if (faltanSismo.length) avisos.push(`Faltan datos sísmicos (zona y suelo): el modelo va sin espectro E.030. Completa ${faltanSismo.includes("Z") ? "la zona" : ""}${faltanSismo.includes("S") ? " y el perfil de suelo" : ""} en Datos del proyecto.`);
   const R = R0; // Ia = Ip = 1 hasta verificar irregularidades
+  // R en el nombre del espectro: la Revisión del agente en Análisis Estructural lo lee de ahí.
+  const funcionE030 = `E030-R${R}`;
   supuestos.push(`R = ${R0} (pórticos de concreto armado, E.030 Tabla 7) con Ia = Ip = 1 hasta verificar irregularidades.`);
 
   // ================= Texto .e2k =================
@@ -276,8 +278,8 @@ export function modeloE2k({estructura, modelo, datos = {}, nombre = "modelo", R0
   const conEspectro = !faltanSismo.length;
   if (conEspectro) {
     const puntosEsp = espectroE030(sismo, R).map((q) => `${fmt(q.T)}  ${fmt(q.Sa)}`);
-    L.push("$ FUNCTIONS", '  FUNCTION "E030"  FUNCTYPE "SPECTRUM"  DAMPRATIO 0.05  SPECTYPE "USER"  ');
-    for (let i = 0; i < puntosEsp.length; i += 8) L.push(`  FUNCTION "E030"  TIMEVAL "${puntosEsp.slice(i, i + 8).join("  ")}"  `);
+    L.push("$ FUNCTIONS", `  FUNCTION "${funcionE030}"  FUNCTYPE "SPECTRUM"  DAMPRATIO 0.05  SPECTYPE "USER"  `);
+    for (let i = 0; i < puntosEsp.length; i += 8) L.push(`  FUNCTION "${funcionE030}"  TIMEVAL "${puntosEsp.slice(i, i + 8).join("  ")}"  `);
     L.push("");
   }
 
@@ -287,7 +289,7 @@ export function modeloE2k({estructura, modelo, datos = {}, nombre = "modelo", R0
   if (conEspectro) {
     for (const [nombreCaso, dir] of [["SDX", "U1"], ["SDY", "U2"]]) {
       L.push(`  LOADCASE "${nombreCaso}"  TYPE  "Response Spectrum"  MODALCASE  "Modal"  `);
-      L.push(`  LOADCASE "${nombreCaso}"  ACCEL  "${dir}"  FUNC  "E030"  SF  9.80665 `);
+      L.push(`  LOADCASE "${nombreCaso}"  ACCEL  "${dir}"  FUNC  "${funcionE030}"  SF  9.80665 `);
       L.push(`  LOADCASE "${nombreCaso}"  MODALDAMPTYPE  "Constant"  CONSTDAMP  0.05 `, `  LOADCASE "${nombreCaso}"  ECCENRATIOTYPICAL  0.05 `);
     }
   }

@@ -120,6 +120,7 @@ import { animationMixin } from "./mixins/analysis/animation.js";
 import { seismicMixin } from "./mixins/analysis/seismic.js";
 import { foundationMixin } from "./mixins/analysis/foundation.js";
 import { reactionsDisplayMixin } from "./mixins/analysis/seismic/reactions-display.js";
+import { revisionAgenteMixin } from "./mixins/analysis/revisionAgente.js";
 import { autosaveMixin } from "./mixins/io/autosave.js";
 
 export default () => ({
@@ -1009,5 +1010,6 @@ export default () => ({
   ...seismicMixin,
   ...foundationMixin,
   ...reactionsDisplayMixin,
+  ...revisionAgenteMixin,
   ...autosaveMixin,
 });

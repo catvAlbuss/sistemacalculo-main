@@ -66,6 +66,14 @@
                         <span class="text-xs text-cyan-400 italic">RSA</span>
                     </button>
 
+                    {{-- Revisión del agente: verificaciones E.030 sobre el modelo y los resultados --}}
+                    <button class="dropdown-item w-full text-left px-3 py-1.5 text-sm hover:bg-gray-700 flex items-center gap-2"
+                        @click.stop="cadSystem.openRevisionAgente()">
+                        <span>🤖</span>
+                        <span class="flex-1 truncate">Revisión del agente (E.030)...</span>
+                        <span class="text-xs text-emerald-400 italic">Revisar</span>
+                    </button>
+
                 </div>
             </x-slot>
         </x-cad.ui.menu-dropdown-item>
