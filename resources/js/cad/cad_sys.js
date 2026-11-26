@@ -128,6 +128,11 @@ export default () => ({
   // ------------------------------------------------------------------
   init() {
     this.initAutosave?.();
+    // Modelo que manda el agente NovaCad desde la arquitectura (?desde=agente). Espera a que el
+    // lienzo y los menús estén montados.
+    window.setTimeout(() => {
+      try { this.importarModeloDelAgente?.(); } catch (error) { console.error("❌ Modelo del agente:", error); }
+    }, 600);
   },
 
   // Contador reactivo para refrescar la barra de estado de selección (estilo

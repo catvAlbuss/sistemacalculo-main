@@ -7,6 +7,7 @@ import {L, line, circle, text, rect} from "../../cad/primitives.js";
 import {ESTRUCTURA_SKILLS} from "./estructuraPlano.js";
 import {INTERACCION_SKILLS} from "./interaccion.js";
 import {EDICION_SKILLS} from "./edicion.js";
+import {ANALISIS_SKILLS} from "./analisisEstructural.js";
 
 const r2 = (value) => Math.round(value * 100) / 100;
 const num = (value, fallback) => (Number.isFinite(Number(value)) ? Number(value) : fallback);
@@ -115,6 +116,7 @@ export const SKILLS = [
   // Por ahora el chat se enfoca en arquitectura → estructuras: zapatas_desde_plano
   // (que alimenta Cimentación 2.0) queda fuera de las herramientas del modelo.
   ...ESTRUCTURA_SKILLS.filter((skill) => skill.name !== "zapatas_desde_plano"),
+  ...ANALISIS_SKILLS,
   ...INTERACCION_SKILLS,
   ...EDICION_SKILLS,
 ];

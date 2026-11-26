@@ -178,6 +178,10 @@ export function rutaDirecta(texto) {
   if (/^[¿]?\s*(por que|porque)\b.*\b(platea|zapatas?|losa|maciza|aligerad\w*|cimentacion|espesor|columnas?|placas?|vigas?|porticos?)\b/.test(t)) return {tool: "proponer_estructura", args: {}};
   if (/\b(paso a paso|guiame|guia(me)? la|construye|construir|construyamos)\b/.test(t) && !/\bcasa|vivienda\b/.test(t)) return {tool: "construir_estructura", args: {accion: "iniciar"}};
   if (/^[¿]?\s*(en que vamos|que falta|que (llevas|tenemos|decidiste|hiciste)|estado del proyecto|resumen del proyecto)\b/.test(t)) return {tool: "estado_proyecto", args: {}};
+  // Modelo de análisis (.e2k) desde la arquitectura: antes del filtro de datos (".e2k" lleva un número).
+  if (/\b(envia\w*|manda\w*|pasa\w*|lleva\w*|abre|abrir)\b.*\banalisis\b|\bmodelo (de|para) (analisis|etabs)\b|\be2k\b|\bexporta\w*\b.*\betabs\b/.test(t)) {
+    return {tool: /\babr(e|ir)\b/.test(t) && !/\bmodelo\b/.test(t) ? "abrir_analisis" : "modelo_analisis", args: {}};
+  }
   if (DATOS_O_CORRECCION.test(t)) return null;
   if (/\b(borra|quita|elimina|limpia)\b.*\blaminas?\b/.test(t)) return {tool: "quitar_laminas", args: {}};
   if (/\b(metrado|metrados|metrar|metra|metramos|metremos|metrame|metralo|cantidades)\b/.test(t)) return {tool: "metrar_estructura", args: /\b(excel|xlsx|descarga)/.test(t) ? {excel: true} : {}};

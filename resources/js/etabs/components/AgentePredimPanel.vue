@@ -579,6 +579,16 @@ const getContext = () => {
   });
   // Antes de dibujar el plano, el agente muestra los datos del proyecto para confirmarlos.
   ctx.nombreDocumento = () => { databaseActual(); return documento?.fileName || documento?.docTitle || ''; };
+  // Modelo de análisis (.e2k) para ETABS: se descarga como archivo de texto (CRLF, como lo pide ETABS).
+  ctx.descargarTexto = (nombre, texto) => {
+    const url = URL.createObjectURL(new Blob([texto], {type: "text/plain;charset=utf-8"}));
+    const a = Object.assign(document.createElement("a"), {href: url, download: nombre});
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  };
+  // Análisis Estructural en otra pestaña (abre el modelo que dejó modelo_analisis).
+  // (sin "noopener": con él window.open devuelve null y parecería bloqueada; se corta el opener a mano).
+  ctx.abrirPagina = (ruta) => { const w = window.open(ruta, "_blank"); if (w) w.opener = null; return w; };
   ctx.referenciaActual = () => referenciaDelDocumento(ctx.nombreDocumento(), undefined, ctx.memoria?.estructura?.titulo);
   ctx.pedirDatos = ({faltan, sugeridos, vista, consultas, informes}) => { databaseActual(); return abrirDatos("pedido", {faltan, sugeridos, vista, consultas, informes}); };
   // mirar_plano: el agente ve el dibujo como imagen (solo con motor con visión y si el ingeniero

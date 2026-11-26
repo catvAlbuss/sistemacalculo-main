@@ -36,7 +36,7 @@ Versión: 2026-11-19 · proyectos estudiados con planos y metrados.
 - Vigas en edificios con platea (reglas de las planillas del despacho; con zapatas, el criterio de abajo si no hay reglas): ancho = espesor de la columna donde llegan, de 0.25 a 0.30; las que cargan la losa con una sola sección, luz libre mayor / 10.8 a 0.10; las paralelas a las viguetas 0.40; estribos □ 3/8"Ø: 1@0.05, 8@0.10, Rto.@0.20 C/E.
 - Aligerado e=0.20 m, viguetas @0.40, aleros 0.60 m, acero de temperatura Ø1/4" @0.25, Ladrillo de techo 0.30x0.30x0.15. Se divide en paños por los muros interiores; la viga central es la VCUMBRERA y, con cumbrera, las viguetas corren paralelas a ella.
 - Techo: a dos aguas sobre la cumbrera con la pendiente de la arquitectura (por defecto 33 %, medida desde la cara interior de la columna); Cobertura plancha de aluzinc TIPO TR4 e=5mm; canaletas en los aleros paralelos a la cumbrera. TECHO NFP = N.F.T. de la arquitectura en el alero.
-- Vanos: puerta con DINTEL a 2.10 m; ventana con alféizar 0.90 m y VSa a 2.10 m. Muro: Muro de soga de ladrillo King Kong Tipo V - 23x12.5x9cm.
+- Vanos: puerta con DINTEL a 2.10 m; ventana con alféizar 0.90 m y VSa a 2.10 m. Muro: Muro de soga de ladrillo King Kong Tipo IV - 9x13x24cm.
 
 ### Cómo dibuja el ingeniero
 - Las escalas 1/25 de plantas y 1/50 de pórticos son valores de trabajo de una referencia, no una exigencia universal. La composición usa el marco disponible y el contenido actual; cada título indica la escala realmente utilizada. Sin formato documentado, se informa que es provisional.
@@ -63,6 +63,15 @@ NPN nivel de piso natural (base); NPT nivel de piso terminado; NFT/NFP nivel de 
 ### Límites (decirlo si preguntan)
 - Es predimensionamiento y dibujo con los criterios del despacho: el diseño final lo verifica el ingeniero (análisis sísmico E.030, estudio de suelos).
 - Cuadro de columnetas, parámetros sísmicos y especificaciones técnicas vienen de la plantilla: revisarlos en cada proyecto.
+
+### Normativa vigente (Perú, RNE — obligatoria)
+- E.030 Diseño Sismorresistente: vigente la 2026 (RM 183-2026-VIVIENDA (transitoria: RM 217-2026-VIVIENDA)); la 2018 (RM 355-2018-VIVIENDA) solo para proyectos en la transitoria. Novedad confirmada: sismo en dos direcciones ortogonales simultáneas y clasificación de suelos más detallada. Tablas 2026 aún no cargadas: no inventes sus valores; pide confirmar la versión (dato normaE030).
+- E.020 Cargas: 2006 (DS 011-2006-VIVIENDA).
+- E.050 Suelos y Cimentaciones: 2018 (RM 406-2018-VIVIENDA).
+- E.060 Concreto Armado: 2009 (DS 010-2009-VIVIENDA). Propuesta de actualización en curso (RM 066-2025-VIVIENDA, SENCICO); no aprobada..
+- E.070 Albañilería: 2006 (DS 011-2006-VIVIENDA). Verificar si hay modificación posterior en el portal del MVCS..
+- Una sola normativa por proyecto. ACI 318-25 / ASCE 7-22 / Eurocódigos (2.ª generación, obligatoria desde 30/09/2027) solo como referencia donde el RNE no regula, y diciéndolo.
+- Cita el artículo de cada criterio (p. ej. recubrimientos E.060 7.7.1, cuantía de columnas E.060 10.9.1 y 21.6.3.1, combinaciones E.060 9.2).
 
 ### Lo que aprendí de los proyectos estudiados
 26 módulos de 2 proyecto(s). Las decisiones las calcula proponer_estructura (reglas + patrones + casos parecidos); tú explicas y preguntas, no adivinas.

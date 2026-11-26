@@ -136,6 +136,13 @@ try {
           const m = await correr('metrar_estructura', {excel: true});
           console.log('metrar_estructura:', m.ok === false ? m.error : m.mensaje);
         }
+        // AGENTE_ANALISIS=1: después de las láminas, el modelo de análisis (.e2k) que el agente deja para
+        // Análisis Estructural (se verifica que quede guardado en el navegador).
+        if (process.env.AGENTE_ANALISIS) {
+          const a = await correr('modelo_analisis', {});
+          console.log('modelo_analisis:', a.ok === false ? a.error : a.mensaje);
+          console.log('guardado para Análisis Estructural:', await evaluar('(() => { const v = JSON.parse(localStorage.getItem("novacad:modelo-analisis") || "null"); return v ? `${v.nombre} (${v.texto.length} caracteres, ${v.texto.split("\\n").length} líneas)` : "NADA"; })()'));
+        }
         if (process.env.AGENTE_REVISAR) {
           for (const corregir of [false, true]) console.log(`revisar_laminas${corregir ? ' (corregir)' : ''}:
 ${(await correr('revisar_laminas', {corregir})).mensaje}`);
