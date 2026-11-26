@@ -133,7 +133,11 @@ export default () => ({
     // Modelo que manda el agente NovaCad desde la arquitectura (?desde=agente). Espera a que el
     // lienzo y los menús estén montados.
     window.setTimeout(() => {
-      try { this.importarModeloDelAgente?.(); } catch (error) { console.error("❌ Modelo del agente:", error); }
+      try {
+        const abierto = this.importarModeloDelAgente?.();
+        // Ciclo fusionado con NovaCad (?auto=1): analiza, revisa, diseña y devuelve el diseño solo.
+        if (abierto && /[?&]auto=1\b/.test(window.location.search)) this.cicloAutomaticoAgente?.();
+      } catch (error) { console.error("❌ Modelo del agente:", error); }
     }, 600);
   },
 

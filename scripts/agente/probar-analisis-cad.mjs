@@ -18,7 +18,9 @@ const LIMITE = Number(process.argv.find((a) => a.startsWith('--limite='))?.slice
 // --captura=<archivo.png>: solo abre el modelo y el menú 🤖 Agente y guarda una captura (sin análisis).
 const CAPTURA = process.argv.find((a) => a.startsWith('--captura='))?.slice(10) ?? null;
 // --chat: con --captura, conversa con el agente del CAD por su panel (como el ingeniero) y fotografía el chat.
-const CHAT = process.argv.includes('--chat') || process.argv.includes('--chat-modelo') || process.argv.some((a) => a.startsWith('--pedidos='));
+// --ciclo: el ciclo automático que pide NovaCad (cicloAutomaticoAgente), contado en el chat.
+const CICLO = process.argv.includes('--ciclo');
+const CHAT = CICLO || process.argv.includes('--chat') || process.argv.includes('--chat-modelo') || process.argv.some((a) => a.startsWith('--pedidos='));
 // --chat-modelo: empieza pidiendo un modelo nuevo en una frase (modelo rápido) en vez del .e2k abierto.
 const PEDIDOS = process.argv.find((a) => a.startsWith('--pedidos='))?.slice(10).split('|') ?? (process.argv.includes('--chat-modelo')
   ? ['crea un edificio de 3 pisos de 3x2 vanos de 5 m, zona 4 suelo S2, vivienda', 'analiza el sismo', 'revisa con la E.030', 'diseña las columnas']
@@ -48,7 +50,7 @@ const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta n
 ${sinOrigen(vista.cabeza)}${vista.estilos}${sinOrigen(vista.scripts)}</head>
 <body class="h-full"><main class="h-full">${vista.cuerpo}</main><pre id="result" style="display:none">WAIT</pre>
 <script>
-  const LIMITE = ${LIMITE}, CAPTURA = ${CAPTURA ? 'true' : 'false'}, CHAT = ${CHAT ? 'true' : 'false'};
+  const LIMITE = ${LIMITE}, CAPTURA = ${CAPTURA ? 'true' : 'false'}, CHAT = ${CHAT ? 'true' : 'false'}, CICLO = ${CICLO ? 'true' : 'false'};
   window.__errores = [];
   window.addEventListener('error', (e) => window.__errores.push(String(e.message)));
   // Los avisos de SweetAlert se confirman solos (no hay quien haga clic).
@@ -67,7 +69,8 @@ ${sinOrigen(vista.cabeza)}${vista.estilos}${sinOrigen(vista.scripts)}</head>
         cad.openAgenteCadChat();
         await espera(300);
         const panel = document.querySelector('[x-data^="agenteCadChat"]')._x_dataStack[0];
-        for (const t of ${JSON.stringify(PEDIDOS)}) {
+        if (CICLO) { await cad.cicloAutomaticoAgente(); await espera(300); panel.mensajes.push({role: 'user', content: 'PAQUETE ' + (localStorage.getItem('novacad:diseno-analisis') || 'NADA').slice(0, 300)}); }
+        for (const t of CICLO ? [] : ${JSON.stringify(PEDIDOS)}) {
           await panel.enviar(t);
           await espera(300);
         }

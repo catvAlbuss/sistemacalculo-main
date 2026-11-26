@@ -160,6 +160,32 @@ export const agenteCadMixin = {
     return String(datos?.choices?.[0]?.message?.content ?? "").replace(/<think>[\s\S]*?<\/think>/g, "").trim() || "Sin respuesta.";
   },
 
+  // Ciclo que pide NovaCad («estructura y analiza»): análisis sísmico → revisión E.030 → diseño de
+  // columnas (y el menor armado si alguna no cumple) → diseño de vuelta a NovaCad. Cada paso se cuenta
+  // en el chat del agente (evento agente-cad-mensaje) para que el ingeniero vea qué hizo.
+  async cicloAutomaticoAgente() {
+    const decir = (texto) => window.dispatchEvent(new CustomEvent("agente-cad-mensaje", {detail: {texto}}));
+    this.openAgenteCadChat();
+    decir("NovaCad me envió el modelo: corro el ciclo completo (análisis, revisión E.030, diseño) y le devuelvo el diseño.");
+    try {
+      for (const pedido of ["analiza el sismo", "diseña las columnas"]) {
+        decir(`▶ ${pedido}`);
+        const r = await this.agenteCadResponder(pedido);
+        decir(r.texto);
+      }
+      if ((this.rcColumnDesignResults || []).some((c) => !c.unsupported && Math.max(Number(c.check?.base?.ratio) || 0, Number(c.check?.top?.ratio) || 0) > 1)) {
+        decir("▶ ajusta el acero");
+        decir((await this.agenteCadResponder("ajusta el acero")).texto);
+      }
+      const r = await this.agenteCadResponder("envía el diseño a NovaCad");
+      decir(`${r.texto} Puedes volver a la pestaña de NovaCad: allí aplico el diseño a las láminas.`);
+      return true;
+    } catch (error) {
+      decir(`No pude completar el ciclo: ${error?.message ?? error}. Puedes seguir paso a paso en este chat.`);
+      return false;
+    }
+  },
+
   openAgenteCadChat() {
     window.dispatchEvent(new CustomEvent("open-agente-cad-chat"));
   },

@@ -437,7 +437,8 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
       return d ?? (m ? {x0: m.x0, y0: m.y0, x1: m.x1, y1: m.y1} : null);
     };
     const tipoExtra = (c) => (/TABIQUER/i.test(c.titulo) ? "tabiqueria" : /ESCALERA/i.test(c.titulo) ? "escalera" : /LOSA|ALIGERAD/i.test(c.titulo) ? "losaTecho" : "otro");
-    const notas = notasTecnicas({sismo: dp.sismo, df: cim.df, hz: cim.peralte, altura: Math.max(altura, ...porticos.map((p) => p.cumbrera ?? 0)), losaTecho: !sinLosa, cimentacion: cim.tipo, conCimiento: Boolean(cc.tramos), conAlbanileria: Boolean(cc.tramos || (lectura.columnetas ?? []).length)});
+    const notas = notasTecnicas({sismo: dp.sismo, df: cim.df, hz: cim.peralte, altura: Math.max(altura, ...porticos.map((p) => p.cumbrera ?? 0)), losaTecho: !sinLosa, cimentacion: cim.tipo, conCimiento: Boolean(cc.tramos), conAlbanileria: Boolean(cc.tramos || (lectura.columnetas ?? []).length),
+      qadm: dp.cimentacion.qadm ?? null, resultados: estructura.resultadosSismicos ?? null});
     const estandar = detallesEstandar(estructura.detallesEstandar ?? [], {espesor: ali.espesor}, {conLosa: !sinLosa, conCanaleta: Boolean(cumbrera) || items.some((it) => it.tipo === "texto" && /canaleta/i.test(it.texto ?? ""))});
     const estandarDe = (clave) => estandar.some((d) => d.clave === clave);
     const lista = [

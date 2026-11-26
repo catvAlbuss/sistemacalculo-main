@@ -23,7 +23,10 @@ export function rutaCad(texto) {
   const t = sinTildes(texto);
   if (!t) return null;
   if (esPedidoDeModelo(texto)) return {accion: "crearModelo"};
-  if (/\b(rigidiza\w*|haz que cumpla|que cumpla la deriva|cumpl\w* (con )?la deriva|agranda\w*.*\bcolumnas?|aumenta\w*.*\bcolumnas?)\b/.test(t)) return {accion: "rigidizar"};
+  // Preguntas («explícame por qué no cumple…», «¿por qué…?») no son órdenes: van a la IA o a los datos.
+  const pregunta = /^[¿]?\s*(explica\w*|por que|porque|que significa)\b/.test(t);
+  if (pregunta) return null;
+  if (!pregunta && /\b(rigidiza\w*|haz que cumpla|que cumpla la deriva|cumpl\w* (con )?la deriva|agranda\w*.*\bcolumnas?|aumenta\w*.*\bcolumnas?)\b/.test(t)) return {accion: "rigidizar"};
   for (const r of RUTAS) if (r.re.test(t)) return {accion: r.accion};
   return null;
 }

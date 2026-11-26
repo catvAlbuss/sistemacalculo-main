@@ -21,7 +21,7 @@ const seccion = (s) => {
 // ¿El pedido es armar un modelo nuevo?
 export const esPedidoDeModelo = (texto) => {
   const t = sinTildes(texto);
-  return /\b(crea|crear|arma|armar|genera|generar|modela|modelar|haz|hazme|construye)\b.*\b(edificio|modelo|portico\w*|estructura|vivienda|casa|bloque|modulo)\b/.test(t) && /\d/.test(t);
+  return /\b(crea|crear|arma|armar|genera|generar|modela|modelar|haz|hazme|construye)\b.*\b(edificio|modelo|portico\w*|estructura|vivienda|casa|bloque|modulo|colegio|escuela|aula\w*|pabellon|hospital|clinica|oficina\w*|hotel|local|mercado|nave|almacen|multifamiliar|departamento\w*)\b/.test(t) && /\d/.test(t);
 };
 
 // Lo que dice la frase (lo que no dice queda null).

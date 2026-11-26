@@ -22,6 +22,7 @@ import {buscarUbicacion, textoUbicacion, categoriaPorUso} from "../../criterios/
 import {numeroModulo, vistasDelModulo, formatoDeReferencia, memoriaParaModulo} from "../referenciasProyecto.js";
 import {datosTecnicosFaltantes, firmaDeGeneracion} from '../contratoDibujo.js';
 import {cargarModeloCliente, decidirMuroDeContexto} from './aprendizajeDibujo.js';
+import {revisarContraNorma, textoRevisorNorma} from '../../laminas/revisorNorma.js';
 
 const r2 = (value) => Math.round(value * 100) / 100;
 const listaCapas = (value) => String(value ?? "").split(/[,;]/).map((capa) => capa.trim()).filter(Boolean);
@@ -641,6 +642,7 @@ export const ESTRUCTURA_SKILLS = [
         datos: ctx.datosProyecto?.() ?? {}, cimentacion: args.cimentacion ?? 'auto',
         decisiones: ctx.memoria.consultas?.elegido ?? {}, decisionesSesion: ctx.memoria.decisionesSesion ?? [],
         disenoColumnas: ctx.memoria.disenoColumnas ?? null, reaccionesColumnas: ctx.memoria.reaccionesColumnas ?? null,
+        resultadosSismicos: ctx.memoria.resultadosSismicos ?? null,
         modeloCliente: ctx.memoria.modeloCliente?.activo ? {muestras: ctx.memoria.modeloCliente.muestrasCliente, fecha: ctx.memoria.modeloCliente.fecha} : null});
       if (!args.conservar && ctx.memoria.ultimaGeneracion?.clave === clave && ctx.memoria.ultimaGeneracion.firma === firma
           && (ctx.generaciones?.()[clave] ?? 0) > 0) return {
@@ -925,6 +927,8 @@ async function generarLaminas(args, ctx, {e, guardados, invalidos, quitadas}) {
           ...(ctx.memoria.disenoColumnas ? {disenoColumnas: ctx.memoria.disenoColumnas} : {}),
           // Reacciones de servicio por apoyo (CM, CV, sismo) del análisis: dimensionan las zapatas.
           ...(ctx.memoria.reaccionesColumnas?.length ? {reaccionesColumnas: ctx.memoria.reaccionesColumnas} : {}),
+          // T, cortante basal y deriva del análisis (E.030-2026 art. 9.2), para las notas técnicas.
+          ...(ctx.memoria.resultadosSismicos ? {resultadosSismicos: ctx.memoria.resultadosSismicos} : {}),
           // Muros de la cimentación con el criterio aprendido del cliente, si ya le gana a la regla.
           ...(decidirMuroDeContexto(ctx) ? {decidirMuro: decidirMuroDeContexto(ctx)} : {}),
           losaMaciza: "losaMaciza" in elegido ? elegido.losaMaciza : undefined,
@@ -992,6 +996,10 @@ async function generarLaminas(args, ctx, {e, guardados, invalidos, quitadas}) {
         const coherencia = verificarCoherencia(s, textosAgente().map((x) => x.contents ?? x.textString ?? ""),
           {losaMaciza: typeof elegido.losaMaciza === "boolean" ? elegido.losaMaciza : undefined});
         if (coherencia.faltan.length) extra.push(`Revisé las láminas contra este mensaje y NO encontré dibujado: ${coherencia.faltan.join("; ")}. Tómalo como pendiente de corregir.`);
+        // Revisión como la haría el ingeniero: los 15 puntos de la norma sobre lo dibujado (revisorNorma.js).
+        const revisionNorma = revisarContraNorma(textosAgente().map((x) => x.contents ?? x.textString ?? ""),
+          {encimados: textosEncimados(textosAgente()), datos: ctx.datosProyecto?.() ?? {}});
+        ctx.memoria.revisionNorma = revisionNorma;
         // Resumen para el ingeniero (lo que lee en el chat): lo esencial en pocas líneas. El
         // mensaje largo sigue para el modelo de IA y el detalle técnico.
         const m = r.modelo;
@@ -1005,6 +1013,7 @@ async function generarLaminas(args, ctx, {e, guardados, invalidos, quitadas}) {
           `• ${s.columnas.length} tipos de columna, ${s.porticos.length} pórticos${Object.values(s.porticosSimilares ?? {}).some((x) => x.length) ? " (los iguales, una vez)" : ""}${(m.planos ?? []).some((t) => /TABIQUER/.test(t)) ? ", tabiquería por nivel" : ""}.`,
           ...(notasColocadas.length ? [`• Especificaciones y resumen de parámetros sísmicos: ${[...new Set(notasColocadas.map((s) => s.lamina))].join(', ')}. Estos parámetros no constituyen un análisis sísmico.`] : []),
           ...(cuadrosColocados.length ? [`• Cuadro de columnas: ${[...new Set(cuadrosColocados.map((s) => s.lamina))].join(', ')}.`] : []),
+          `• Contra la norma (15 puntos de revisión): ${revisionNorma.puntaje} %${revisionNorma.faltan.length ? `; falta: ${revisionNorma.faltan.map((x) => x.falta || x.titulo).join("; ")}` : ""}.`,
         ].join("\n");
         return {
           ok: true,
@@ -1016,6 +1025,7 @@ async function generarLaminas(args, ctx, {e, guardados, invalidos, quitadas}) {
           resumen: resumenCorto,
           laminas: r.laminas.map((l) => l.codigo),
           coherencia,
+          revisionNorma,
           fueraDeLamina: r.fueraDeLamina ?? [],
           avisos: [...extra, ...r.avisos],
           // Sin panel que preguntara: lo que el ingeniero debe confirmar, con la recomendación usada.

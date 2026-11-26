@@ -353,6 +353,14 @@
     }
   },
   {
+    "name": "revisar_norma",
+    "description": "Revisa las láminas del agente como lo haría el ingeniero revisor: 15 puntos de la norma (GE.020, E.060, E.030-2026 art. 9.2, E.050) con lo que cumple y lo que falta. Úsalo para 'revisa como ingeniero', 'revisa contra la norma', 'qué le falta a las láminas', 'checklist'.",
+    "input_schema": {
+      "type": "object",
+      "properties": {}
+    }
+  },
+  {
     "name": "modelo_analisis",
     "description": "Arma el modelo de análisis estructural (.e2k de ETABS) desde la arquitectura leída: columnas, vigas y losas en sus ejes, pisos con sus alturas, cargas E.020, masa y espectro E.030, y combinaciones E.060. Lo descarga para ETABS y lo deja listo para abrir en Análisis Estructural. Úsalo para 'enviar a análisis', 'modelo para ETABS', 'exporta el .e2k', 'quiero analizar la estructura'.",
     "input_schema": {
@@ -363,6 +371,14 @@
           "description": "Coeficiente básico de reducción sísmica (E.030 Tabla 7): 8 pórticos, 7 dual, 6 muros, 3 albañilería. Solo si el ingeniero lo indica."
         }
       }
+    }
+  },
+  {
+    "name": "ciclo_completo",
+    "description": "Ciclo completo NovaCad + Análisis Estructural: arma (si faltan) las láminas, el modelo de análisis, abre Análisis Estructural en automático (análisis sísmico, revisión E.030, diseño de columnas) y, cuando vuelve el diseño, lo aplica a las láminas. Úsalo para 'estructura y analiza', 'haz todo el ciclo', 'diseña y dibuja', 'proceso completo'.",
+    "input_schema": {
+      "type": "object",
+      "properties": {}
     }
   },
   {

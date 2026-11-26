@@ -84,3 +84,13 @@ const m = await skill('metrar_estructura').run({}, ctx).catch((e) => ({ok: false
 console.log(`Metrado: ${m.ok ? 'ok' : `MAL ${m.error}`}${m.resumen ? ` · ${String(m.resumen).slice(0, 140)}` : ''}`);
 console.log(`\n${mal ? `${mal} diferencia(s)` : 'El mensaje, el cuadro dibujado y el .e2k dicen el mismo acero.'}`);
 process.exitCode = mal || !r2.ok || !m.ok ? 1 : 0;
+
+// --ciclo: también prueba ciclo_completo (sin navegador: la pestaña de Análisis se simula).
+if (args.includes('--ciclo')) {
+  const abiertas = [];
+  ctx.abrirPagina = (ruta) => { abiertas.push(ruta); return {}; };
+  const c = await skill('ciclo_completo').run({}, ctx);
+  const ok = c.ok && abiertas[0] === '/software/etabs?desde=agente&auto=1' && Boolean(ctx.memoria.esperandoAnalisis) && Boolean(localStorage.getItem('novacad:modelo-analisis'));
+  console.log(`${ok ? 'OK ' : 'MAL'} ciclo_completo: ${c.ok ? c.resumen : c.error} · abrió ${abiertas[0] ?? '—'} · modelo guardado ${Boolean(localStorage.getItem('novacad:modelo-analisis'))}`);
+  if (!ok) process.exitCode = 1;
+}

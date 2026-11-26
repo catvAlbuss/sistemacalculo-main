@@ -45,6 +45,8 @@
             sugerencias: ['crea un edificio de 3 pisos de 3x2 vanos de 5 m', 'analiza el sismo', 'revisa con la E.030', 'diseña las columnas', 'ajusta el acero', 'envía el diseño a NovaCad'],
             init() {
                 window.addEventListener('open-agente-cad-chat', () => { this.open = true; this.$nextTick(() => this.$refs.entrada?.focus()); });
+                // Mensajes del ciclo automático (cadSystem.cicloAutomaticoAgente).
+                window.addEventListener('agente-cad-mensaje', (e) => { this.mensajes.push({role: 'assistant', content: e.detail?.texto ?? ''}); this.bajar(); });
             },
             limpiar() { this.mensajes = this.mensajes.slice(0, 1); },
             async enviar(pedido = null) {

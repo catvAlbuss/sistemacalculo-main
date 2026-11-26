@@ -79,6 +79,21 @@ export function disenoPorTipo(columnas) {
   return tipos;
 }
 
+// T, cortante basal dinámico y deriva inelástica por dirección, leídos de la revisión E.030
+// (revisionE030.js): "T = 0.197 s (modo 1)", "V dinámico 8.56 tonf; …", deriva numérica.
+export function resultadosSismicos(revision) {
+  const vs = revision?.verificaciones || [];
+  const de = (dir, re) => vs.find((v) => v.grupo === `Sismo ${dir}` && re.test(v.titulo));
+  const num = (s, re) => { const m = re.exec(String(s ?? "")); return m ? Number(m[1]) : null; };
+  const out = {limite: revision?.parametros?.limiteDeriva ?? null};
+  for (const d of ["X", "Y"]) {
+    out[`T${d.toLowerCase()}`] = num(de(d, /Periodo fundamental/)?.valor, /T\s*=\s*([\d.]+)/);
+    out[`V${d.toLowerCase()}`] = num(de(d, /Cortante din/)?.detalle, /V din[aá]mico\s*([\d.]+)/);
+    out[`deriva${d}`] = Number.isFinite(Number(de(d, /Deriva inel/)?.valor)) ? Number(de(d, /Deriva inel/).valor) : null;
+  }
+  return out.Tx || out.Ty ? out : null;
+}
+
 // Lo que viaja al agente: diseño por tipo y el resumen de la revisión E.030 (sin datos del cliente).
 // reacciones: [{x, y, pd, pl, ps}] por apoyo, en t y en las coordenadas del modelo (metros).
 export function paqueteParaAgente({columnas, revision = null, modelo = "", reacciones = [], fecha = new Date().toISOString()}) {
@@ -89,6 +104,7 @@ export function paqueteParaAgente({columnas, revision = null, modelo = "", reacc
     columnas: tipos,
     revision: r ? {texto: r.texto, noCumple: r.noCumple ?? 0, acciones: r.acciones ?? []} : null,
     reacciones: (reacciones || []).map((r) => ({x: redondea(r.x, 3), y: redondea(r.y, 3), pd: redondea(r.pd, 2), pl: redondea(r.pl, 2), ps: redondea(r.ps, 2)})),
+    sismo: resultadosSismicos(revision),
     derivas: (revision?.verificaciones || []).filter((v) => /deriva/i.test(v.titulo)).map((v) => ({grupo: v.grupo, valor: v.valor, estado: v.estado})),
   };
 }

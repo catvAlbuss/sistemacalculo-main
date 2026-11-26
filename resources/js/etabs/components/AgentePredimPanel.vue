@@ -715,7 +715,19 @@ onMounted(async () => {
     alActivar();
   } catch { /* sin visor: no hay plano que leer */ }
 });
-onBeforeUnmount(() => { desmontado = true; quitarEscucha?.(); revisionPlano.activar(null); lecturaId++; });
+// Ciclo fusionado (ciclo_completo): Análisis Estructural, en otra pestaña, devuelve el diseño por
+// localStorage; si este panel lo estaba esperando, lo aplica solo a las láminas.
+const alLlegarDiseno = (e) => {
+  if (e.key !== "novacad:diseno-analisis" || !e.newValue) return;
+  getContext().then((ctx) => {
+    if (!ctx.memoria?.esperandoAnalisis) return;
+    delete ctx.memoria.esperandoAnalisis;
+    const intentar = () => (busy.value ? setTimeout(intentar, 1000) : ejecutar("aplicar_diseno", {}, "Llegó el diseño de Análisis Estructural: aplícalo a las láminas"));
+    intentar();
+  }).catch(() => {});
+};
+window.addEventListener("storage", alLlegarDiseno);
+onBeforeUnmount(() => { desmontado = true; quitarEscucha?.(); revisionPlano.activar(null); lecturaId++; window.removeEventListener("storage", alLlegarDiseno); });
 
 // ---- El agente mira el plano: SVG del dibujo → JPEG para el motor con visión ----
 const CLAVE_VER_PLANO = "novacad.agente.verPlano";

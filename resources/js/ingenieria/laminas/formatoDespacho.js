@@ -170,9 +170,14 @@ function juntaSismica(altura) {
   return [`s = 0.006 h ≥ 3 cm; con h=${f2(altura)} m: s=${s} cm con edificaciones vecinas.`, `Retiro del límite de propiedad ≥ ${(s / 2).toFixed(1)} cm.`];
 }
 const f1 = (v) => Number(v).toFixed(1);
+const f3 = (v) => (Number.isFinite(Number(v)) ? Number(v).toFixed(3) : "—");
+const f4 = (v) => (Number.isFinite(Number(v)) ? Number(v).toFixed(4) : "—");
 // Sistema de los módulos del despacho: pórticos de concreto armado (E.030, tabla N° 7: Ro=8).
 const RO_PORTICOS = 8;
-export function notasTecnicas({sismo = {}, df = null, hz = null, cimentacion = "platea", conCimiento = true, conAlbanileria = true, altura = null, losaTecho = true} = {}) {
+// qadm: presión admisible del EMS en t/m² (Datos del proyecto). resultados: lo que da Análisis Estructural
+// ({Tx, Ty, Vx, Vy, derivaX, derivaY} en s, tonf y adimensional) — E.030-2026 art. 9.2 pide T, cortante
+// basal y deriva en los planos; sin análisis queda indicado como pendiente, sin inventar valores.
+export function notasTecnicas({sismo = {}, df = null, hz = null, cimentacion = "platea", conCimiento = true, conAlbanileria = true, altura = null, losaTecho = true, qadm = null, resultados = null} = {}) {
   const p = sismo ?? {};
   const falta = (q) => `${q} = POR DEFINIR (completar en Datos del proyecto)`;
   const sismicos = [p.Z !== undefined && `Z=${f2(p.Z)}`, p.U !== undefined && `U=${f1(p.U)}`, p.S !== undefined && `S=${f2(p.S)}`, p.Tp !== undefined && `Tp=${f2(p.Tp)}`, p.TL !== undefined && `TL=${f1(p.TL)}`].filter(Boolean);
@@ -188,7 +193,7 @@ export function notasTecnicas({sismo = {}, df = null, hz = null, cimentacion = "
     ["3) SUELO", [
       `Tipo de cimentación: ${cimentacion === "platea" ? "platea de cimentación" : "zapatas"}${conCimiento ? " y cimiento corrido" : ""}${hz ? `; ${cimentacion === "platea" ? "espesor" : "peralte"} Hz=${f2(hz)} m` : ""}.`,
       df !== null && df !== undefined ? `Profundidad de desplante Df=${f2(df)} m desde el nivel de terreno natural.` : "Profundidad de desplante Df = POR DEFINIR (estudio de suelos).",
-      "Presión admisible: verificar el Estudio de Mecánica de Suelos.",
+      Number(qadm) > 0 ? `Presión admisible q adm=${(Number(qadm) / 10).toFixed(2)} kg/cm² (Estudio de Mecánica de Suelos).` : "Presión admisible: verificar el Estudio de Mecánica de Suelos.",
       sismicos.length ? `Parámetros sísmicos: ${sismicos.join(", ")}` : "Parámetros sísmicos: POR DEFINIR (zona, suelo y categoría).",
     ]],
     ["4) RECUBRIMIENTOS", ["Platea, zapatas y vigas de cimentación: 7.5 cm.", "Columnas y vigas peraltadas: 4 cm.", "Vigas chatas, losas aligeradas y macizas: 2 cm."]],
@@ -208,7 +213,11 @@ export function notasTecnicas({sismo = {}, df = null, hz = null, cimentacion = "
       "C=2.5 para T<Tp; C=2.5(Tp/T) para Tp<T<TL; C=2.5(Tp·TL/T²) para T>TL",
       `Ro=${RO_PORTICOS} (pórticos de concreto armado, X e Y); Ia=1.00, Ip=1.00 (estructura regular: verificar)`,
       `R=Ro·Ia·Ip=${RO_PORTICOS.toFixed(2)}`,
-      "T, C, desplazamientos y deriva máxima: del análisis sísmico (pendiente)",
+      ...(resultados && (resultados.Tx || resultados.Ty)
+        ? [`Período T: Tx=${f3(resultados.Tx)} s, Ty=${f3(resultados.Ty)} s (análisis modal espectral)`,
+          `Cortante basal dinámico: Vx=${f2(resultados.Vx)} tonf, Vy=${f2(resultados.Vy)} tonf`,
+          `Deriva inelástica máxima: X=${f4(resultados.derivaX)}, Y=${f4(resultados.derivaY)} (límite ${resultados.limite ?? 0.007})`]
+        : ["T, C, desplazamientos y deriva máxima: del análisis sísmico (pendiente)"]),
     ]],
   ];
   const h = 0.1, ht = 0.14, paso = h * 1.6;

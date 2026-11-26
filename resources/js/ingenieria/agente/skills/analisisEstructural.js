@@ -3,6 +3,7 @@
 import {modeloE2k} from "../../analisis/modeloE2k.js";
 
 export const MODELO_DEL_AGENTE = "novacad:modelo-analisis";
+const RUTA_CICLO = "/software/etabs?desde=agente&auto=1";
 // Lo escribe Análisis Estructural («Enviar diseño al agente», cad/engine/disenoAgente.js).
 export const DISENO_DEL_AGENTE = "novacad:diseno-analisis";
 
@@ -23,7 +24,23 @@ const nombreArchivo = (ctx) => {
   return `${base.replace(/[^\w\-]+/g, "_").replace(/^_+|_+$/g, "") || "modelo"}_analisis.e2k`;
 };
 
+import {revisarContraNorma, textoRevisorNorma} from "../../laminas/revisorNorma.js";
+import {aplanarModelo} from "../../lectura/lectorPlano.js";
+
 export const ANALISIS_SKILLS = [
+  {
+    name: "revisar_norma",
+    description: "Revisa las láminas del agente como lo haría el ingeniero revisor: 15 puntos de la norma (GE.020, E.060, E.030-2026 art. 9.2, E.050) con lo que cumple y lo que falta. Úsalo para 'revisa como ingeniero', 'revisa contra la norma', 'qué le falta a las láminas', 'checklist'.",
+    parameters: {type: "object", properties: {}},
+    async run(_args, ctx) {
+      const entidades = ctx.entidadesDelAgente?.() ?? [];
+      if (!entidades.length) return {ok: false, error: "No hay láminas del agente en el dibujo: genéralas primero.", opciones: [{texto: "Generar las láminas", herramienta: "plano_estructuras", args: {}}]};
+      const textos = aplanarModelo(entidades).items.filter((i) => i.tipo === "texto").map((i) => i.texto);
+      const r = revisarContraNorma(textos, {datos: ctx.datosProyecto?.() ?? {}});
+      ctx.memoria.revisionNorma = r;
+      return {ok: true, mensaje: textoRevisorNorma(r), puntaje: r.puntaje};
+    },
+  },
   {
     name: "modelo_analisis",
     description: "Arma el modelo de análisis estructural (.e2k de ETABS) desde la arquitectura leída: columnas, vigas y losas en sus ejes, pisos con sus alturas, cargas E.020, masa y espectro E.030, y combinaciones E.060. Lo descarga para ETABS y lo deja listo para abrir en Análisis Estructural. Úsalo para 'enviar a análisis', 'modelo para ETABS', 'exporta el .e2k', 'quiero analizar la estructura'.",
@@ -61,6 +78,27 @@ export const ANALISIS_SKILLS = [
     },
   },
   {
+    name: "ciclo_completo",
+    description: "Ciclo completo NovaCad + Análisis Estructural: arma (si faltan) las láminas, el modelo de análisis, abre Análisis Estructural en automático (análisis sísmico, revisión E.030, diseño de columnas) y, cuando vuelve el diseño, lo aplica a las láminas. Úsalo para 'estructura y analiza', 'haz todo el ciclo', 'diseña y dibuja', 'proceso completo'.",
+    parameters: {type: "object", properties: {}},
+    async run(args, ctx) {
+      const pasos = [];
+      if (!ctx.memoria?.modeloEstructural) {
+        const plano = (await import("./estructuraPlano.js")).ESTRUCTURA_SKILLS.find((x) => x.name === "plano_estructuras");
+        const r = await plano.run({}, ctx);
+        if (!r.ok) return {...r, error: `No pude armar las láminas: ${r.error ?? "error"}`};
+        pasos.push(`Láminas: ${(r.laminas ?? []).join(", ")}.`);
+      }
+      const modelo = await ANALISIS_SKILLS.find((x) => x.name === "modelo_analisis").run({}, ctx);
+      if (!modelo.ok) return modelo;
+      pasos.push(modelo.resumen);
+      ctx.memoria.esperandoAnalisis = Date.now();
+      const abierta = ctx.abrirPagina ? ctx.abrirPagina(RUTA_CICLO) : globalThis.open?.(RUTA_CICLO, "_blank");
+      if (abierta === null) return {ok: false, error: "El navegador bloqueó la ventana de Análisis Estructural: permite las ventanas emergentes de este sitio y vuelve a pedirlo."};
+      return {ok: true, mensaje: [...pasos, "Abrí Análisis Estructural en automático: analiza el sismo, revisa con la E.030 y diseña las columnas. Cuando termine, aplico aquí el diseño a las láminas (cuadro de columnas, zapatas y notas E.030 art. 9.2)."].join("\n"), resumen: "Ciclo en marcha en Análisis Estructural."};
+    },
+  },
+  {
     name: "aplicar_diseno",
     description: "Trae el diseño verificado en Análisis Estructural (columnas diseñadas con las fuerzas del análisis sísmico) y rehace las láminas con ese armado: el cuadro de columnas, el metrado y el modelo usan el acero que cumple. Úsalo para 'aplica el diseño', 'trae el diseño del análisis', 'actualiza las láminas con el diseño'.",
     parameters: {type: "object", properties: {}},
@@ -74,6 +112,7 @@ export const ANALISIS_SKILLS = [
       ctx.memoria.disenoColumnas = paquete.columnas;
       ctx.memoria.reaccionesColumnas = Array.isArray(paquete.reacciones) && paquete.reacciones.length ? paquete.reacciones : null;
       ctx.memoria.revisionAnalisis = paquete.revision ?? null;
+      ctx.memoria.resultadosSismicos = paquete.sismo ?? null;
       const lineas = textoDiseno(paquete.columnas);
       if (ctx.memoria.reaccionesColumnas) {
         const t = ctx.memoria.reaccionesColumnas.reduce((s, r) => ({pd: s.pd + r.pd, pl: s.pl + r.pl}), {pd: 0, pl: 0});
