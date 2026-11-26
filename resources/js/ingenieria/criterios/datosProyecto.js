@@ -32,6 +32,8 @@ export const E030 = {
 export const CAMPOS_TECNICOS = [
   {campo: "hz", etiqueta: "Hz: peralte de platea o zapata (m)", ejemplo: CRITERIOS.platea.espesor.toFixed(2), min: 0.3, max: 2.5},
   {campo: "df", etiqueta: "Df: profundidad de desplante (m)", ejemplo: CRITERIOS.platea.df.toFixed(2), min: 0.5, max: 6},
+  // Del EMS; opcional: sin él las zapatas usan 1.5 kg/cm² con aviso.
+  {campo: "qadm", etiqueta: "qadm: capacidad admisible del suelo (kg/cm²)", ejemplo: "1.50", min: 0.3, max: 10},
   {campo: "zona", etiqueta: "Zona sísmica (E.030)", opciones: [["1", "Zona 1"], ["2", "Zona 2"], ["3", "Zona 3"], ["4", "Zona 4"]]},
   {campo: "suelo", etiqueta: "Perfil de suelo", opciones: [["S0", "S0 roca dura"], ["S1", "S1 roca o suelo muy rígido"], ["S2", "S2 suelo intermedio"], ["S3", "S3 suelo blando"]]},
   {campo: "categoria", etiqueta: "Categoría de la edificación", opciones: [["A2", "A2 esencial (colegio, hospital…)"], ["B", "B importante"], ["C", "C común (vivienda, oficina)"]]},
@@ -142,7 +144,9 @@ export function datosParaLaminas(datos = {}, sugeridos = {}) {
       ...(t.hz !== null ? {espesorPlatea: t.hz, peralteZapata: t.hz} : {}),
       ...(t.df !== null ? {dfPlatea: t.df, df: t.df} : {}),
       ...(t.niveles ? {pisos: t.niveles} : {}),
+      ...(t.qadm !== null ? {qadm: Math.round(t.qadm * 10 * 100) / 100} : {}), // kg/cm² → t/m²
     },
+    qadmDelEms: t.qadm !== null,
     sismo, textos: textosSismicos(sismo, {df: t.df}), niveles: t.niveles ?? 1, avisos,
   };
 }

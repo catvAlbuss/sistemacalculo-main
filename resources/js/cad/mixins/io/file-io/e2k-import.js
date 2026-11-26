@@ -15,6 +15,11 @@ import {
   restoreFrameForceModule,
 } from "../../../engine/frameForcePersistence.js";
 
+// Clave del modelo que deja el agente NovaCad para abrir aquí (ver importarModeloDelAgente).
+export const MODELO_DEL_AGENTE = "novacad:modelo-analisis";
+// Copia del último modelo abierto: el menú 🤖 Agente ▸ "Abrir el modelo del agente" lo reabre.
+export const ULTIMO_MODELO_DEL_AGENTE = "novacad:modelo-analisis:ultimo";
+
 export const e2kImportMixin = {
 
   // Import methods
@@ -2276,17 +2281,27 @@ export const e2kImportMixin = {
 
       if (!selected) return;
 
+      this.importarE2kTexto(selected.text, selected.file.name);
+    } catch (error) {
+      console.error("❌ Error importando E2K inicial:", error);
+
+      this.showMessage?.("❌ Error al importar .e2k inicial/no oficial.", "error");
+    }
+  },
+
+  // Carga un .e2k desde su texto (archivo elegido o modelo que manda el agente NovaCad).
+  importarE2kTexto(texto, nombre = "modelo.e2k") {
       // Auto-detectar: .e2k REAL de ETABS (por pisos) vs nuestro viejo formato.
-      const isReal = this.isRealETABS_E2K(selected.text);
+      const isReal = this.isRealETABS_E2K(texto);
       const data = isReal
-        ? this.parseETABS_E2K(selected.text)
-        : this.parseInitialE2KText(selected.text);
+        ? this.parseETABS_E2K(texto)
+        : this.parseInitialE2KText(texto);
 
       const loaded = this.loadFromJSON(data);
 
       if (!loaded) {
         this.showMessage?.("❌ No se pudo importar el .e2k.", "error");
-        return;
+        return false;
       }
 
       // Las secciones de losa/muro no viajan por importFromJSON: se asignan
@@ -2313,27 +2328,43 @@ export const e2kImportMixin = {
         this.rebarDefinitions = data.definitions.rebarDefinitions;
       }
 
-      this.currentFileName = selected.file.name.replace(/\.[^/.]+$/, "") + "_importado_desde_e2k.json";
+      this.currentFileName = String(nombre).replace(/\.[^/.]+$/, "") + "_importado_desde_e2k.json";
 
       this.showMessage?.(
         isReal
-          ? `📥 Importación .e2k de ETABS completada: ${selected.file.name}`
-          : `📥 Importación .e2k (formato interno) completada: ${selected.file.name}`,
+          ? `📥 Importación .e2k de ETABS completada: ${nombre}`
+          : `📥 Importación .e2k (formato interno) completada: ${nombre}`,
       );
 
       console.log("📥 Import E2K inicial/no oficial:", {
-        fileName: selected.file.name,
+        fileName: nombre,
         nodes: this.nodes?.length || 0,
         frames: this.shapes?.length || 0,
         areas: this.areas?.length || 0,
         stories: this.stories?.length || 0,
         referenceGrid: this.referenceGrid,
       });
-    } catch (error) {
-      console.error("❌ Error importando E2K inicial:", error);
+      return true;
+  },
 
-      this.showMessage?.("❌ Error al importar .e2k inicial/no oficial.", "error");
+  // Modelo de análisis que armó el agente NovaCad desde la arquitectura (predim2 → "Enviar a
+  // análisis"): llega por localStorage del mismo sitio. Al entrar con ?desde=agente se abre el
+  // pendiente una sola vez; desde el menú (desdeMenu) se abre el pendiente o, si no hay, el último.
+  importarModeloDelAgente({desdeMenu = false} = {}) {
+    let pendiente = null;
+    try {
+      if (!desdeMenu && !/[?&]desde=agente\b/.test(window.location.search)) return false;
+      const nuevo = window.localStorage.getItem(MODELO_DEL_AGENTE);
+      pendiente = JSON.parse(nuevo || (desdeMenu ? window.localStorage.getItem(ULTIMO_MODELO_DEL_AGENTE) : null) || "null");
+      if (nuevo) { window.localStorage.setItem(ULTIMO_MODELO_DEL_AGENTE, nuevo); window.localStorage.removeItem(MODELO_DEL_AGENTE); }
+    } catch (_e) { return false; }
+    if (!pendiente?.texto) {
+      if (desdeMenu) this.showMessage?.("No hay un modelo del agente. En NovaCad (Predim) genera las láminas y pide «envía a análisis».", "warning");
+      return false;
     }
+    const ok = this.importarE2kTexto(pendiente.texto, pendiente.nombre || "modelo_agente.e2k");
+    if (ok) this.showMessage?.(`🤖 Modelo del agente NovaCad abierto: ${pendiente.nombre || "modelo"}. Revisa los supuestos antes de analizar.`, "success");
+    return ok;
   },
 
   showImportPending(formatName) {

@@ -43,6 +43,11 @@
         {{-- Opciones --}}
         @include('components.cad.menu.options')
 
+        {{-- Agente (a la derecha, visible): modelo del agente, revisión E.030, diseño y vuelta a las láminas --}}
+        <div class="ml-auto rounded bg-emerald-700 ring-1 ring-emerald-400 [&>div>button]:!text-white [&>div>button_span]:!text-white" title="Agente NovaCad: modelo, revisión E.030, diseño y láminas">
+            @include('components.cad.menu.agente')
+        </div>
+
     </div>
 </div>
 

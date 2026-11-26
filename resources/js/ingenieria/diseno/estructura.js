@@ -137,15 +137,19 @@ export function areasTributarias(columnas, franja = 0.6) {
 export function predimensionarZapatas(columnas, opciones = {}) {
   const o = {...CARGAS_POR_DEFECTO, ...Object.fromEntries(Object.entries(opciones).filter(([, v]) => Number.isFinite(Number(v)) && Number(v) > 0).map(([k, v]) => [k, Number(v)]))};
   const zapatas = columnas.map((c) => {
+    // Con reacciones del análisis (c.reaccion, t): CM + CV en servicio y, con sismo, CM + CV + 0.8·PS
+    // contra 1.3·qadm (E.060 15.2.4 / práctica E.050). Sin ellas, área tributaria × pisos × cargas.
+    const r = c.reaccion;
     const pesoColumna = c.b * c.h * o.alturaPiso * 2.4 * o.pisos;
-    const pd = c.at * o.pisos * o.cargaMuerta + pesoColumna;
-    const pl = c.at * o.pisos * o.cargaViva;
+    const pd = r ? r.pd : c.at * o.pisos * o.cargaMuerta + pesoColumna;
+    const pl = r ? r.pl : c.at * o.pisos * o.cargaViva;
+    const ps = r ? r.ps || 0 : 0;
     // 10 % adicional por peso propio de zapata y relleno; volados iguales.
-    const area = (1.1 * (pd + pl)) / o.qadm;
+    const area = Math.max((1.1 * (pd + pl)) / o.qadm, (1.1 * (pd + pl + 0.8 * ps)) / (1.3 * o.qadm));
     const lado = Math.sqrt(area);
     const redondear = (v) => Math.max(0.8, Math.ceil(v / 0.05) * 0.05);
     const B = redondear(lado + (c.b - c.h) / 2), L = redondear(lado + (c.h - c.b) / 2);
-    return {...c, pd: r2(pd), pl: r2(pl), B: r2(B), L: r2(L), x0: r3(c.x - B / 2), y0: r3(c.y - L / 2), x1: r3(c.x + B / 2), y1: r3(c.y + L / 2)};
+    return {...c, pd: r2(pd), pl: r2(pl), ...(r ? {ps: r2(ps), fuente: "análisis"} : {}), B: r2(B), L: r2(L), x0: r3(c.x - B / 2), y0: r3(c.y - L / 2), x1: r3(c.x + B / 2), y1: r3(c.y + L / 2)};
   });
   const traslapes = [];
   for (let i = 0; i < zapatas.length; i++) for (let j = i + 1; j < zapatas.length; j++) {

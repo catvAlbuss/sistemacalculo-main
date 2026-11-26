@@ -21,6 +21,8 @@ import {consultasDelPlano, aplicarRespuestas, textoConsultas, cimentacionRecomen
 import {buscarUbicacion, textoUbicacion, categoriaPorUso} from "../../criterios/ubicacion.js";
 import {numeroModulo, vistasDelModulo, formatoDeReferencia, memoriaParaModulo} from "../referenciasProyecto.js";
 import {datosTecnicosFaltantes, firmaDeGeneracion} from '../contratoDibujo.js';
+import {cargarModeloCliente, decidirMuroDeContexto} from './aprendizajeDibujo.js';
+import {revisarContraNorma, textoRevisorNorma} from '../../laminas/revisorNorma.js';
 
 const r2 = (value) => Math.round(value * 100) / 100;
 const listaCapas = (value) => String(value ?? "").split(/[,;]/).map((capa) => capa.trim()).filter(Boolean);
@@ -242,7 +244,7 @@ function guardarDatos(args, ctx) {
   return {guardados: Object.keys(validos), invalidos: t.invalidos};
 }
 
-const ETIQUETA = {hz: "Hz", df: "Df", zona: "zona", suelo: "suelo", categoria: "categoría", niveles: "niveles", normaE030: "E.030"};
+const ETIQUETA = {hz: "Hz", df: "Df", qadm: "qadm (kg/cm²)", zona: "zona", suelo: "suelo", categoria: "categoría", niveles: "niveles", normaE030: "E.030"};
 function textoDatos(datos) {
   const t = datosTecnicos(datos), p = parametrosSismicos(t);
   const tiene = CAMPOS_TECNICOS.filter((c) => t[c.campo] !== null).map((c) => `${ETIQUETA[c.campo]} ${c.campo === "hz" || c.campo === "df" ? `${t[c.campo].toFixed(2)} m` : t[c.campo]}`);
@@ -574,6 +576,8 @@ export const ESTRUCTURA_SKILLS = [
       // Las ediciones manuales del CAD también pueden haber cambiado las entradas.
       delete ctx.memoria.lectura;
       const e = leerEstructura(ctx, "", args.vista);
+      // El criterio de dibujo aprendido de las correcciones de este usuario (aprendizajeDibujo.js).
+      await cargarModeloCliente(ctx);
       // Antes de dibujar, el panel muestra los datos del proyecto en un formulario, ya llenos con
       // lo guardado y con lo que propone el agente (Hz, Df y niveles de proyectos parecidos); el
       // personal los revisa o corrige y recién ahí se arma el plano. Cancelar no dibuja nada.
@@ -636,7 +640,10 @@ export const ESTRUCTURA_SKILLS = [
       // La geometría generada queda fuera de las entradas: dibujar no cambia la arquitectura.
       const firma = firmaDeGeneracion({arquitectura: lectura.itemsArquitectura ?? lectura.items, titulo: e.titulo || e.vista,
         datos: ctx.datosProyecto?.() ?? {}, cimentacion: args.cimentacion ?? 'auto',
-        decisiones: ctx.memoria.consultas?.elegido ?? {}, decisionesSesion: ctx.memoria.decisionesSesion ?? []});
+        decisiones: ctx.memoria.consultas?.elegido ?? {}, decisionesSesion: ctx.memoria.decisionesSesion ?? [],
+        disenoColumnas: ctx.memoria.disenoColumnas ?? null, reaccionesColumnas: ctx.memoria.reaccionesColumnas ?? null,
+        resultadosSismicos: ctx.memoria.resultadosSismicos ?? null,
+        modeloCliente: ctx.memoria.modeloCliente?.activo ? {muestras: ctx.memoria.modeloCliente.muestrasCliente, fecha: ctx.memoria.modeloCliente.fecha} : null});
       if (!args.conservar && ctx.memoria.ultimaGeneracion?.clave === clave && ctx.memoria.ultimaGeneracion.firma === firma
           && (ctx.generaciones?.()[clave] ?? 0) > 0) return {
         ok: true, sinCambios: true, terminal: true,
@@ -647,7 +654,7 @@ export const ESTRUCTURA_SKILLS = [
       try {
         const resultado = await generarLaminas(args, ctx, {e, guardados, invalidos, quitadas});
         if (resultado.ok) {
-          ctx.memoria.ultimaGeneracion = {clave, firma};
+          ctx.memoria.ultimaGeneracion = {clave, firma, args: {...(args.vista ? {vista: args.vista} : {}), ...(args.cimentacion ? {cimentacion: args.cimentacion} : {})}};
           delete ctx.memoria.metrado;
         }
         return {...resultado, terminal: true};
@@ -916,6 +923,14 @@ async function generarLaminas(args, ctx, {e, guardados, invalidos, quitadas}) {
           ...(ctx.bibliotecaDetalles ? {bibliotecaDetalles: ctx.bibliotecaDetalles} : {}),
           // Detalles estándar del despacho (estribos, empalmes, nudo, isométrico…): llenan la lámina.
           ...(ctx.detallesEstandar?.length ? {detallesEstandar: ctx.detallesEstandar} : {}),
+          // Armado de columnas verificado en Análisis Estructural (aplicar_diseno).
+          ...(ctx.memoria.disenoColumnas ? {disenoColumnas: ctx.memoria.disenoColumnas} : {}),
+          // Reacciones de servicio por apoyo (CM, CV, sismo) del análisis: dimensionan las zapatas.
+          ...(ctx.memoria.reaccionesColumnas?.length ? {reaccionesColumnas: ctx.memoria.reaccionesColumnas} : {}),
+          // T, cortante basal y deriva del análisis (E.030-2026 art. 9.2), para las notas técnicas.
+          ...(ctx.memoria.resultadosSismicos ? {resultadosSismicos: ctx.memoria.resultadosSismicos} : {}),
+          // Muros de la cimentación con el criterio aprendido del cliente, si ya le gana a la regla.
+          ...(decidirMuroDeContexto(ctx) ? {decidirMuro: decidirMuroDeContexto(ctx)} : {}),
           losaMaciza: "losaMaciza" in elegido ? elegido.losaMaciza : undefined,
           // Los paños que nombró la pregunta: si el ingeniero dijo que sí, esos van macizos.
           panosMacizos: elegido.losaMaciza === true ? consultas?.consultas?.find((c) => c.clave === "losaMaciza")?.ejes ?? null : null,
@@ -939,6 +954,8 @@ async function generarLaminas(args, ctx, {e, guardados, invalidos, quitadas}) {
         ctx.memoria.paqueteLaminas.secciones = r.secciones ?? [];
         ctx.memoria.porticosLocales = r.porticosLocales ?? [];
         ctx.memoria.detallesLocales = r.detallesLocales ?? [];
+        // Para aprender de las correcciones del ingeniero en la cimentación (aprendizajeCliente.js).
+        ctx.memoria.candidatosMuro = r.candidatosMuro ?? [];
         // Ubicación de cada planta dibujada, en unidades del dibujo (metros × k).
         ctx.memoria.ubicacionesPlanos = (r.ubicaciones ?? []).map((u) => ({...u, caja: u.caja && {x0: u.caja.x0 * k, y0: u.caja.y0 * k, x1: u.caja.x1 * k, y1: u.caja.y1 * k}}));
         if (r.usarPlantilla !== false) ctx.insertTemplate(plantilla.db, {x: r.desplazamiento.x * k, y: r.desplazamiento.y * k}, k, null, r.textosPlantilla, r.excluirPlantilla);
@@ -979,6 +996,10 @@ async function generarLaminas(args, ctx, {e, guardados, invalidos, quitadas}) {
         const coherencia = verificarCoherencia(s, textosAgente().map((x) => x.contents ?? x.textString ?? ""),
           {losaMaciza: typeof elegido.losaMaciza === "boolean" ? elegido.losaMaciza : undefined});
         if (coherencia.faltan.length) extra.push(`Revisé las láminas contra este mensaje y NO encontré dibujado: ${coherencia.faltan.join("; ")}. Tómalo como pendiente de corregir.`);
+        // Revisión como la haría el ingeniero: los 15 puntos de la norma sobre lo dibujado (revisorNorma.js).
+        const revisionNorma = revisarContraNorma(textosAgente().map((x) => x.contents ?? x.textString ?? ""),
+          {encimados: textosEncimados(textosAgente()), datos: ctx.datosProyecto?.() ?? {}});
+        ctx.memoria.revisionNorma = revisionNorma;
         // Resumen para el ingeniero (lo que lee en el chat): lo esencial en pocas líneas. El
         // mensaje largo sigue para el modelo de IA y el detalle técnico.
         const m = r.modelo;
@@ -992,6 +1013,7 @@ async function generarLaminas(args, ctx, {e, guardados, invalidos, quitadas}) {
           `• ${s.columnas.length} tipos de columna, ${s.porticos.length} pórticos${Object.values(s.porticosSimilares ?? {}).some((x) => x.length) ? " (los iguales, una vez)" : ""}${(m.planos ?? []).some((t) => /TABIQUER/.test(t)) ? ", tabiquería por nivel" : ""}.`,
           ...(notasColocadas.length ? [`• Especificaciones y resumen de parámetros sísmicos: ${[...new Set(notasColocadas.map((s) => s.lamina))].join(', ')}. Estos parámetros no constituyen un análisis sísmico.`] : []),
           ...(cuadrosColocados.length ? [`• Cuadro de columnas: ${[...new Set(cuadrosColocados.map((s) => s.lamina))].join(', ')}.`] : []),
+          `• Contra la norma (15 puntos de revisión): ${revisionNorma.puntaje} %${revisionNorma.faltan.length ? `; falta: ${revisionNorma.faltan.map((x) => x.falta || x.titulo).join("; ")}` : ""}.`,
         ].join("\n");
         return {
           ok: true,
@@ -1003,6 +1025,7 @@ async function generarLaminas(args, ctx, {e, guardados, invalidos, quitadas}) {
           resumen: resumenCorto,
           laminas: r.laminas.map((l) => l.codigo),
           coherencia,
+          revisionNorma,
           fueraDeLamina: r.fueraDeLamina ?? [],
           avisos: [...extra, ...r.avisos],
           // Sin panel que preguntara: lo que el ingeniero debe confirmar, con la recomendación usada.

@@ -81,7 +81,7 @@ test('agent runs the requested skill, returns a short Spanish reply and strips r
   assert.match(out.reply, /^Dibujé el primer nivel de una casa de 9 x 22 m con 3 dormitorio/);
   assert.equal(steps[0].result.ok, true);
   assert.ok(db.tables.blockTable.modelSpace.newIterator().toArray().length > 100);
-  assert.equal(bodies[0].tools.length, 22);
+  assert.equal(bodies[0].tools.length, 30); // + revisar_norma, ciclo_completo // + puente con Análisis Estructural (3) y aprender del cliente (aprender_correcciones, estado_aprendizaje, olvidar_aprendizaje)
   assert.ok(JSON.stringify(steps[0].result).length < 1200, 'tool results stay compact');
   // La herramienta respondió bien: no se paga una segunda llamada solo para redactar.
   assert.equal(bodies.length, 1);

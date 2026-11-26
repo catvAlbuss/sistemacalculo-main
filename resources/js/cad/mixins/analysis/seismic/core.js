@@ -449,6 +449,8 @@ export const seismicCoreMixin = {
       this.seismicCaseOrder = order;
       this.seismicActiveCase = order[0].id;
       this.seismicResults = byCase[order[0].id];
+      // Revisión del agente (E.030) con los resultados recién calculados: aviso corto.
+      window.setTimeout(() => this._avisarRevisionAgente?.(), 0);
 
       // El análisis sísmico recién corrió → sus resultados (incl. la tabla de
       // Centers of Mass que reubica el marcador D1 del diafragma al CM real)

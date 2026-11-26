@@ -55,3 +55,24 @@ test('an empty viewer or a browser without storage never overwrites the last cop
   assert.equal(await sin.guardar(), false);
   assert.equal(await sin.leer(), null);
 });
+
+test('the copy keeps the XCLIP clips apart and they come back when it is reopened', async () => {
+  const {recortesParaCopia, activarRecortesDeCopia, recorteDeInsercion} = await import('../../resources/js/etabs/visor/recorteXclip.js');
+  const poli = [{x: 0, y: 0}, {x: 8, y: 0}, {x: 8, y: 4}, {x: 0, y: 4}];
+  // Inserción del terreno con su recorte activo (como al abrir el DWG) y la misma tras releer el DXF.
+  const terreno = {objectId: 'D8F3', blockName: 'TERRENO', blockTransform: {}, drawableBlockTableRecord: null};
+  activarRecortesDeCopia([{h: 'D8F3', bloque: 'TERRENO', poli}]);
+  const db = {tables: {blockTable: {newIterator: () => [{newIterator: () => [terreno, {objectId: 'A1'}]}]}}};
+  assert.deepEqual(recortesParaCopia(db), [{h: 'D8F3', bloque: 'TERRENO', poli}]);
+  activarRecortesDeCopia(null);
+  assert.equal(recorteDeInsercion(terreno), null, 'without the saved clips the terrain would be drawn whole');
+  const almacen = almacenMemoria();
+  const r = crearRecuperacion({getDocument: () => ({database: dibujo(), nombre: 'MODULO I.dwg'}), almacen, recortesDe: () => [{h: 'D8F3', bloque: 'TERRENO', poli}]});
+  await r.guardar();
+  const copia = await r.leer();
+  assert.equal(copia.recortes.length, 1);
+  assert.equal(activarRecortesDeCopia(copia.recortes), 1);
+  assert.deepEqual(recorteDeInsercion(terreno)?.poli, poli);
+  assert.equal(recorteDeInsercion({...terreno, blockName: 'OTRO'}), null, 'same handle in another block: no clip');
+  activarRecortesDeCopia(null);
+});

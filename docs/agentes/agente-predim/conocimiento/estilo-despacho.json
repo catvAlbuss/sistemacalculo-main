@@ -176,8 +176,8 @@
       },
       "E-MUROS": {
         "geo": {
-          "capa": "0",
-          "color": 256
+          "capa": ".N1 Muros Altos",
+          "color": 6
         },
         "achurado": {
           "capa": ".N1 muros bajos",

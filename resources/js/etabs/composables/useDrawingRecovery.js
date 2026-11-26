@@ -62,7 +62,9 @@ const firmaDe = (database) => {
 };
 
 // getDocument(): {database, nombre} del documento abierto, o null.
-export function crearRecuperacion({getDocument, almacen = almacenIndexedDb(), ahora = () => new Date()}) {
+// recortesDe(database): recortes XCLIP del dibujo (visor/recorteXclip.js → recortesParaCopia); el DXF
+// de la copia no los conserva al releerse, así que van aparte y se reactivan al reabrirla.
+export function crearRecuperacion({getDocument, almacen = almacenIndexedDb(), ahora = () => new Date(), recortesDe = () => []}) {
   let ultimaFirma = null, guardando = null;
   return {
     disponible: Boolean(almacen),
@@ -77,7 +79,9 @@ export function crearRecuperacion({getDocument, almacen = almacenIndexedDb(), ah
         try {
           const dxf = doc.database.dxfOut(undefined, 6);
           const texto = typeof dxf === "string" ? dxf : new TextDecoder().decode(dxf);
-          await almacen.escribir({nombre: doc.nombre || "plano", guardado: ahora().toISOString(), dxf: texto, entidades: Number(firma.split(":")[0])});
+          let recortes = [];
+          try { recortes = recortesDe(doc.database) ?? []; } catch { recortes = []; }
+          await almacen.escribir({nombre: doc.nombre || "plano", guardado: ahora().toISOString(), dxf: texto, entidades: Number(firma.split(":")[0]), recortes});
           ultimaFirma = firma;
           return true;
         } catch (error) {

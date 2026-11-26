@@ -7,3 +7,6 @@ waitress==2.1.2
 # por el camino de malla conforme al hueco en zapata_shell_solver_
 # combinadas.py. Wheels manylinux2014 + win para py3.9-3.13, no compila.
 triangle==20250106
+# Windows (desarrollo local): openseespywin 3.7 pide librerías de Intel que no trae; la serie 3.5
+# carga sola con Python 3.11. En Linux el marcador la omite (usa openseespylinux).
+openseespywin==3.5.1.12; sys_platform == "win32"

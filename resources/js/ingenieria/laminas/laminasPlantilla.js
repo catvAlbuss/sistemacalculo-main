@@ -23,6 +23,13 @@ import {planoPortico, cumbreraDesdeArquitectura, nivelesDesdeArquitectura, pendi
 import {porticoDesdeBiblioteca} from "../planos/porticoBiblioteca.js";
 import {detalleDesdeBiblioteca} from "./detalleBiblioteca.js";
 import {datosParaLaminas, datosTecnicos, CAMPOS_TECNICOS} from "../criterios/datosProyecto.js";
+import {MODELO_MUROS_CIMENTACION} from "../aprendizaje/modelosAprendidos.js";
+import {predecirModelo} from "../aprendizaje/modelos.js";
+
+// Modelo aprendido de los planos del ingeniero (entrenar-modelos.mjs): qué muros van en la planta de
+// cimentación. Sin modelo publicado (no le ganó a la regla), decide la regla escrita.
+const decidirMuroAprendido = MODELO_MUROS_CIMENTACION
+  ? (rasgos) => predecirModelo(MODELO_MUROS_CIMENTACION.modelo, rasgos) >= MODELO_MUROS_CIMENTACION.umbral : undefined;
 import {CRITERIOS} from "../criterios/criteriosEstructurales.js";
 import {componerPaqueteLaminas} from "./componerPaquete.js";
 import {notasTecnicas} from "./formatoDespacho.js";
@@ -198,7 +205,8 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
   // Con platea solo va la cara exterior del edificio (el ingeniero dibuja el borde) y sin las
   // columnetas interiores; con zapatas, los muros y las vigas de cimentación corridas bajo el muro
   // paralelo (≤ 0.35 m). Medido el 25/11/2026 en 23 módulos: cimentación 62 → 66 % (planoCimentacion).
-  const cim = planoCimentacion({lectura, items, caja, k, titulo: lectura.titulo}, {tipo: cimentacion, ...dp.cimentacion, malla: estructura.mallaCimentacion, muros: estructura.murosEnCimentacion !== false});
+  const cim = planoCimentacion({lectura, items, caja, k, titulo: lectura.titulo}, {tipo: cimentacion, ...dp.cimentacion, malla: estructura.mallaCimentacion, muros: estructura.murosEnCimentacion !== false,
+    reacciones: estructura.reaccionesColumnas ?? null, qadmDelEms: dp.qadmDelEms, decidirMuro: estructura.decidirMuro ?? decidirMuroAprendido});
   const cc = planoCimientoCorrido({lectura, items, caja, k}, {columnetas: lectura.columnetas ?? [], ...(dp.cimentacion.pisos ? {pisos: dp.cimentacion.pisos} : {})});
   const volados = estructura.volados ?? [];
   // Baños en losa maciza solo en losas de entrepiso (con baños encima); en un nivel la losa es techo.
@@ -241,12 +249,12 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
   // El alero es del techo: con varios niveles, la losa de entrepiso termina en la cara de la viga
   // (el pasillo en volado sí sigue: va en `volados`).
   const ali = planoAligerado({lectura: plantaEntrepiso?.lectura ?? lectura, items, k: plantaEntrepiso?.k ?? k, espesorFijo: estructura.espesorLosa ?? null, losaMaciza: estructura.losaMaciza ?? Number(estructura.niveles) >= 2, panosMacizos: estructura.panosMacizos ?? null, volados, alero: nivelesLosa > 1 ? 0 : alero, tipoCimentacion: cim.tipo, ...vigasProyecto, aleroParaleloA});
-  const cuadro = cuadroColumnas(lectura.columnas, {niveles: Math.max(1, Number(estructura.niveles) || 1)}); // en NIVEL, los pisos que cubre
+  const cuadro = cuadroColumnas(lectura.columnas, {niveles: Math.max(1, Number(estructura.niveles) || 1), diseno: estructura.disenoColumnas ?? null}); // en NIVEL, los pisos que cubre
   // Con placas y columnas, el ingeniero hace dos cuadros: "CUADRO DE PLACAS" y "CUADRO DE COLUMNAS"
   // (así en 35 de los 44 cuadros de la biblioteca); el cuadro completo queda para el metrado.
   const placasPlanta = lectura.columnas.filter((c) => c.clase === "placa"), columnasPlanta = lectura.columnas.filter((c) => c.clase !== "placa");
   const cuadrosSeparados = placasPlanta.length && columnasPlanta.length
-    ? [cuadroColumnas(columnasPlanta, {niveles: Math.max(1, Number(estructura.niveles) || 1)}), cuadroColumnas(placasPlanta, {niveles: Math.max(1, Number(estructura.niveles) || 1)})] : null;
+    ? [cuadroColumnas(columnasPlanta, {niveles: Math.max(1, Number(estructura.niveles) || 1), diseno: estructura.disenoColumnas ?? null}), cuadroColumnas(placasPlanta, {niveles: Math.max(1, Number(estructura.niveles) || 1), diseno: estructura.disenoColumnas ?? null})] : null;
   const nNiveles = Math.max(1, Number(estructura.niveles) || 1);
   const {entrepisos, techo: altura, fuente: fuenteNiveles} = nivelesDesdeArquitectura(items, nNiveles, estructura.textosOcultos ?? (() => []));
   const altura0 = altura;
@@ -429,7 +437,8 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
       return d ?? (m ? {x0: m.x0, y0: m.y0, x1: m.x1, y1: m.y1} : null);
     };
     const tipoExtra = (c) => (/TABIQUER/i.test(c.titulo) ? "tabiqueria" : /ESCALERA/i.test(c.titulo) ? "escalera" : /LOSA|ALIGERAD/i.test(c.titulo) ? "losaTecho" : "otro");
-    const notas = notasTecnicas({sismo: dp.sismo, df: cim.df, hz: cim.peralte, altura: Math.max(altura, ...porticos.map((p) => p.cumbrera ?? 0)), losaTecho: !sinLosa, cimentacion: cim.tipo, conCimiento: Boolean(cc.tramos), conAlbanileria: Boolean(cc.tramos || (lectura.columnetas ?? []).length)});
+    const notas = notasTecnicas({sismo: dp.sismo, df: cim.df, hz: cim.peralte, altura: Math.max(altura, ...porticos.map((p) => p.cumbrera ?? 0)), losaTecho: !sinLosa, cimentacion: cim.tipo, conCimiento: Boolean(cc.tramos), conAlbanileria: Boolean(cc.tramos || (lectura.columnetas ?? []).length),
+      qadm: dp.cimentacion.qadm ?? null, resultados: estructura.resultadosSismicos ?? null});
     const estandar = detallesEstandar(estructura.detallesEstandar ?? [], {espesor: ali.espesor}, {conLosa: !sinLosa, conCanaleta: Boolean(cumbrera) || items.some((it) => it.tipo === "texto" && /canaleta/i.test(it.texto ?? ""))});
     const estandarDe = (clave) => estandar.some((d) => d.clave === clave);
     const lista = [
@@ -645,6 +654,9 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
     // Detalles (cortes de cimiento, escalera, cuadros) en coordenadas locales: metros (cortes y
     // escalera) o unidades de lámina (cuadros); con biblioteca, la pieza usada y el dibujo del generador.
     detallesLocales,
+    // Muros candidatos de la cimentación (rasgos, regla y si se dibujaron): para aprender de las
+    // correcciones del ingeniero (aprender_correcciones).
+    candidatosMuro: cim.candidatosMuro ?? [],
     porticosLocales: porticos.map((p) => ({eje: p.modelo?.eje, titulo: p.contenido?.titulo, primitivas: p.contenido?.primitivas ?? [], geometria: p.geometria ?? null, ...(p.biblioteca ? {biblioteca: p.biblioteca, generador: p.generador?.primitivas ?? []} : {})})),
     // Modelo estructural de lo dibujado: de aquí sale el metrado (metrado/metrado.js).
     modelo: {
@@ -654,7 +666,7 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
       cimentacion: {tipo: cim.tipo, hz: cim.peralte, df: cim.df, fuentes: {hz: fuenteDe("hz"), df: fuenteDe("df")}, ...cim.modelo},
       cimientoCorrido: {ancho: cc.ancho, ...cc.modelo},
       columnas: lectura.columnas.map((c) => ({tipo: c.tipo, eje: c.eje, b: c.b, h: c.h, area: c.area, forma: c.forma, clase: c.clase, perimetro: perimetroDe(c.contorno)})),
-      refuerzoColumnas: cuadro.filas.map((f) => ({tipo: f.tipo, refuerzo: f.refuerzo})),
+      refuerzoColumnas: cuadro.filas.map((f) => ({tipo: f.tipo, refuerzo: f.refuerzo, ...(f.verificado ? {verificado: f.verificado} : {})})),
       // Columnetas con el eje y el alto real del pórtico donde se dibujaron (bajo el techo
       // inclinado); las que no caen en un pórtico quedan sin alto (el metrado usa el del muro).
       columnetas: (lectura.columnetas ?? []).map((c) => {

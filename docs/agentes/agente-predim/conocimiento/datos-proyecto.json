@@ -16,6 +16,13 @@
       "max": 6
     },
     {
+      "campo": "qadm",
+      "etiqueta": "qadm: capacidad admisible del suelo (kg/cm²)",
+      "ejemplo": "1.50",
+      "min": 0.3,
+      "max": 10
+    },
+    {
       "campo": "zona",
       "etiqueta": "Zona sísmica (E.030)",
       "opciones": [
@@ -84,6 +91,20 @@
       "min": 1,
       "max": 10,
       "entero": true
+    },
+    {
+      "campo": "normaE030",
+      "etiqueta": "Norma E.030 que rige",
+      "opciones": [
+        [
+          "2026",
+          "E.030-2026 (proyecto nuevo)"
+        ],
+        [
+          "2018",
+          "E.030-2018 (licencia o expediente previo)"
+        ]
+      ]
     }
   ],
   "e030": {

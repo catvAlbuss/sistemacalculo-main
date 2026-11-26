@@ -15,9 +15,9 @@ use Illuminate\Support\Facades\Log;
  * subproceso corto por request via proc_open(), lo que si esta permitido en
  * hosting compartido (a diferencia de un daemon HTTP persistente).
  *
- * En Windows (desarrollo local) se sigue usando el backend Flask/exe que ya
- * corre en PYTHON_BACKEND_URL (por defecto http://127.0.0.1:5001), igual que
- * antes.
+ * En Windows (desarrollo local), si existe python-backend/venv (python -m venv venv +
+ * pip install -r requirements.txt), se usa el mismo subproceso que en producción; si no,
+ * el backend Flask/exe que corre en PYTHON_BACKEND_URL (por defecto http://127.0.0.1:5001).
  */
 class PythonEngineController extends Controller
 {
@@ -46,7 +46,10 @@ class PythonEngineController extends Controller
      */
     public static function run(string $mode, array $payload): array
     {
-        if (PHP_OS_FAMILY === 'Windows') {
+        // En Windows (desarrollo local) se usa el MISMO camino que producción si existe el venv
+        // del motor (python-backend/venv, ver requirements.txt): un subproceso por análisis, sin
+        // ventana ni puerto que mantener abiertos. Sin venv, el backend Flask/exe de siempre.
+        if (PHP_OS_FAMILY === 'Windows' && !is_file(self::pythonDelVenv(self::engineHome()))) {
             return self::runViaHttp($mode, $payload);
         }
 
@@ -84,8 +87,8 @@ class PythonEngineController extends Controller
         // autodeploy), así que por defecto el motor vive ahí mismo. El venv NO se
         // versiona (ver .gitignore); lo crea el "Build command" de Hostinger en cada
         // deploy (ver ETABS2_BACKEND_RELEASE/docs/README_DEPLOY_HOSTINGER.md).
-        $engineHome = rtrim(config('services.python_backend.engine_home') ?: base_path('python-backend'), '/');
-        $python = "{$engineHome}/venv/bin/python3";
+        $engineHome = self::engineHome();
+        $python = self::pythonDelVenv($engineHome);
         $cliEntry = "{$engineHome}/cli_entry.py";
 
         if (!is_file($python) || !is_file($cliEntry)) {
@@ -131,6 +134,17 @@ class PythonEngineController extends Controller
         }
 
         return [200, trim((string) $stdout)];
+    }
+
+    private static function engineHome(): string
+    {
+        return rtrim(config('services.python_backend.engine_home') ?: base_path('python-backend'), '/\\');
+    }
+
+    /** Python del venv del motor: venv/bin/python3 en Linux, venv/Scripts/python.exe en Windows. */
+    private static function pythonDelVenv(string $engineHome): string
+    {
+        return PHP_OS_FAMILY === 'Windows' ? "{$engineHome}/venv/Scripts/python.exe" : "{$engineHome}/venv/bin/python3";
     }
 
     /**

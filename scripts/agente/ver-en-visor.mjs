@@ -87,6 +87,8 @@ try {
         return r.result.value;
       };
       const inicioCarga = Date.now();
+      // VISOR_RECORTES=<json>: recortes XCLIP de una copia de recuperación (se reactivan antes de abrir).
+      if (process.env.VISOR_RECORTES) await evaluar(`window.__novacadPrueba.recortesDeCopia(${readFileSync(process.env.VISOR_RECORTES, 'utf8')})`);
       await evaluar(`window.__abierto = null; window.__novacadPrueba.abrir(location.origin + '${plano}').then((r) => { window.__abierto = String(r); }, (e) => { window.__abierto = 'error: ' + e; }), true`);
       // Esperar a que el dibujo termine de cargarse (el número de entidades se estabiliza).
       let previo = -1;
@@ -135,6 +137,13 @@ try {
         if (process.env.AGENTE_METRAR) {
           const m = await correr('metrar_estructura', {excel: true});
           console.log('metrar_estructura:', m.ok === false ? m.error : m.mensaje);
+        }
+        // AGENTE_ANALISIS=1: después de las láminas, el modelo de análisis (.e2k) que el agente deja para
+        // Análisis Estructural (se verifica que quede guardado en el navegador).
+        if (process.env.AGENTE_ANALISIS) {
+          const a = await correr('modelo_analisis', {});
+          console.log('modelo_analisis:', a.ok === false ? a.error : a.mensaje);
+          console.log('guardado para Análisis Estructural:', await evaluar('(() => { const v = JSON.parse(localStorage.getItem("novacad:modelo-analisis") || "null"); return v ? `${v.nombre} (${v.texto.length} caracteres, ${v.texto.split("\\n").length} líneas)` : "NADA"; })()'));
         }
         if (process.env.AGENTE_REVISAR) {
           for (const corregir of [false, true]) console.log(`revisar_laminas${corregir ? ' (corregir)' : ''}:

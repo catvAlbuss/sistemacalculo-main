@@ -120,6 +120,8 @@ import { animationMixin } from "./mixins/analysis/animation.js";
 import { seismicMixin } from "./mixins/analysis/seismic.js";
 import { foundationMixin } from "./mixins/analysis/foundation.js";
 import { reactionsDisplayMixin } from "./mixins/analysis/seismic/reactions-display.js";
+import { revisionAgenteMixin } from "./mixins/analysis/revisionAgente.js";
+import { agenteCadMixin } from "./mixins/analysis/agenteCad.js";
 import { autosaveMixin } from "./mixins/io/autosave.js";
 
 export default () => ({
@@ -128,6 +130,15 @@ export default () => ({
   // ------------------------------------------------------------------
   init() {
     this.initAutosave?.();
+    // Modelo que manda el agente NovaCad desde la arquitectura (?desde=agente). Espera a que el
+    // lienzo y los menús estén montados.
+    window.setTimeout(() => {
+      try {
+        const abierto = this.importarModeloDelAgente?.();
+        // Ciclo fusionado con NovaCad (?auto=1): analiza, revisa, diseña y devuelve el diseño solo.
+        if (abierto && /[?&]auto=1\b/.test(window.location.search)) this.cicloAutomaticoAgente?.();
+      } catch (error) { console.error("❌ Modelo del agente:", error); }
+    }, 600);
   },
 
   // Contador reactivo para refrescar la barra de estado de selección (estilo
@@ -1004,5 +1015,7 @@ export default () => ({
   ...seismicMixin,
   ...foundationMixin,
   ...reactionsDisplayMixin,
+  ...revisionAgenteMixin,
+  ...agenteCadMixin,
   ...autosaveMixin,
 });
