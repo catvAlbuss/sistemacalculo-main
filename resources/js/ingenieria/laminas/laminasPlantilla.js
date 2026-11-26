@@ -23,6 +23,13 @@ import {planoPortico, cumbreraDesdeArquitectura, nivelesDesdeArquitectura, pendi
 import {porticoDesdeBiblioteca} from "../planos/porticoBiblioteca.js";
 import {detalleDesdeBiblioteca} from "./detalleBiblioteca.js";
 import {datosParaLaminas, datosTecnicos, CAMPOS_TECNICOS} from "../criterios/datosProyecto.js";
+import {MODELO_MUROS_CIMENTACION} from "../aprendizaje/modelosAprendidos.js";
+import {predecirModelo} from "../aprendizaje/modelos.js";
+
+// Modelo aprendido de los planos del ingeniero (entrenar-modelos.mjs): qué muros van en la planta de
+// cimentación. Sin modelo publicado (no le ganó a la regla), decide la regla escrita.
+const decidirMuroAprendido = MODELO_MUROS_CIMENTACION
+  ? (rasgos) => predecirModelo(MODELO_MUROS_CIMENTACION.modelo, rasgos) >= MODELO_MUROS_CIMENTACION.umbral : undefined;
 import {CRITERIOS} from "../criterios/criteriosEstructurales.js";
 import {componerPaqueteLaminas} from "./componerPaquete.js";
 import {notasTecnicas} from "./formatoDespacho.js";
@@ -199,7 +206,7 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
   // columnetas interiores; con zapatas, los muros y las vigas de cimentación corridas bajo el muro
   // paralelo (≤ 0.35 m). Medido el 25/11/2026 en 23 módulos: cimentación 62 → 66 % (planoCimentacion).
   const cim = planoCimentacion({lectura, items, caja, k, titulo: lectura.titulo}, {tipo: cimentacion, ...dp.cimentacion, malla: estructura.mallaCimentacion, muros: estructura.murosEnCimentacion !== false,
-    reacciones: estructura.reaccionesColumnas ?? null, qadmDelEms: dp.qadmDelEms});
+    reacciones: estructura.reaccionesColumnas ?? null, qadmDelEms: dp.qadmDelEms, decidirMuro: estructura.decidirMuro ?? decidirMuroAprendido});
   const cc = planoCimientoCorrido({lectura, items, caja, k}, {columnetas: lectura.columnetas ?? [], ...(dp.cimentacion.pisos ? {pisos: dp.cimentacion.pisos} : {})});
   const volados = estructura.volados ?? [];
   // Baños en losa maciza solo en losas de entrepiso (con baños encima); en un nivel la losa es techo.

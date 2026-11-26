@@ -383,6 +383,10 @@ export function planoCimentacion({lectura, items, caja, k = 1, titulo = ""}, opc
   // Muros del primer nivel sobre la cimentación y columnetas con aspa, como el ingeniero los dibuja
   // en su planta de cimentación (o.muros === false los quita).
   if (o.muros !== false) {
+    // Candidatos con sus rasgos: decide el modelo aprendido (o.decidirMuro) o la regla de siempre.
+    const candidatos = candidatosMuro({lectura, items, k, tipo, niveles: o.pisos ?? 1});
+    if (globalThis.__capturaMurosCimentacion) globalThis.__capturaMurosCimentacion.push({lectura, tipo, candidatos: candidatos.map(({a, b, rasgos, regla}) => ({a, b, rasgos, regla}))});
+    const decision = new Map(candidatos.map((c) => [`${c.a.x},${c.a.y},${c.b.x},${c.b.y}`, o.todosLosMuros === true || (o.decidirMuro ? o.decidirMuro(c.rasgos, c.regla) : c.regla)]));
     const {geometria, huella: borde} = murosDelEdificio({columnas, items, k});
     // Solo los muros que llevan cimiento: los del perímetro y los que van sobre un eje estructural.
     // Los tabiques interiores fuera de los ejes (cubículos de SS.HH., divisiones) se apoyan en el
@@ -398,7 +402,7 @@ export function planoCimentacion({lectura, items, caja, k = 1, titulo = ""}, opc
     // interiores (VINCHOS 1, 2, 4, 5, 6: las dibujadas por el agente quedaban sin contraparte). Con
     // zapatas los muros siguen: el ingeniero dibuja bajo ellos la viga o el cimiento (VINCHOS 12, 13, ilo).
     const enBorde = (a, b) => borde.length >= 3 && distanciaAlBorde({x: (a.x + b.x) / 2, y: (a.y + b.y) / 2}, borde) < 0.08;
-    const dibujar = tipo === "platea" && o.todosLosMuros !== true ? enBorde : (a, b) => o.todosLosMuros === true || llevaCimiento(a, b);
+    const dibujar = (a, b) => decision.get(`${a.x},${a.y},${b.x},${b.y}`) ?? (tipo === "platea" && o.todosLosMuros !== true ? enBorde(a, b) : o.todosLosMuros === true || llevaCimiento(a, b));
     for (const g of geometria) {
       const segs = g.pts.slice(1).map((q, i) => [g.pts[i], q]);
       if (g.cerrada && g.pts.length > 2) segs.push([g.pts.at(-1), g.pts[0]]);
@@ -645,6 +649,49 @@ export function planoTabiqueria({lectura, items, k = 1}, {titulo = "PLANO DE TAB
     columnetas: tabla, columnetasCodificadas: columnetas, muros: geometria.length,
     contenido: {titulo, primitivas: [...base.primitivas, ...prim], marco: base.marco, ejes: base.ejes, h, notas: []},
   };
+}
+
+// Rasgos de cada tramo de muro (cara) para decidir si el ingeniero lo dibuja en la planta de
+// cimentación. Los usa la regla de abajo y el modelo aprendido (aprendizaje/modelos.js, entrenado
+// con scripts/agente/dataset-muros.mjs + entrenar-modelos.mjs). Todo en metros.
+export const RASGOS_MURO = ["largo", "dBorde", "dEje", "inclinacion", "dColumna", "dExtremoColumna", "dColumneta", "posRelativa", "paralelos", "platea", "niveles", "area"];
+
+export function candidatosMuro({lectura, items, k = 1, tipo = "platea", niveles = 1}) {
+  const columnas = lectura.columnas ?? [];
+  const {geometria, huella: borde} = murosDelEdificio({columnas, items, k});
+  const ejes = (lectura.ejes ?? []).map((e) => { const v = sub(e.q, e.p), l = len(v) || 1; return {p: e.p, u: {x: v.x / l, y: v.y / l}}; });
+  const alEje = (m) => Math.min(Infinity, ...ejes.map((e) => Math.abs(dot(sub(m, e.p), {x: -e.u.y, y: e.u.x}))));
+  const xs = borde.map((q) => q.x), ys = borde.map((q) => q.y);
+  const semiAncho = borde.length >= 3 ? Math.max(0.5, Math.min(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)) / 2) : 1;
+  const area = borde.length >= 3 ? Math.abs(borde.reduce((t, a, i) => { const b = borde[(i + 1) % borde.length]; return t + a.x * b.y - b.x * a.y; }, 0)) / 2 : 0;
+  const centros = columnas.map((c) => ({x: c.x, y: c.y}));
+  const columnetas = (lectura.columnetas ?? []).filter((c) => c.contorno?.length >= 3).map((c) => c.contorno.reduce((q, p) => ({x: q.x + p.x / c.contorno.length, y: q.y + p.y / c.contorno.length}), {x: 0, y: 0}));
+  const segs = [];
+  for (const g of geometria) {
+    const lista = g.pts.slice(1).map((q, i) => [g.pts[i], q]);
+    if (g.cerrada && g.pts.length > 2) lista.push([g.pts.at(-1), g.pts[0]]);
+    for (const [a, b] of lista) if (len(sub(b, a)) >= 0.05) segs.push({a, b, g});
+  }
+  const dirs = segs.map(({a, b}) => { const v = sub(b, a), l = len(v) || 1; return {x: v.x / l, y: v.y / l}; });
+  const enBordeRegla = (m) => borde.length >= 3 && distanciaAlBorde(m, borde) < 0.08;
+  const llevaCimientoRegla = (m) => (borde.length >= 3 && distanciaAlBorde(m, borde) < 0.5) || alEje(m) < 0.35;
+  return segs.map(({a, b, g}, i) => {
+    const m = {x: (a.x + b.x) / 2, y: (a.y + b.y) / 2}, d = dirs[i];
+    const inclinacion = ejes.length ? Math.min(...ejes.map((e) => Math.abs(e.u.x * d.y - e.u.y * d.x))) : 0;
+    const dCol = (q) => (centros.length ? Math.min(...centros.map((c) => len(sub(q, c)))) : 10);
+    const paralelos = segs.filter((o, j) => j !== i && Math.abs(dot(dirs[j], d)) > 0.99 && Math.abs(dot(sub(o.a, a), {x: -d.y, y: d.x})) <= 0.3
+      && Math.max(dot(sub(o.a, a), d), dot(sub(o.b, a), d)) > 0 && Math.min(dot(sub(o.a, a), d), dot(sub(o.b, a), d)) < len(sub(b, a))).length;
+    const dBorde = borde.length >= 3 ? distanciaAlBorde(m, borde) : 0;
+    const rasgos = {
+      largo: len(sub(b, a)), dBorde, dEje: Math.min(5, alEje(m)), inclinacion,
+      dColumna: Math.min(10, dCol(m)), dExtremoColumna: Math.min(10, Math.min(dCol(a), dCol(b))),
+      dColumneta: columnetas.length ? Math.min(10, ...columnetas.map((c) => distSeg(c, a, b))) : 10,
+      posRelativa: Math.min(1, dBorde / semiAncho), paralelos: Math.min(4, paralelos),
+      platea: tipo === "platea" ? 1 : 0, niveles: Number(niveles) || 1, area,
+    };
+    const regla = tipo === "platea" ? enBordeRegla(m) : llevaCimientoRegla(m);
+    return {a, b, geometria: g, rasgos, regla};
+  });
 }
 
 // Muros del edificio leídos de la arquitectura: la geometría de muros dentro de la
