@@ -1,7 +1,7 @@
 // mixins/analysis/revisionAgente.js — "Revisión del agente (E.030)": reúne el modelo, los resultados del
 // análisis sísmico y del diseño y los pasa al motor de verificaciones (engine/revisionE030.js). La vista
 // es modals/revision-agente-modal.blade.php (evento open-revision-agente-modal).
-import {revisarModelo, revisarResultados, revisarIrregularidades, revisarDiseno, resumirRevision, rDelEspectro, mensajesExplicacion} from "../../engine/revisionE030.js";
+import {revisarModelo, revisarResultados, revisarIrregularidades, revisarGeometria, revisarDiseno, resumirRevision, rDelEspectro, mensajesExplicacion} from "../../engine/revisionE030.js";
 import {nodeHasRestraints} from "../../model/nodeSupports.js";
 import {DISENO_DEL_AGENTE, buscarArmado, paqueteParaAgente, ratioDe, totalDePatron, tipoDeSeccion} from "../../engine/disenoAgente.js";
 import {armadosMayores} from "../../../ingenieria/diseno/patronColumna.js";
@@ -51,6 +51,16 @@ export const revisionAgenteMixin = {
     return {direcciones, R};
   },
 
+  // Desplazamiento inelástico máximo (m) de los nudos en X o Y: elástico × 0.75·R.
+  _desplazamientoInelasticoMaximo(direcciones, factor) {
+    let max = 0;
+    for (const [dir, d] of Object.entries(direcciones || {})) {
+      const desp = d?.resultado?.seismic?.[dir.toLowerCase()]?.displacements ?? {};
+      for (const u of Object.values(desp)) max = Math.max(max, Math.abs(Number(u?.[`d${dir.toLowerCase()}`]) || 0));
+    }
+    return max ? max * factor : null;
+  },
+
   // Corre la revisión. opciones: {R, regularidad: "auto"|"regular"|"irregular", material}.
   calcularRevisionAgente(opciones = {}) {
     const modelo = revisarModelo(this._datosRevisionModelo());
@@ -63,6 +73,10 @@ export const revisionAgenteMixin = {
     if (hayResultados) {
       // Irregularidades con el factor de deriva regular (0.75·R) para decidir si aplican.
       irregularidad = revisarIrregularidades({direcciones, nodos: this.seismicLastPayload?.nodes || [], factorDeriva: 0.75 * (R ?? 8), limiteDeriva: LIMITES[material] ?? 0.007});
+      // Por la forma (Tablas 8 y 9) con la geometría del análisis; el retiro con el desplazamiento inelástico.
+      const geometria = revisarGeometria({nodos: this.seismicLastPayload?.nodes || [], elementos: this.seismicLastPayload?.elements || [], desplazamientoMaximo: this._desplazamientoInelasticoMaximo(direcciones, 0.75 * (R ?? 8))});
+      irregularidad = {...irregularidad, verificaciones: [...irregularidad.verificaciones, ...geometria.verificaciones], Ia: Math.min(irregularidad.Ia, geometria.Ia), Ip: Math.min(irregularidad.Ip, geometria.Ip)};
+      irregularidad.irregular = irregularidad.Ia < 1 || irregularidad.Ip < 1;
       const regularidad = opciones.regularidad || "auto";
       const regular = regularidad === "auto" ? !irregularidad.irregular : regularidad === "regular";
       sismo = revisarResultados({direcciones, R, regular, material});

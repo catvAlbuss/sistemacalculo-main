@@ -235,9 +235,139 @@ export function revisarIrregularidades({direcciones = {}, nodos = [], factorDeri
     estado: peorMasa ? "no_cumple" : "cumple",
     detalle: peorMasa ? `${peorMasa.piso}: ${r(peorMasa.rel, 2)} veces la masa de un piso vecino (Ia = 0.90).` : "Sin pisos con masa mayor a 1.5 veces la de sus vecinos (azotea excluida).",
     accion: peorMasa ? "Revisa las cargas de ese piso o usa Ia = 0.90 en R." : null}));
-  v.push(item({grupo: "Irregularidad", titulo: "Geométrica vertical, discontinuidad, esquinas entrantes, diafragma", estado: "sin_datos", norma: "E.030 Tablas 8 y 9", detalle: "Necesitan la forma del edificio en planta y elevación: verifícalas a mano."}));
   return {verificaciones: v, Ia, Ip, irregular: Ia < 1 || Ip < 1};
 }
+
+// ---------------- Irregularidades por la forma (E.030 Tablas 8 y 9) ----------------
+// Con la geometría del modelo (nudos x, y, z y elementos nudo i → nudo j del payload del motor):
+// geométrica vertical, discontinuidad de los sistemas resistentes, esquinas entrantes, discontinuidad
+// del diafragma y sistemas no paralelos; y el retiro por junta sísmica con el desplazamiento del
+// análisis. La irregularidad de resistencia (piso débil) necesita la resistencia de cada piso: queda
+// para el ingeniero. Tolerancia de 5 cm al agrupar coordenadas.
+const TOL = 0.05;
+const agrupar = (valores) => {
+  const out = [];
+  for (const v of [...valores].sort((a, b) => a - b)) if (!out.length || v - out.at(-1) > TOL) out.push(v);
+  return out;
+};
+const indice = (lista, v) => lista.findIndex((x) => Math.abs(x - v) <= TOL);
+
+// Planta de un piso como grilla de paños: un paño cuenta si sus cuatro esquinas tienen nudo.
+function plantaDelPiso(nudos) {
+  const xs = agrupar(nudos.map((n) => n.x)), ys = agrupar(nudos.map((n) => n.y));
+  const hay = new Set(nudos.map((n) => `${indice(xs, n.x)},${indice(ys, n.y)}`));
+  const celdas = [];
+  for (let i = 0; i + 1 < xs.length; i++) for (let j = 0; j + 1 < ys.length; j++) {
+    celdas.push({i, j, llena: [[i, j], [i + 1, j], [i, j + 1], [i + 1, j + 1]].every(([a, b]) => hay.has(`${a},${b}`)), area: (xs[i + 1] - xs[i]) * (ys[j + 1] - ys[j])});
+  }
+  return {xs, ys, celdas, lx: xs.at(-1) - xs[0], ly: ys.at(-1) - ys[0]};
+}
+
+// Vacíos de la planta conectados con el borde (entrantes) o encerrados (huecos del diafragma).
+function vaciosDePlanta(p) {
+  const nx = p.xs.length - 1, ny = p.ys.length - 1;
+  const celda = (i, j) => p.celdas[i * ny + j];
+  const visto = new Set(), grupos = [];
+  for (const c of p.celdas) {
+    if (c.llena || visto.has(`${c.i},${c.j}`)) continue;
+    const pila = [c], g = [];
+    visto.add(`${c.i},${c.j}`);
+    while (pila.length) {
+      const q = pila.pop(); g.push(q);
+      for (const [a, b] of [[q.i + 1, q.j], [q.i - 1, q.j], [q.i, q.j + 1], [q.i, q.j - 1]]) {
+        if (a < 0 || b < 0 || a >= nx || b >= ny || visto.has(`${a},${b}`) || celda(a, b).llena) continue;
+        visto.add(`${a},${b}`); pila.push(celda(a, b));
+      }
+    }
+    const borde = g.some((q) => q.i === 0 || q.j === 0 || q.i === nx - 1 || q.j === ny - 1);
+    const i0 = Math.min(...g.map((q) => q.i)), i1 = Math.max(...g.map((q) => q.i)), j0 = Math.min(...g.map((q) => q.j)), j1 = Math.max(...g.map((q) => q.j));
+    grupos.push({borde, area: g.reduce((s, q) => s + q.area, 0), dx: p.xs[i1 + 1] - p.xs[i0], dy: p.ys[j1 + 1] - p.ys[j0]});
+  }
+  return grupos;
+}
+
+export function revisarGeometria({nodos = [], elementos = [], desplazamientoMaximo = null, altura = null} = {}) {
+  const v = [];
+  let Ia = 1, Ip = 1;
+  const N = new Map(nodos.map((n) => [String(n.id), {x: Number(n.x), y: Number(n.y), z: Number(n.z)}]));
+  const niveles = agrupar(nodos.map((n) => Number(n.z))).filter((z) => z > TOL);
+  if (!niveles.length || !elementos.length) {
+    v.push(item({grupo: "Irregularidad", titulo: "Forma en planta y elevación", estado: "sin_datos", norma: "E.030 Tablas 8 y 9", detalle: "Sin la geometría del análisis: corre el análisis sísmico."}));
+    return {verificaciones: v, Ia, Ip};
+  }
+  const delNivel = (z) => nodos.filter((n) => Math.abs(Number(n.z) - z) <= TOL).map((n) => ({x: Number(n.x), y: Number(n.y)}));
+  const plantas = niveles.map((z) => ({z, ...plantaDelPiso(delNivel(z))}));
+  const verticales = elementos.map((e) => [N.get(String(e.node_i)), N.get(String(e.node_j))]).filter(([a, b]) => a && b && Math.abs(a.z - b.z) > TOL && Math.hypot(a.x - b.x, a.y - b.y) <= TOL).map(([a, b]) => (a.z < b.z ? [a, b] : [b, a]));
+  const horizontales = elementos.map((e) => [N.get(String(e.node_i)), N.get(String(e.node_j))]).filter(([a, b]) => a && b && Math.abs(a.z - b.z) <= TOL && Math.hypot(a.x - b.x, a.y - b.y) > TOL);
+
+  // Geométrica vertical (Tabla 8): la planta de un piso es > 1.3 veces la de un piso vecino (sin azotea).
+  const geo = [];
+  plantas.forEach((p, i) => {
+    if (i === plantas.length - 1) return; // azotea
+    for (const q of [plantas[i - 1], plantas[i + 1]].filter(Boolean)) {
+      if (q === plantas.at(-1) && q !== plantas[i - 1]) continue;
+      for (const [d, a, b] of [["X", p.lx, q.lx], ["Y", p.ly, q.ly]]) if (b > 0 && a > 1.3 * b) geo.push({piso: i + 1, d, rel: a / b});
+    }
+  });
+  if (geo.length) Ia = Math.min(Ia, 0.9);
+  const g0 = geo.sort((a, b) => b.rel - a.rel)[0];
+  v.push(item({grupo: "Irregularidad", titulo: "Geométrica vertical", valor: g0 ? r(g0.rel, 2) : "—", limite: "≤ 1.3 × piso vecino", norma: "E.030 Tabla 8", estado: g0 ? "no_cumple" : "cumple",
+    detalle: g0 ? `Piso ${g0.piso}: su planta en ${g0.d} mide ${r(g0.rel, 2)} veces la de un piso vecino (Ia = 0.90).` : "Ninguna planta pasa de 1.3 veces la de un piso vecino (azotea excluida).",
+    accion: g0 ? "Usa Ia = 0.90 en R o uniformiza las plantas." : null}));
+
+  // Discontinuidad de los sistemas resistentes (Tabla 8): elementos verticales que no siguen hacia abajo.
+  const base = Math.min(...nodos.map((n) => Number(n.z)));
+  const sinApoyo = verticales.filter(([a]) => a.z > base + TOL && !verticales.some(([c, d]) => Math.abs(d.z - a.z) <= TOL && Math.hypot(d.x - a.x, d.y - a.y) <= 0.25));
+  if (sinApoyo.length) Ia = Math.min(Ia, 0.8);
+  v.push(item({grupo: "Irregularidad", titulo: "Discontinuidad de los sistemas resistentes", valor: sinApoyo.length, limite: "0 columnas sin continuidad", norma: "E.030 Tabla 8", estado: sinApoyo.length ? "no_cumple" : "cumple",
+    detalle: sinApoyo.length ? `${sinApoyo.length} elemento(s) vertical(es) nacen sobre una viga o losa (sin columna debajo a ≤ 25 cm), p. ej. en (${r(sinApoyo[0][0].x, 2)}, ${r(sinApoyo[0][0].y, 2)}) a z = ${r(sinApoyo[0][0].z, 2)} m (Ia = 0.80).` : "Todas las columnas y placas continúan hasta la base.",
+    accion: sinApoyo.length ? "Haz que esas columnas bajen hasta la cimentación, o usa Ia = 0.80 (verifica el desalineamiento > 25 % de la dimensión del elemento)." : null}));
+
+  // Esquinas entrantes y discontinuidad del diafragma (Tabla 9).
+  const ent = [], dia = [];
+  plantas.forEach((p, i) => {
+    const area = p.celdas.reduce((s, c) => s + c.area, 0);
+    for (const g of vaciosDePlanta(p)) {
+      if (g.borde && g.dx > 0.2 * p.lx && g.dy > 0.2 * p.ly) ent.push({piso: i + 1, fx: g.dx / p.lx, fy: g.dy / p.ly});
+      if (!g.borde) dia.push({piso: i + 1, rel: g.area / area});
+    }
+  });
+  const e0 = ent.sort((a, b) => b.fx * b.fy - a.fx * a.fy)[0];
+  if (e0) Ip = Math.min(Ip, 0.9);
+  v.push(item({grupo: "Irregularidad", titulo: "Esquinas entrantes", valor: e0 ? `${r(e0.fx * 100, 0)} % × ${r(e0.fy * 100, 0)} %` : "—", limite: "≤ 20 % de la planta en X e Y", norma: "E.030 Tabla 9", estado: e0 ? "no_cumple" : "cumple",
+    detalle: e0 ? `Piso ${e0.piso}: un entrante mide ${r(e0.fx * 100, 0)} % del largo en X y ${r(e0.fy * 100, 0)} % en Y (Ip = 0.90).` : "Sin entrantes mayores al 20 % de la planta en las dos direcciones.",
+    accion: e0 ? "Usa Ip = 0.90 en R o separa el edificio con una junta en bloques regulares." : null}));
+  const d0 = dia.filter((x) => x.rel > 0.5).sort((a, b) => b.rel - a.rel)[0];
+  if (d0) Ip = Math.min(Ip, 0.85);
+  const dMax = dia.sort((a, b) => b.rel - a.rel)[0];
+  v.push(item({grupo: "Irregularidad", titulo: "Discontinuidad del diafragma", valor: dMax ? `${r(dMax.rel * 100, 0)} %` : "0 %", limite: "huecos ≤ 50 % del área", norma: "E.030 Tabla 9", estado: d0 ? "no_cumple" : "cumple",
+    detalle: d0 ? `Piso ${d0.piso}: los huecos del diafragma suman ${r(d0.rel * 100, 0)} % del área (Ip = 0.85).` : dMax ? `Huecos interiores de hasta ${r(dMax.rel * 100, 0)} % del área: no llegan al 50 %.` : "Sin huecos interiores en el diafragma.",
+    accion: d0 ? "Usa Ip = 0.85 en R o reduce las aberturas del diafragma." : null}));
+
+  // Sistemas no paralelos (Tabla 9): vigas a ≥ 30° de las dos direcciones principales.
+  const largo = (a, b) => Math.hypot(b.x - a.x, b.y - a.y);
+  const ang = ([a, b]) => ((Math.atan2(b.y - a.y, b.x - a.x) * 180) / Math.PI + 180) % 90;
+  const total = horizontales.reduce((s, h) => s + largo(...h), 0);
+  const oblicuas = horizontales.filter((h) => { const t = ang(h); return Math.min(t, 90 - t) >= 30; }).reduce((s, h) => s + largo(...h), 0);
+  const fr = total ? oblicuas / total : 0;
+  if (fr > 0.1) Ip = Math.min(Ip, 0.9);
+  v.push(item({grupo: "Irregularidad", titulo: "Sistemas no paralelos", valor: `${r(fr * 100, 0)} %`, limite: "≤ 10 % de vigas a ≥ 30°", norma: "E.030 Tabla 9", estado: fr > 0.1 ? "no_cumple" : "cumple",
+    detalle: fr > 0.1 ? `${r(fr * 100, 0)} % de la longitud de vigas va a 30° o más de los ejes principales (Ip = 0.90).` : "Los pórticos son paralelos a las direcciones principales.",
+    accion: fr > 0.1 ? "Usa Ip = 0.90 en R; el diseño debe considerar las fuerzas en esas direcciones." : null}));
+
+  // Junta sísmica: retiro del límite ≥ 2/3 del desplazamiento máximo y ≥ s/2, s = 0.006 h ≥ 3 cm.
+  const h = Number(altura) || Math.max(...niveles) - base;
+  const s = Math.max(0.03, 0.006 * h);
+  const retiro = Math.max((2 / 3) * (Number(desplazamientoMaximo) || 0), s / 2);
+  v.push(item({grupo: "Irregularidad", titulo: "Junta sísmica (retiro del límite)", valor: `${r(retiro * 100, 1)} cm`, limite: `≥ 2/3·Δmáx y ≥ s/2 (s = ${r(s * 100, 1)} cm)`, norma: "E.030 art. 33", estado: "observacion",
+    detalle: `${desplazamientoMaximo ? `Desplazamiento inelástico máximo ${r(desplazamientoMaximo * 100, 1)} cm; ` : ""}s = 0.006·h = ${r(s * 100, 1)} cm con h = ${r(h, 2)} m. Verifica ese retiro en la arquitectura.`,
+    accion: `Deja al menos ${r(retiro * 100, 1)} cm al límite de propiedad y anótalo en las láminas.`}));
+
+  // Resistencia (piso débil): necesita la resistencia de cada piso.
+  v.push(item({grupo: "Irregularidad", titulo: "Resistencia (piso débil)", estado: "sin_datos", norma: "E.030 Tabla 8", detalle: "Necesita la resistencia a corte de cada piso (columnas y placas diseñadas): verifícala a mano."}));
+  return {verificaciones: v, Ia, Ip};
+}
+
 
 // ---------------- Diseño ----------------
 // columnas: cadSystem.rcColumnDesignResults ({label, check: {base: {ratio, comboId}, top}, unsupported});
