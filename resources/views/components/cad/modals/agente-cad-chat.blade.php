@@ -42,7 +42,7 @@
             texto: '',
             pensando: false,
             mensajes: [{role: 'assistant', content: 'Hola. Trabajo sobre el modelo abierto: puedo analizar el sismo, revisar con la E.030, diseñar columnas, ajustar el acero y enviar el diseño a NovaCad. Escribe «ayuda» para ver los pedidos.'}],
-            sugerencias: ['analiza el sismo', 'revisa con la E.030', 'diseña las columnas', 'ajusta el acero', 'envía el diseño a NovaCad'],
+            sugerencias: ['crea un edificio de 3 pisos de 3x2 vanos de 5 m', 'analiza el sismo', 'revisa con la E.030', 'diseña las columnas', 'ajusta el acero', 'envía el diseño a NovaCad'],
             init() {
                 window.addEventListener('open-agente-cad-chat', () => { this.open = true; this.$nextTick(() => this.$refs.entrada?.focus()); });
             },

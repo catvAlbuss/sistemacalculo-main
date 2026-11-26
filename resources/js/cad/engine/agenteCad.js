@@ -3,6 +3,8 @@
 // acción arma los hechos del modelo y de la revisión que la IA del servidor debe usar al responder.
 // Puro: sin DOM ni `this`; lo usa mixins/analysis/agenteCad.js.
 
+import {esPedidoDeModelo} from "./modeloRapido.js";
+
 const sinTildes = (s) => String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
 
 // Acciones que el agente ejecuta directo. El orden importa: lo más específico primero.
@@ -20,13 +22,17 @@ const RUTAS = [
 export function rutaCad(texto) {
   const t = sinTildes(texto);
   if (!t) return null;
+  if (esPedidoDeModelo(texto)) return {accion: "crearModelo"};
+  if (/\b(rigidiza\w*|haz que cumpla|que cumpla la deriva|cumpl\w* (con )?la deriva|agranda\w*.*\bcolumnas?|aumenta\w*.*\bcolumnas?)\b/.test(t)) return {accion: "rigidizar"};
   for (const r of RUTAS) if (r.re.test(t)) return {accion: r.accion};
   return null;
 }
 
 export const AYUDA = [
   "Puedo trabajar sobre el modelo abierto (dibujado aquí, importado de ETABS o enviado por NovaCad):",
+  "• «crea un edificio de 3 pisos, 4x3 vanos de 5 m, zona 4 suelo S2»: el modelo completo (ejes, columnas, vigas, losas, cargas E.020, espectro E.030 y combinaciones E.060); lo que no digas lo predimensiono y te lo digo.",
   "• «analiza el sismo»: análisis espectral con los casos definidos.",
+  "• «rigidiza para cumplir la deriva»: en un modelo creado aquí, agrando las columnas y vuelvo a analizar hasta cumplir.",
   "• «revisa con la E.030»: masa, derivas, cortante mínimo, C/R e irregularidades.",
   "• «diseña las columnas»: flexocompresión E.060 de todas las columnas con su armado.",
   "• «ajusta el acero»: para las que no cumplen, el menor armado que cumple.",

@@ -18,7 +18,11 @@ const LIMITE = Number(process.argv.find((a) => a.startsWith('--limite='))?.slice
 // --captura=<archivo.png>: solo abre el modelo y el menú 🤖 Agente y guarda una captura (sin análisis).
 const CAPTURA = process.argv.find((a) => a.startsWith('--captura='))?.slice(10) ?? null;
 // --chat: con --captura, conversa con el agente del CAD por su panel (como el ingeniero) y fotografía el chat.
-const CHAT = process.argv.includes('--chat');
+const CHAT = process.argv.includes('--chat') || process.argv.includes('--chat-modelo') || process.argv.some((a) => a.startsWith('--pedidos='));
+// --chat-modelo: empieza pidiendo un modelo nuevo en una frase (modelo rápido) en vez del .e2k abierto.
+const PEDIDOS = process.argv.find((a) => a.startsWith('--pedidos='))?.slice(10).split('|') ?? (process.argv.includes('--chat-modelo')
+  ? ['crea un edificio de 3 pisos de 3x2 vanos de 5 m, zona 4 suelo S2, vivienda', 'analiza el sismo', 'revisa con la E.030', 'diseña las columnas']
+  : ['analiza el sismo', '¿cuánto es la deriva en X?', 'diseña las columnas', 'envía el diseño a NovaCad']);
 // --paquete=<archivo.json>: guarda el paquete de «Enviar diseño al agente» (para probar-aplicar-diseno.mjs).
 const SALIDA_PAQUETE = process.argv.find((a) => a.startsWith('--paquete='))?.slice(10) ?? null;
 if (!archivoE2k || !existsSync(archivoE2k)) { console.error('Uso: node scripts/agente/probar-analisis-cad.mjs <modelo.e2k>'); process.exit(1); }
@@ -63,7 +67,7 @@ ${sinOrigen(vista.cabeza)}${vista.estilos}${sinOrigen(vista.scripts)}</head>
         cad.openAgenteCadChat();
         await espera(300);
         const panel = document.querySelector('[x-data^="agenteCadChat"]')._x_dataStack[0];
-        for (const t of ['analiza el sismo', '¿cuánto es la deriva en X?', 'diseña las columnas', 'envía el diseño a NovaCad']) {
+        for (const t of ${JSON.stringify(PEDIDOS)}) {
           await panel.enviar(t);
           await espera(300);
         }

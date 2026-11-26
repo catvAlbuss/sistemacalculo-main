@@ -4,6 +4,7 @@
 // lo responde la IA del servidor solo con los hechos del modelo y de la revisión.
 // Vista: components/cad/ui/agente-cad-chat.blade.php (evento open-agente-cad-chat).
 import {AYUDA, mensajesParaIA, responderDato, rutaCad, textoDisenoColumnas, textoRevision} from "../../engine/agenteCad.js";
+import {modeloRapido, siguienteLado, exponenteDeriva} from "../../engine/modeloRapido.js";
 
 export const agenteCadMixin = {
   // Lo que la IA necesita saber del modelo (sin datos del cliente).
@@ -28,12 +29,29 @@ export const agenteCadMixin = {
   // Responde un mensaje del chat. historial: [{role, content}] de la conversación.
   async agenteCadResponder(texto, historial = []) {
     const ruta = rutaCad(texto);
-    if (!(this.nodes || []).length && ruta?.accion !== "abrirModeloAgente" && ruta?.accion !== "ayuda") {
+    if (!(this.nodes || []).length && !["abrirModeloAgente", "ayuda", "crearModelo"].includes(ruta?.accion)) {
       return {texto: "No hay un modelo abierto. Dibuja uno, importa un .e2k de ETABS (Archivo ▸ Importar) o pide «abre el modelo del agente» si NovaCad te envió uno.", accion: "sin_modelo"};
     }
     switch (ruta?.accion) {
       case "ayuda":
         return {texto: AYUDA, accion: "ayuda"};
+      case "crearModelo": {
+        let g;
+        try { g = modeloRapido(texto); } catch (e) { return {texto: `No pude armar el modelo: ${e.message}`, accion: "crearModelo"}; }
+        const ok = this.importarE2kTexto(g.texto, `${g.nombre}.e2k`);
+        if (!ok) return {texto: "Armé el modelo pero no se pudo abrir en el CAD.", accion: "crearModelo"};
+        this._modeloRapido = {texto, columna: g.pedido.columna};
+        const r = g.resumen, p = g.pedido;
+        return {
+          texto: [
+            `Modelo listo: ${p.pisos} piso(s), ${p.nx}×${p.ny} vanos de ${p.luzX.toFixed(2)}×${p.luzY.toFixed(2)} m, h = ${p.altura.toFixed(2)} m · ${r.columnas} columnas, ${r.vigas} vigas, ${r.losas} paños de losa · secciones ${r.secciones.join(", ")}.`,
+            r.sismo ? `Espectro E.030: Z = ${r.sismo.Z}, U = ${r.sismo.U}, S = ${r.sismo.S}, Tp = ${r.sismo.Tp}, TL = ${r.sismo.TL}, R = ${r.sismo.R}; ${r.combinaciones.length} combinaciones E.060.` : "",
+            `Supuestos (revísalos): ${g.supuestos.join(" ")}`,
+            "Siguiente: «analiza el sismo».",
+          ].filter(Boolean).join("\n"),
+          accion: "crearModelo",
+        };
+      }
       case "abrirModeloAgente": {
         const ok = this.importarModeloDelAgente?.({desdeMenu: true});
         return {texto: ok ? "Abrí el modelo que armó NovaCad. Revisa los supuestos (secciones, cargas, espectro) y pide «analiza el sismo»." : "No hay un modelo de NovaCad para abrir: en NovaCad pide «envía a análisis».", accion: "abrirModeloAgente"};
@@ -48,6 +66,8 @@ export const agenteCadMixin = {
         if (!Object.keys(this.seismicResultsByCase || {}).length) return {texto: "El análisis no devolvió resultados: revisa el aviso del motor.", accion: "analizarSismo"};
         return {texto: `Análisis sísmico listo.\n${textoRevision(this._revisionAgenteActual())}`, accion: "analizarSismo"};
       }
+      case "rigidizar":
+        return {texto: await this._rigidizarPorDeriva(), accion: "rigidizar"};
       case "revisar":
         return {texto: textoRevision(this._revisionAgenteActual()), accion: "revisar"};
       case "disenarColumnas": {
@@ -74,6 +94,53 @@ export const agenteCadMixin = {
       default:
     }
     return {texto: await this._preguntarIAAgenteCad(texto, historial), accion: "ia"};
+  },
+
+  // Deriva inelástica máxima (X e Y) y su límite, de la revisión E.030.
+  _derivaMaximaAgente() {
+    const vs = (this._revisionAgenteActual().verificaciones || []).filter((v) => /Deriva inelástica/.test(v.titulo) && Number.isFinite(Number(v.valor)));
+    if (!vs.length) return null;
+    const limite = Number(this.revisionAgente?.parametros?.limiteDeriva) || 0.007;
+    return {deriva: Math.max(...vs.map((v) => Number(v.valor))), limite};
+  },
+
+  // Agranda las columnas del modelo rápido hasta cumplir la deriva (hasta 4 vueltas de análisis).
+  async _rigidizarPorDeriva() {
+    if (!this._modeloRapido) return "Solo puedo rigidizar solo un modelo que creé aquí (pide «crea un edificio de …»). En un modelo importado, cambia las secciones en Define ▸ Frame Sections y vuelve a analizar.";
+    if (!Object.keys(this.seismicResultsByCase || {}).length) {
+      this._initSeismic?.();
+      await this.runSeismicAnalysis();
+    }
+    // Horquilla + secante (modeloRapido.js → siguienteLado): el menor lado que cumple, sin pasarse.
+    const historial = [], pasos = [];
+    const abrir = async (lado) => {
+      const g = modeloRapido(this._modeloRapido.texto, {ajustes: {columna: {b: lado, h: lado}}});
+      if (!this.importarE2kTexto(g.texto, `${g.nombre}.e2k`)) throw new Error("No pude reabrir el modelo rigidizado.");
+      this._modeloRapido.columna = {b: lado, h: lado};
+      this._initSeismic?.();
+      await this.runSeismicAnalysis();
+    };
+    let limite = 0.007;
+    for (let vuelta = 0; vuelta < 7; vuelta++) {
+      const d = this._derivaMaximaAgente();
+      if (!d) return "No hay derivas en la revisión: corre «analiza el sismo».";
+      limite = d.limite;
+      const lado = Math.max(this._modeloRapido.columna.b, this._modeloRapido.columna.h);
+      historial.push({lado, deriva: d.deriva});
+      pasos.push(`${lado.toFixed(2)} m → ${d.deriva.toFixed(4)}${d.deriva <= d.limite ? " ✓" : ""}`);
+      const s = siguienteLado(historial, d.limite);
+      if (s.listo !== undefined && s.listo !== null) {
+        if (Math.abs(s.listo - lado) > 1e-9) await abrir(s.listo); // dejar abierto el que cumple
+        return [`Cumple la deriva (≤ ${d.limite}) con columnas ${s.listo.toFixed(2)}x${s.listo.toFixed(2)} m: el menor lado que cumple (a 5 cm).`, `Recorrido (lado → deriva): ${pasos.join(" · ")}.`, "Siguiente: «diseña las columnas»."].join("\n");
+      }
+      if (s.sinSolucion) break;
+      await abrir(s.lado);
+    }
+    const final = this._modeloRapido.columna, d = this._derivaMaximaAgente();
+    return [`Con columnas de ${final.b.toFixed(2)}x${final.h.toFixed(2)} m la deriva queda en ${d?.deriva.toFixed(4) ?? "—"} (límite ${limite}).`, `Recorrido (lado → deriva): ${pasos.join(" · ")}.`,
+      historial.length > 1 && exponenteDeriva(historial) < 1.5
+        ? "Las vigas también se deforman (agrandar columnas rinde poco): conviene peraltar las vigas o, mejor, agregar placas (muros de concreto) en los dos sentidos."
+        : "Conviene agregar placas (muros de concreto) en los dos sentidos."].join("\n");
   },
 
   async _preguntarIAAgenteCad(pregunta, historial) {
