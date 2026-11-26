@@ -344,6 +344,24 @@ export function planoPortico({eje, columnas, altura = 3, espesorLosa = 0.2, viga
     prim.push(text(L.CIMIENTO, pt(cx, sc / 2), `SC ${CRITERIOS.concreto.sobrecimiento}`, hc(`SC ${CRITERIOS.concreto.sobrecimiento}`)));
   }
 
+  // ---- Despiece de cada viga (E.060): acero corrido con ganchos de 90° en los apoyos extremos
+  // (12 db, 7.1), zona de confinamiento 2h acotada en el primer apoyo (21.4.4.4) y su llamada con la
+  // regla de empalmes (sin empalmes a menos de 2h de la cara de los apoyos, 21.4.4.3).
+  const armadoViga = criteriosMetrado(cimentacion?.tipo).vigas;
+  const porCaraViga = Math.max(2, Math.ceil(armadoViga.barras / 2));
+  const db = ({'1/2"': 0.0127, '5/8"': 0.015875, '3/4"': 0.01905, '1"': 0.0254})[armadoViga.barra] ?? 0.015875;
+  const gancho = Math.min(12 * db, vh - 2 * rec);
+  const despieceViga = (yTop) => {
+    for (const xe of [xa + rec + 0.03, xb - rec - 0.03]) {
+      const yt = yTop(xe);
+      prim.push(line(L.ACERO_LONG, pt(xe, yt - rec), pt(xe, yt - rec - gancho)), line(L.ACERO_LONG, pt(xe, yt - vh + rec), pt(xe, yt - vh + rec + gancho)));
+    }
+    const cara = lista[0].s1;
+    if ((lista[1]?.s0 ?? xb) - cara > 2 * vh + 0.3) prim.push(...cota(L.COTAS_E, pt(cara, yTop(cara) - vh), pt(cara + 2 * vh, yTop(cara + 2 * vh) - vh), -0.12, h * 0.3));
+    // La llamada del acero (corrido, ganchos, empalmes) va en el detalle de la sección: bajo la viga
+    // chocaba con el texto de estribos y el del muro (visto en el visor real).
+  };
+
   // ---- Viga (sigue el perfil del techo) con su acero ----
   prim.push(pline(L.VIGAS, [...perfil(xa, xb, 0), ...perfil(xa, xb, -vh).reverse()], true));
   prim.push(pline(L.ACERO_LONG, perfil(xa + rec, xb - rec, -rec)), pline(L.ACERO_LONG, perfil(xa + rec, xb - rec, -vh + rec)));
@@ -356,6 +374,7 @@ export function planoPortico({eje, columnas, altura = 3, espesorLosa = 0.2, viga
   const xl = dosAguas ? (tramo0.a + xr) / 2 : (tramo0.a + tramo0.b) / 2;
   prim.push(text(L.VIGAS, pt(xl, y(xl) - vh - h * 0.55), `V-101 (${viga.b.toFixed(2)}x${vh.toFixed(2)})`, h * 0.45));
   prim.push(text(L.ESTRIBOS, pt(xl, y(xl) - vh - h * 1.15), textoEstribos(V.estribo, V.distribucion), h * 0.3));
+  despieceViga(y);
 
   // ---- Entrepisos: viga y losa en el piso de cada nivel superior ----
   const e = espesorLosa;
@@ -372,6 +391,7 @@ export function planoPortico({eje, columnas, altura = 3, espesorLosa = 0.2, viga
     // En el paño más ancho entre columnas y columnetas: el rótulo no cruza ninguna.
     const xm = ancho ? (ancho.a + ancho.b) / 2 : (lista[0].s1 + (lista[1]?.s0 ?? xb)) / 2;
     prim.push(text(L.VIGAS, pt(xm, z - vh - h * 0.55), `${nombreViga} (${viga.b.toFixed(2)}x${vh.toFixed(2)}) · LOSA E=${Math.round(e * 100)}CM`, h * 0.4));
+    despieceViga(() => z);
   });
 
   // ---- Losa aligerada (inclinada si hay cumbrera), cobertura TR4 y canaletas ----
@@ -420,19 +440,24 @@ export function planoPortico({eje, columnas, altura = 3, espesorLosa = 0.2, viga
   }
 
   // Sección de la viga (como VB1/VB2 del expediente), arriba a la izquierda.
-  const sx = xa - alero - 1.15, sy = Math.max(T, H) + 0.35, st = sy + vh;
+  // La nota del despiece va a la derecha de la sección y no debe llegar a la burbuja del primer eje
+  // (en techo plano el alero es corto y la nota la cruzaba).
+  const notaViga = [`${armadoViga.barras}Ø${armadoViga.barra}: ${porCaraViga} sup. + ${porCaraViga} inf. corridos`, textoEstribos(V.estribo, V.distribucion), "Gancho 90° (12db) en apoyos extremos", `Sin empalmes a < 2h = ${(2 * vh).toFixed(2)} m de los apoyos`];
+  const anchoNota = Math.max(...notaViga.map((t) => t.length)) * h * 0.28 * 0.62;
+  const sx = Math.min(xa - alero - 1.15, lista[0].sn - rb - 0.15 - anchoNota - 0.12 - viga.b), sy = Math.max(T, H) + 0.35, st = sy + vh;
   prim.push(rect(L.VIGAS, sx, sy, sx + viga.b, st));
   prim.push(rect(L.ESTRIBOS, sx + rec, sy + rec, sx + viga.b - rec, st - rec));
   prim.push(line(L.ESTRIBOS, pt(sx + viga.b - rec - 0.05, st - rec), pt(sx + viga.b - rec - 0.1, st - rec - 0.05)));
   // Varillas corridas: la mitad arriba y la mitad abajo, repartidas en el ancho (6Ø5/8": 3 + 3).
-  const armado = criteriosMetrado(cimentacion?.tipo).vigas;
-  const porCara = Math.max(2, Math.ceil(armado.barras / 2));
+  const porCara = porCaraViga;
   const x0b = sx + rec + 0.02, x1b = sx + viga.b - rec - 0.02;
   for (const py of [sy + rec + 0.02, st - rec - 0.02]) for (let i = 0; i < porCara; i++) prim.push(circle(L.ESTRIBOS, pt(x0b + ((x1b - x0b) * i) / (porCara - 1), py), 0.012));
   // El nombre va encima de la sección y el acero a su derecha: en una viga poco peraltada
   // (0.40 m) los dos textos a la derecha se pisaban.
-  prim.push(text(L.VIGAS, pt(sx, st + h * 0.3), `V-101 ${viga.b.toFixed(2)}x${vh.toFixed(2)}`, h * 0.4, 0, "izq"));
-  prim.push(text(L.ESTRIBOS, pt(sx + viga.b + 0.12, sy + h * 0.2), `${armado.barras}Ø${armado.barra}\\P${textoEstribos(V.estribo, V.distribucion)}`, h * 0.28, 0, "izq"));
+  // La nota (4 renglones, apoyada en su base) crece hacia arriba: el título va sobre ella.
+  const topeNota = sy + h * 0.2 + 4 * h * 0.28 * 1.7;
+  prim.push(text(L.VIGAS, pt(sx, Math.max(st + h * 0.3, topeNota + h * 0.15)), `V-101 ${viga.b.toFixed(2)}x${vh.toFixed(2)}`, h * 0.4, 0, "izq"));
+  prim.push(text(L.ESTRIBOS, pt(sx + viga.b + 0.12, sy + h * 0.2), notaViga.join("\\P"), h * 0.28, 0, "izq"));
 
   notas.push(`Recubrimiento: ${Math.round(V.recubrimiento * 100)} cm`);
   prim.push(text(L.LAMINA, pt(xa - alero - 1.2, yc - 0.95), `Recubrimiento: ${Math.round(V.recubrimiento * 100)} cm · f'c = ${CRITERIOS.concreto.columnas} kg/cm²`, h * 0.38, 0, "izq"));
