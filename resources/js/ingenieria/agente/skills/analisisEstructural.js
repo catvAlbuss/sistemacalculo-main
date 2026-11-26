@@ -72,15 +72,21 @@ export const ANALISIS_SKILLS = [
           opciones: [{texto: "Abrir Análisis Estructural", herramienta: "abrir_analisis", args: {}}]};
       }
       ctx.memoria.disenoColumnas = paquete.columnas;
+      ctx.memoria.reaccionesColumnas = Array.isArray(paquete.reacciones) && paquete.reacciones.length ? paquete.reacciones : null;
       ctx.memoria.revisionAnalisis = paquete.revision ?? null;
       const lineas = textoDiseno(paquete.columnas);
+      if (ctx.memoria.reaccionesColumnas) {
+        const t = ctx.memoria.reaccionesColumnas.reduce((s, r) => ({pd: s.pd + r.pd, pl: s.pl + r.pl}), {pd: 0, pl: 0});
+        lineas.push(`Reacciones de ${ctx.memoria.reaccionesColumnas.length} apoyos (CM ${t.pd.toFixed(1)} t, CV ${t.pl.toFixed(1)} t en total): con ellas se dimensionan las zapatas.`);
+      }
       const revision = paquete.revision?.texto ? `Revisión E.030: ${paquete.revision.texto}` : "";
       const plano = ctx.memoria.ultimaGeneracion ? (await import("./estructuraPlano.js")).ESTRUCTURA_SKILLS.find((x) => x.name === "plano_estructuras") : null;
       if (!plano) {
         return {ok: true, mensaje: ["Guardé el diseño del análisis; se aplicará al generar las láminas.", ...lineas, revision].filter(Boolean).join("\n"),
           opciones: [{texto: "Generar las láminas", herramienta: "plano_estructuras", args: {}, recomendada: true}]};
       }
-      const r = await plano.run({}, ctx);
+      // Mismos pedidos de la última generación (vista, «con zapatas»…): solo cambia el diseño.
+      const r = await plano.run(ctx.memoria.ultimaGeneracion?.args ?? {}, ctx);
       if (!r.ok) return {...r, error: `Guardé el diseño, pero no pude rehacer las láminas: ${r.error ?? "error"}`};
       // Lo que dice el mensaje es lo que dibuja el cuadro (verificado contra el modelo recién armado).
       const dibujado = Object.fromEntries((ctx.memoria.modeloEstructural?.refuerzoColumnas ?? []).map((f) => [f.tipo, f.refuerzo]));

@@ -242,7 +242,7 @@ function guardarDatos(args, ctx) {
   return {guardados: Object.keys(validos), invalidos: t.invalidos};
 }
 
-const ETIQUETA = {hz: "Hz", df: "Df", zona: "zona", suelo: "suelo", categoria: "categoría", niveles: "niveles", normaE030: "E.030"};
+const ETIQUETA = {hz: "Hz", df: "Df", qadm: "qadm (kg/cm²)", zona: "zona", suelo: "suelo", categoria: "categoría", niveles: "niveles", normaE030: "E.030"};
 function textoDatos(datos) {
   const t = datosTecnicos(datos), p = parametrosSismicos(t);
   const tiene = CAMPOS_TECNICOS.filter((c) => t[c.campo] !== null).map((c) => `${ETIQUETA[c.campo]} ${c.campo === "hz" || c.campo === "df" ? `${t[c.campo].toFixed(2)} m` : t[c.campo]}`);
@@ -637,7 +637,7 @@ export const ESTRUCTURA_SKILLS = [
       const firma = firmaDeGeneracion({arquitectura: lectura.itemsArquitectura ?? lectura.items, titulo: e.titulo || e.vista,
         datos: ctx.datosProyecto?.() ?? {}, cimentacion: args.cimentacion ?? 'auto',
         decisiones: ctx.memoria.consultas?.elegido ?? {}, decisionesSesion: ctx.memoria.decisionesSesion ?? [],
-        disenoColumnas: ctx.memoria.disenoColumnas ?? null});
+        disenoColumnas: ctx.memoria.disenoColumnas ?? null, reaccionesColumnas: ctx.memoria.reaccionesColumnas ?? null});
       if (!args.conservar && ctx.memoria.ultimaGeneracion?.clave === clave && ctx.memoria.ultimaGeneracion.firma === firma
           && (ctx.generaciones?.()[clave] ?? 0) > 0) return {
         ok: true, sinCambios: true, terminal: true,
@@ -648,7 +648,7 @@ export const ESTRUCTURA_SKILLS = [
       try {
         const resultado = await generarLaminas(args, ctx, {e, guardados, invalidos, quitadas});
         if (resultado.ok) {
-          ctx.memoria.ultimaGeneracion = {clave, firma};
+          ctx.memoria.ultimaGeneracion = {clave, firma, args: {...(args.vista ? {vista: args.vista} : {}), ...(args.cimentacion ? {cimentacion: args.cimentacion} : {})}};
           delete ctx.memoria.metrado;
         }
         return {...resultado, terminal: true};
@@ -919,6 +919,8 @@ async function generarLaminas(args, ctx, {e, guardados, invalidos, quitadas}) {
           ...(ctx.detallesEstandar?.length ? {detallesEstandar: ctx.detallesEstandar} : {}),
           // Armado de columnas verificado en Análisis Estructural (aplicar_diseno).
           ...(ctx.memoria.disenoColumnas ? {disenoColumnas: ctx.memoria.disenoColumnas} : {}),
+          // Reacciones de servicio por apoyo (CM, CV, sismo) del análisis: dimensionan las zapatas.
+          ...(ctx.memoria.reaccionesColumnas?.length ? {reaccionesColumnas: ctx.memoria.reaccionesColumnas} : {}),
           losaMaciza: "losaMaciza" in elegido ? elegido.losaMaciza : undefined,
           // Los paños que nombró la pregunta: si el ingeniero dijo que sí, esos van macizos.
           panosMacizos: elegido.losaMaciza === true ? consultas?.consultas?.find((c) => c.clave === "losaMaciza")?.ejes ?? null : null,

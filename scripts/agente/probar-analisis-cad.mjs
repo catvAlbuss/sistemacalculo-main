@@ -17,6 +17,8 @@ const archivoE2k = process.argv.slice(2).find((a) => !a.startsWith('--'));
 const LIMITE = Number(process.argv.find((a) => a.startsWith('--limite='))?.slice(9)) || 1;
 // --captura=<archivo.png>: solo abre el modelo y el menú 🤖 Agente y guarda una captura (sin análisis).
 const CAPTURA = process.argv.find((a) => a.startsWith('--captura='))?.slice(10) ?? null;
+// --paquete=<archivo.json>: guarda el paquete de «Enviar diseño al agente» (para probar-aplicar-diseno.mjs).
+const SALIDA_PAQUETE = process.argv.find((a) => a.startsWith('--paquete='))?.slice(10) ?? null;
 if (!archivoE2k || !existsSync(archivoE2k)) { console.error('Uso: node scripts/agente/probar-analisis-cad.mjs <modelo.e2k>'); process.exit(1); }
 const browser = ['C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe', 'C:/Program Files/Microsoft/Edge/Application/msedge.exe'].find(existsSync);
 const RAIZ = resolve('.');
@@ -127,6 +129,9 @@ try {
     for (const c of d.columnas) console.log(`  Columna ${c[0].padEnd(16)} ratio base/cabeza ${c[1]}  ${c[2]}`);
     for (const [caso, c] of Object.entries(d.casos)) console.log(`Caso ${caso}: modos ${JSON.stringify(c.modos)} · deriva elástica máx ${c.derivaMax.toFixed(5)} · V ${JSON.stringify(c.cortante)}`);
     for (const t of Object.values(d.paquete?.columnas || {})) console.log(`  Al agente ${t.tipo}: ${t.n} varillas · D/C ${t.ratioOriginal} → ${t.ratio}${t.aumentado ? ' (aumentado)' : ''}${t.sinSolucion?.length ? ' SIN SOLUCIÓN' : ''}`);
+    if (SALIDA_PAQUETE) { writeFileSync(SALIDA_PAQUETE, JSON.stringify(d.paquete, null, 1)); console.log(`  Paquete guardado: ${SALIDA_PAQUETE}`); }
+    const rs = d.paquete?.reacciones || [];
+    console.log(`  Reacciones al agente: ${rs.length} apoyos · CM ${rs.reduce((t, r) => t + r.pd, 0).toFixed(1)} t · CV ${rs.reduce((t, r) => t + r.pl, 0).toFixed(1)} t · ejemplo ${JSON.stringify(rs[0] ?? null)}`);
     console.log('\nRevisión del agente:', d.resumen, JSON.stringify(d.parametros));
     for (const v of d.revision) console.log(`  ${v[2].padEnd(11)} ${v[0].padEnd(13)} ${v[1].padEnd(34)} ${String(v[3]).padEnd(22)} ${v[4]}${v[5] ? `  → ${v[5]}` : ''}`);
   }

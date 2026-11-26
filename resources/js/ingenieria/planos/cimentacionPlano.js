@@ -268,12 +268,52 @@ function tiposPor(lista, clave, prefijo) {
   return orden.map(([key, els], i) => ({tipo: `${prefijo}${i + 1}`, medida: key, cantidad: els.length}));
 }
 
+// Empareja las reacciones del modelo de análisis ({x, y, pd, pl, ps} en t, coordenadas del .e2k) con
+// las columnas de la lectura (metros, su propio origen): los dos son el mismo conjunto de columnas,
+// así que se alinean por el centroide y cada reacción va a la columna más cercana.
+export function asignarReacciones(columnas, reacciones, tolerancia = 0.3) {
+  const centro = (ps) => ({x: ps.reduce((s, p) => s + p.x, 0) / ps.length, y: ps.reduce((s, p) => s + p.y, 0) / ps.length});
+  const validas = reacciones.filter((r) => Number.isFinite(r.x) && Number.isFinite(r.y) && Number(r.pd) + Number(r.pl) > 0);
+  if (!columnas.length || !validas.length) return {columnas, emparejadas: 0};
+  const cc = centro(columnas), cr = centro(validas);
+  // Pares de menor a mayor distancia, cada columna y cada reacción una sola vez. El modelo pone la
+  // columna en el cruce de ejes y la lectura en su centro: en una L de esquina hay ~0.35 m entre ambos,
+  // así que la tolerancia crece con la columna (su lado mayor, mínimo `tolerancia`).
+  const pares = [];
+  validas.forEach((r, k) => {
+    const p = {x: r.x - cr.x + cc.x, y: r.y - cr.y + cc.y};
+    columnas.forEach((c, i) => {
+      const d = Math.hypot(c.x - p.x, c.y - p.y);
+      if (d <= Math.max(tolerancia, Number(c.b) || 0, Number(c.h) || 0)) pares.push({d, i, k});
+    });
+  });
+  pares.sort((a, b) => a.d - b.d);
+  const asignadas = new Map(), usadas = new Set();
+  for (const {i, k} of pares) {
+    if (asignadas.has(i) || usadas.has(k)) continue;
+    const r = validas[k];
+    usadas.add(k);
+    asignadas.set(i, {pd: Number(r.pd), pl: Number(r.pl), ps: Math.abs(Number(r.ps) || 0)});
+  }
+  return {columnas: columnas.map((c, i) => (asignadas.has(i) ? {...c, reaccion: asignadas.get(i)} : c)), emparejadas: asignadas.size};
+}
+
 // lectura: resultado de leerVista (en metros) con columnas que ya traen área tributaria (at).
 export function planoCimentacion({lectura, items, caja, k = 1, titulo = ""}, opciones = {}) {
   const o = {...CARGAS_POR_DEFECTO, ...CIMENTACION_POR_DEFECTO, ...Object.fromEntries(Object.entries(opciones).filter(([, v]) => v !== undefined && v !== null && v !== ""))};
-  const columnas = lectura.columnas;
   const avisos = [];
+  // Reacciones del análisis (Análisis Estructural ▸ Enviar diseño al agente): reemplazan al área
+  // tributaria en las columnas que se pudieron emparejar.
+  const conReacciones = o.reacciones?.length ? asignarReacciones(lectura.columnas, o.reacciones) : null;
+  const columnas = conReacciones?.columnas ?? lectura.columnas;
   const {zapatas, traslapes, opciones: cargas} = predimensionarZapatas(columnas, {pisos: o.pisos, qadm: o.qadm, cargaMuerta: o.cargaMuerta, cargaViva: o.cargaViva});
+  if (conReacciones) {
+    const n = conReacciones.emparejadas, total = lectura.columnas.length;
+    avisos.push(`Zapatas con las reacciones del análisis (${n} de ${total} columnas; CM + CV en servicio y CM + CV + 0.8·sismo ≤ 1.3·qadm, E.060 15.2), qadm = ${(cargas.qadm / 10).toFixed(2)} kg/cm²${o.qadmDelEms ? " del EMS" : " ASUMIDO: indícalo en ▤ Datos del proyecto"}. Sin excentricidad por momentos: verifícalas en Calcular zapatas.`);
+    if (n < total) avisos.push(`${total - n} columna(s) sin reacción del análisis: se dimensionaron por área tributaria.`);
+  } else if (!o.qadmDelEms && String(o.tipo).toLowerCase() === "zapatas") {
+    avisos.push(`Zapatas con qadm = ${(cargas.qadm / 10).toFixed(2)} kg/cm² ASUMIDO y cargas por área tributaria: indica el qadm del EMS en ▤ Datos del proyecto o aplica el diseño de Análisis Estructural.`);
+  }
   const nodos = columnas.flatMap((c) => c.contorno);
   const huella = huellaColumnas(columnas);
   const areaHuella = areaPoligono(huella);
@@ -458,7 +498,8 @@ export function planoCimentacion({lectura, items, caja, k = 1, titulo = ""}, opc
   return {
     tipo, avisos, zapatas, tiposZapata, huella, anchoCimiento,
     // Para el metrado: la platea (huella de las columnas) o las zapatas, y las vigas de cimentación.
-    modelo: {huella, area: areaHuella, zapatas: tipo === "zapatas" ? zapatas.map((z) => ({B: z.B, L: z.L})) : [], vigas: vigas.map((t) => ({eje: t.eje, largo: t.largo}))},
+    modelo: {huella, area: areaHuella, zapatas: tipo === "zapatas" ? zapatas.map((z) => ({B: z.B, L: z.L, ...(z.fuente ? {fuente: z.fuente, pd: z.pd, pl: z.pl, ps: z.ps} : {})})) : [], vigas: vigas.map((t) => ({eje: t.eje, largo: t.largo})),
+      ...(conReacciones ? {reacciones: {emparejadas: conReacciones.emparejadas, total: lectura.columnas.length, qadm: cargas.qadm, qadmDelEms: Boolean(o.qadmDelEms)}} : {})},
     df: tipo === "platea" ? o.dfPlatea : o.df, peralte: tipo === "platea" ? o.espesorPlatea : o.peralteZapata,
     cimientos: cimientos.length, vigas: vigas.length, muros: muros.length,
     contenido: {titulo: "PLANO DE CIMENTACIÓN", primitivas: [...base.primitivas, ...prim], marco: base.marco, ejes: base.ejes, h, notas},

@@ -4,6 +4,7 @@
 // el mixin en localStorage (DISENO_DEL_AGENTE) y lo lee el panel del agente al rehacer las láminas.
 
 export const DISENO_DEL_AGENTE = "novacad:diseno-analisis";
+const redondea = (v, d) => Math.round((Number(v) || 0) * 10 ** d) / 10 ** d;
 
 // Varillas de un patrón "R-n2-n3" según la forma (ver ingenieria/diseno/patronColumna.js).
 export function totalDePatron({shape, n2, n3}) {
@@ -79,13 +80,15 @@ export function disenoPorTipo(columnas) {
 }
 
 // Lo que viaja al agente: diseño por tipo y el resumen de la revisión E.030 (sin datos del cliente).
-export function paqueteParaAgente({columnas, revision = null, modelo = "", fecha = new Date().toISOString()}) {
+// reacciones: [{x, y, pd, pl, ps}] por apoyo, en t y en las coordenadas del modelo (metros).
+export function paqueteParaAgente({columnas, revision = null, modelo = "", reacciones = [], fecha = new Date().toISOString()}) {
   const tipos = disenoPorTipo(columnas);
   const r = revision?.resumen;
   return {
     version: 1, fecha, modelo,
     columnas: tipos,
     revision: r ? {texto: r.texto, noCumple: r.noCumple ?? 0, acciones: r.acciones ?? []} : null,
+    reacciones: (reacciones || []).map((r) => ({x: redondea(r.x, 3), y: redondea(r.y, 3), pd: redondea(r.pd, 2), pl: redondea(r.pl, 2), ps: redondea(r.ps, 2)})),
     derivas: (revision?.verificaciones || []).filter((v) => /deriva/i.test(v.titulo)).map((v) => ({grupo: v.grupo, valor: v.valor, estado: v.estado})),
   };
 }

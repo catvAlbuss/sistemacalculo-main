@@ -19,6 +19,7 @@ import {cargarPlantillaAdaptativa} from './plantilla.mjs';
 const args = process.argv.slice(2);
 const filtro = args.find((a) => !a.startsWith('--')) ?? 'modulo-08';
 const archivoPaquete = args.find((a) => a.startsWith('--paquete='))?.slice(10);
+const cimentacion = args.find((a) => a.startsWith('--cimentacion='))?.slice(14);
 const BASE = join(PLANOS, 'estructuras');
 const plano = paresDelManifiesto(BASE, JSON.parse(readFileSync(join(BASE, 'pares.json'), 'utf8')), existsSync)
   .map((p) => ({nombre: `${p.grupo}/${p.id}`, ruta: p.rutaArquitectura})).find((p) => p.nombre.includes(filtro));
@@ -39,7 +40,7 @@ ctx.memoria ??= {};
 const skill = (n) => SKILLS.find((s) => s.name === n);
 const textosDibujados = () => ctx.readPlan().items.filter((i) => i.tipo === 'texto').map((i) => i.texto);
 
-const r1 = await skill('plano_estructuras').run({}, ctx);
+const r1 = await skill('plano_estructuras').run(cimentacion ? {cimentacion} : {}, ctx);
 if (!r1.ok) { console.error('Sin láminas:', r1.error); process.exit(1); }
 const antes = ctx.memoria.modeloEstructural.refuerzoColumnas;
 console.log(`${plano.nombre}: cuadro antes → ${antes.map((f) => `${f.tipo} ${f.refuerzo}`).join(', ')}`);
@@ -72,6 +73,12 @@ const g = modeloE2k({estructura: ctx.memoria.estructura, modelo: ctx.memoria.mod
 for (const [sec, a] of Object.entries(g.resumen.armadoColumnas)) {
   const t = paquete.columnas[sec.split('-')[0]];
   if (t?.aumentado && a.nCuadro !== t.n) { mal++; console.log(`MAL .e2k ${sec}: ${a.nCuadro} varillas, el diseño dice ${t.n}`); }
+}
+const zap = ctx.memoria.modeloEstructural.cimentacion;
+if (paquete.reacciones?.length) {
+  const conAnalisis = (zap.zapatas ?? []).filter((z) => z.fuente === 'análisis');
+  console.log(`Cimentación ${zap.tipo}: ${conAnalisis.length}/${(zap.zapatas ?? []).length} zapatas con reacciones del análisis${conAnalisis.length ? ` · ${conAnalisis.map((z) => `${z.B.toFixed(2)}x${z.L.toFixed(2)} (PD ${z.pd} PL ${z.pl} PS ${z.ps})`).join(', ')}` : ''}`);
+  if (zap.tipo === 'zapatas' && !conAnalisis.length) mal++;
 }
 const m = await skill('metrar_estructura').run({}, ctx).catch((e) => ({ok: false, error: e.message}));
 console.log(`Metrado: ${m.ok ? 'ok' : `MAL ${m.error}`}${m.resumen ? ` · ${String(m.resumen).slice(0, 140)}` : ''}`);

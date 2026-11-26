@@ -97,3 +97,26 @@ test('búsqueda del armado: pocas llamadas al motor y el menor que cumple', asyn
   const imposible = await buscarArmado(opciones, async () => 2, {nAntes: 6, ratioAntes: 2});
   assert.deepEqual([imposible.opcion, imposible.mayor.total], [null, 18]);
 });
+
+test('zapatas con las reacciones del análisis y el qadm del EMS', async () => {
+  const {asignarReacciones} = await import('../../resources/js/ingenieria/planos/cimentacionPlano.js');
+  const {predimensionarZapatas} = await import('../../resources/js/ingenieria/diseno/estructura.js');
+  const {datosParaLaminas} = await import('../../resources/js/ingenieria/criterios/datosProyecto.js');
+  // Columnas de la lectura (otro origen) y reacciones del modelo (.e2k): se alinean por el centroide.
+  const cols = [{x: 10, y: 20, b: 0.3, h: 0.3, at: 9}, {x: 14, y: 20, b: 0.3, h: 0.3, at: 9}, {x: 10, y: 24, b: 0.3, h: 0.3, at: 9}];
+  const reac = [{x: 0, y: 0, pd: 20, pl: 5, ps: 4}, {x: 4.05, y: 0, pd: 10, pl: 2, ps: 0}, {x: 0, y: 4, pd: 12, pl: 3, ps: 10}];
+  const {columnas, emparejadas} = asignarReacciones(cols, reac);
+  assert.equal(emparejadas, 3);
+  assert.deepEqual(columnas[0].reaccion, {pd: 20, pl: 5, ps: 4});
+  // qadm 1.0 kg/cm² del EMS → 10 t/m².
+  const dp = datosParaLaminas({qadm: '1.00'});
+  assert.equal(dp.cimentacion.qadm, 10);
+  assert.equal(dp.qadmDelEms, true);
+  const {zapatas} = predimensionarZapatas(columnas, {qadm: dp.cimentacion.qadm});
+  // C1: 1.1·25/10 = 2.75 m² → 1.70 x 1.70 (la del sismo, 1.1·28.2/13 = 2.39, no gobierna).
+  assert.deepEqual([zapatas[0].B, zapatas[0].fuente, zapatas[0].ps], [1.7, 'análisis', 4]);
+  // C3: con sismo gobierna 1.1·(15 + 8)/13 = 1.95 > 1.1·15/10 = 1.65 → 1.40 x 1.40.
+  assert.equal(zapatas[2].B, 1.4);
+  // Sin reacción: área tributaria como antes.
+  assert.equal(predimensionarZapatas([cols[0]], {qadm: 10}).zapatas[0].fuente, undefined);
+});

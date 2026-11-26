@@ -5,6 +5,7 @@ import {revisarModelo, revisarResultados, revisarIrregularidades, revisarDiseno,
 import {nodeHasRestraints} from "../../model/nodeSupports.js";
 import {DISENO_DEL_AGENTE, buscarArmado, paqueteParaAgente, ratioDe, totalDePatron, tipoDeSeccion} from "../../engine/disenoAgente.js";
 import {armadosMayores} from "../../../ingenieria/diseno/patronColumna.js";
+import {buildZapataColumnRows} from "../../engine/foundationContract.js";
 
 const LIMITES = {concreto: 0.007, acero: 0.01, albanileria: 0.005, madera: 0.01, ductilidad_limitada: 0.005};
 const esDeDireccion = (c, u) => Boolean(c?.spectra?.[u]?.functionId) || (u === "U1" ? /x/i : /y/i).test(String(c?.direction || ""));
@@ -160,10 +161,17 @@ export const revisionAgenteMixin = {
       return null;
     }
     const revision = this.revisionAgente || this.calcularRevisionAgente();
-    const paquete = paqueteParaAgente({columnas, revision, modelo: this.modelName || this.currentModelName || ""});
+    // Reacciones de servicio en los apoyos de la base (CM y CV estáticos, sismo SRSS de SDX/SDY).
+    let reacciones = [];
+    try {
+      const apoyos = (this.nodes || []).filter((n) => nodeHasRestraints(n) && n.position);
+      reacciones = buildZapataColumnRows(apoyos, this).map((f) => ({x: f.x, y: f.y, pd: f.pd1, pl: f.pl1, ps: f.sismo1}))
+        .filter((r) => r.pd + r.pl > 0);
+    } catch (error) { console.warn("Reacciones para el agente:", error); }
+    const paquete = paqueteParaAgente({columnas, revision, reacciones, modelo: this.modelName || this.currentModelName || ""});
     try { localStorage.setItem(DISENO_DEL_AGENTE, JSON.stringify(paquete)); } catch { /* sin almacenamiento */ }
     const tipos = Object.values(paquete.columnas);
-    this.showMessage?.(`🤖 Diseño enviado al agente: ${tipos.length} tipo(s) de columna (${tipos.filter((t) => t.aumentado).length} con más acero). Vuelve a NovaCad y pide «aplica el diseño».`, "success");
+    this.showMessage?.(`🤖 Diseño enviado al agente: ${tipos.length} tipo(s) de columna (${tipos.filter((t) => t.aumentado).length} con más acero) y ${paquete.reacciones.length} reacción(es) para las zapatas. Vuelve a NovaCad y pide «aplica el diseño».`, "success");
     return paquete;
   },
 
