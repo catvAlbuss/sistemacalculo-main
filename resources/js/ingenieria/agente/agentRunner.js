@@ -178,6 +178,10 @@ export function rutaDirecta(texto) {
   if (/^[¿]?\s*(por que|porque)\b.*\b(platea|zapatas?|losa|maciza|aligerad\w*|cimentacion|espesor|columnas?|placas?|vigas?|porticos?)\b/.test(t)) return {tool: "proponer_estructura", args: {}};
   if (/\b(paso a paso|guiame|guia(me)? la|construye|construir|construyamos)\b/.test(t) && !/\bcasa|vivienda\b/.test(t)) return {tool: "construir_estructura", args: {accion: "iniciar"}};
   if (/^[¿]?\s*(en que vamos|que falta|que (llevas|tenemos|decidiste|hiciste)|estado del proyecto|resumen del proyecto)\b/.test(t)) return {tool: "estado_proyecto", args: {}};
+  // Aprender a dibujar con el cliente (aprendizajeDibujo.js).
+  if (/\b(olvida|borra)\w*\b.*\b(aprendi\w*|correcciones|criterio)\b/.test(t)) return {tool: "olvidar_aprendizaje", args: {}};
+  if (/\baprend\w*\b.*\b(correcci\w*|como dibujo|mi criterio|de mi)\b|\bya corregi\b/.test(t) && !/\bque aprendiste\b/.test(t)) return {tool: "aprender_correcciones", args: {}};
+  if (/\bque (aprendiste|has aprendido)\b|\bcomo vas aprendiendo\b/.test(t)) return {tool: "estado_aprendizaje", args: {}};
   // Diseño verificado en Análisis Estructural de vuelta a las láminas.
   if (/\b(aplica\w*|trae\w*|usa|actualiza\w*)\b.*\bdiseno\b|\bdiseno (del|de) analisis\b/.test(t)) return {tool: "aplicar_diseno", args: {}};
   // Modelo de análisis (.e2k) desde la arquitectura: antes del filtro de datos (".e2k" lleva un número).

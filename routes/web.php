@@ -262,6 +262,10 @@ Route::middleware(["auth", "verified", "check.subscription", "throttle:calculati
         // Aprendizaje del agente por uso: correcciones del ingeniero a las decisiones del agente.
         Route::post('/etabs/agente/aprendizaje', [\App\Http\Controllers\AgenteAprendizajeController::class, 'guardar'])->name('etabs.agente.aprendizaje.guardar');
         Route::get('/etabs/agente/aprendizaje', [\App\Http\Controllers\AgenteAprendizajeController::class, 'listar'])->name('etabs.agente.aprendizaje.listar');
+        // Aprendizaje del dibujo con el cliente (correcciones del ingeniero a las láminas, por usuario).
+        Route::post('/etabs/agente/aprendizaje/dibujo', [\App\Http\Controllers\AgenteAprendizajeDibujoController::class, 'guardar'])->name('etabs.agente.aprendizaje.dibujo.guardar');
+        Route::get('/etabs/agente/aprendizaje/dibujo', [\App\Http\Controllers\AgenteAprendizajeDibujoController::class, 'datos'])->name('etabs.agente.aprendizaje.dibujo.datos');
+        Route::delete('/etabs/agente/aprendizaje/dibujo', [\App\Http\Controllers\AgenteAprendizajeDibujoController::class, 'olvidar'])->name('etabs.agente.aprendizaje.dibujo.olvidar');
         Route::get('/etabs/agente/aprendizaje/pendientes', [\App\Http\Controllers\AgenteAprendizajeController::class, 'pendientes'])
             ->middleware('role_or_permission:root|agente.aprendizaje.aprobar')->name('etabs.agente.aprendizaje.pendientes');
         Route::post('/etabs/agente/aprendizaje/{id}/aprobar', [\App\Http\Controllers\AgenteAprendizajeController::class, 'aprobar'])

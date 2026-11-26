@@ -653,6 +653,9 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
     // Detalles (cortes de cimiento, escalera, cuadros) en coordenadas locales: metros (cortes y
     // escalera) o unidades de lámina (cuadros); con biblioteca, la pieza usada y el dibujo del generador.
     detallesLocales,
+    // Muros candidatos de la cimentación (rasgos, regla y si se dibujaron): para aprender de las
+    // correcciones del ingeniero (aprender_correcciones).
+    candidatosMuro: cim.candidatosMuro ?? [],
     porticosLocales: porticos.map((p) => ({eje: p.modelo?.eje, titulo: p.contenido?.titulo, primitivas: p.contenido?.primitivas ?? [], geometria: p.geometria ?? null, ...(p.biblioteca ? {biblioteca: p.biblioteca, generador: p.generador?.primitivas ?? []} : {})})),
     // Modelo estructural de lo dibujado: de aquí sale el metrado (metrado/metrado.js).
     modelo: {

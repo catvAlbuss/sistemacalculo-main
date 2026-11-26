@@ -21,6 +21,7 @@ import {consultasDelPlano, aplicarRespuestas, textoConsultas, cimentacionRecomen
 import {buscarUbicacion, textoUbicacion, categoriaPorUso} from "../../criterios/ubicacion.js";
 import {numeroModulo, vistasDelModulo, formatoDeReferencia, memoriaParaModulo} from "../referenciasProyecto.js";
 import {datosTecnicosFaltantes, firmaDeGeneracion} from '../contratoDibujo.js';
+import {cargarModeloCliente, decidirMuroDeContexto} from './aprendizajeDibujo.js';
 
 const r2 = (value) => Math.round(value * 100) / 100;
 const listaCapas = (value) => String(value ?? "").split(/[,;]/).map((capa) => capa.trim()).filter(Boolean);
@@ -574,6 +575,8 @@ export const ESTRUCTURA_SKILLS = [
       // Las ediciones manuales del CAD también pueden haber cambiado las entradas.
       delete ctx.memoria.lectura;
       const e = leerEstructura(ctx, "", args.vista);
+      // El criterio de dibujo aprendido de las correcciones de este usuario (aprendizajeDibujo.js).
+      await cargarModeloCliente(ctx);
       // Antes de dibujar, el panel muestra los datos del proyecto en un formulario, ya llenos con
       // lo guardado y con lo que propone el agente (Hz, Df y niveles de proyectos parecidos); el
       // personal los revisa o corrige y recién ahí se arma el plano. Cancelar no dibuja nada.
@@ -637,7 +640,8 @@ export const ESTRUCTURA_SKILLS = [
       const firma = firmaDeGeneracion({arquitectura: lectura.itemsArquitectura ?? lectura.items, titulo: e.titulo || e.vista,
         datos: ctx.datosProyecto?.() ?? {}, cimentacion: args.cimentacion ?? 'auto',
         decisiones: ctx.memoria.consultas?.elegido ?? {}, decisionesSesion: ctx.memoria.decisionesSesion ?? [],
-        disenoColumnas: ctx.memoria.disenoColumnas ?? null, reaccionesColumnas: ctx.memoria.reaccionesColumnas ?? null});
+        disenoColumnas: ctx.memoria.disenoColumnas ?? null, reaccionesColumnas: ctx.memoria.reaccionesColumnas ?? null,
+        modeloCliente: ctx.memoria.modeloCliente?.activo ? {muestras: ctx.memoria.modeloCliente.muestrasCliente, fecha: ctx.memoria.modeloCliente.fecha} : null});
       if (!args.conservar && ctx.memoria.ultimaGeneracion?.clave === clave && ctx.memoria.ultimaGeneracion.firma === firma
           && (ctx.generaciones?.()[clave] ?? 0) > 0) return {
         ok: true, sinCambios: true, terminal: true,
@@ -921,6 +925,8 @@ async function generarLaminas(args, ctx, {e, guardados, invalidos, quitadas}) {
           ...(ctx.memoria.disenoColumnas ? {disenoColumnas: ctx.memoria.disenoColumnas} : {}),
           // Reacciones de servicio por apoyo (CM, CV, sismo) del análisis: dimensionan las zapatas.
           ...(ctx.memoria.reaccionesColumnas?.length ? {reaccionesColumnas: ctx.memoria.reaccionesColumnas} : {}),
+          // Muros de la cimentación con el criterio aprendido del cliente, si ya le gana a la regla.
+          ...(decidirMuroDeContexto(ctx) ? {decidirMuro: decidirMuroDeContexto(ctx)} : {}),
           losaMaciza: "losaMaciza" in elegido ? elegido.losaMaciza : undefined,
           // Los paños que nombró la pregunta: si el ingeniero dijo que sí, esos van macizos.
           panosMacizos: elegido.losaMaciza === true ? consultas?.consultas?.find((c) => c.clave === "losaMaciza")?.ejes ?? null : null,
@@ -944,6 +950,8 @@ async function generarLaminas(args, ctx, {e, guardados, invalidos, quitadas}) {
         ctx.memoria.paqueteLaminas.secciones = r.secciones ?? [];
         ctx.memoria.porticosLocales = r.porticosLocales ?? [];
         ctx.memoria.detallesLocales = r.detallesLocales ?? [];
+        // Para aprender de las correcciones del ingeniero en la cimentación (aprendizajeCliente.js).
+        ctx.memoria.candidatosMuro = r.candidatosMuro ?? [];
         // Ubicación de cada planta dibujada, en unidades del dibujo (metros × k).
         ctx.memoria.ubicacionesPlanos = (r.ubicaciones ?? []).map((u) => ({...u, caja: u.caja && {x0: u.caja.x0 * k, y0: u.caja.y0 * k, x1: u.caja.x1 * k, y1: u.caja.y1 * k}}));
         if (r.usarPlantilla !== false) ctx.insertTemplate(plantilla.db, {x: r.desplazamiento.x * k, y: r.desplazamiento.y * k}, k, null, r.textosPlantilla, r.excluirPlantilla);

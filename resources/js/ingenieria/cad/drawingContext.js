@@ -163,6 +163,11 @@ export function createDrawingContext({getDatabase, dm, edit, afterDraw, onFounda
       return ids.length;
     },
     // Entidades de las láminas del agente (las marcadas), de una clave o de todas.
+    // Entidades que NO dibujó el agente (la arquitectura y lo que el ingeniero agregó al corregir).
+    entidadesDelUsuario() {
+      if (!getDatabase()) return [];
+      return entities().filter((e) => marcaDe(e) === null);
+    },
     entidadesDelAgente(clave = null) {
       if (!getDatabase()) return [];
       return entities().filter((e) => { const m = marcaDe(e); return m !== null && (clave === null || m === clave); });

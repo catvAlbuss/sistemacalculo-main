@@ -380,13 +380,22 @@ export function planoCimentacion({lectura, items, caja, k = 1, titulo = ""}, opc
   const base = primitivasBase(lectura.ejes, columnas);
   const {h} = base;
   const prim = [];
+  let candidatosDibujo = [];
   // Muros del primer nivel sobre la cimentación y columnetas con aspa, como el ingeniero los dibuja
   // en su planta de cimentación (o.muros === false los quita).
   if (o.muros !== false) {
     // Candidatos con sus rasgos: decide el modelo aprendido (o.decidirMuro) o la regla de siempre.
     const candidatos = candidatosMuro({lectura, items, k, tipo, niveles: o.pisos ?? 1});
     if (globalThis.__capturaMurosCimentacion) globalThis.__capturaMurosCimentacion.push({lectura, tipo, candidatos: candidatos.map(({a, b, rasgos, regla}) => ({a, b, rasgos, regla}))});
-    const decision = new Map(candidatos.map((c) => [`${c.a.x},${c.a.y},${c.b.x},${c.b.y}`, o.todosLosMuros === true || (o.decidirMuro ? o.decidirMuro(c.rasgos, c.regla) : c.regla)]));
+    const clave = (a, b) => `${a.x},${a.y},${b.x},${b.y}`;
+    const decision = new Map(candidatos.map((c) => [clave(c.a, c.b), o.todosLosMuros === true || (o.decidirMuro ? o.decidirMuro(c.rasgos, c.regla) : c.regla)]));
+    // Tramos repetidos (mismas coordenadas en dos geometrías): cada aparición con su propio número,
+    // en el orden en que se generaron los candidatos (el mismo del dibujo).
+    const indice = new Map();
+    candidatos.forEach((c, i) => { const k = clave(c.a, c.b); (indice.get(k) ?? indice.set(k, []).get(k)).push(i); });
+    const usados = new Map();
+    const siguiente = (a, b) => { const k = clave(a, b), lista = indice.get(k); if (!lista) return null; const n = usados.get(k) ?? 0; usados.set(k, n + 1); return lista[Math.min(n, lista.length - 1)]; };
+    candidatosDibujo = candidatos.map((c, i) => ({i, a: c.a, b: c.b, rasgos: c.rasgos, regla: c.regla, dibujado: decision.get(clave(c.a, c.b))}));
     const {geometria, huella: borde} = murosDelEdificio({columnas, items, k});
     // Solo los muros que llevan cimiento: los del perímetro y los que van sobre un eje estructural.
     // Los tabiques interiores fuera de los ejes (cubículos de SS.HH., divisiones) se apoyan en el
@@ -406,8 +415,14 @@ export function planoCimentacion({lectura, items, caja, k = 1, titulo = ""}, opc
     for (const g of geometria) {
       const segs = g.pts.slice(1).map((q, i) => [g.pts[i], q]);
       if (g.cerrada && g.pts.length > 2) segs.push([g.pts.at(-1), g.pts[0]]);
-      if (segs.every(([a, b]) => dibujar(a, b))) prim.push(pline(L.MUROS_E, g.pts.map(pt), g.cerrada === true));
-      else for (const [a, b] of segs) if (dibujar(a, b)) prim.push(line(L.MUROS_E, pt(a), pt(b)));
+      // Cada muro con su marca de pieza ("muro-cim:i"): al corregir la lámina, el agente sabe qué
+      // tramo dejó o borró el ingeniero (aprender_correcciones). Sin candidato, como antes.
+      const conPieza = segs.some(([a, b]) => indice.has(clave(a, b)));
+      if (!conPieza && segs.every(([a, b]) => dibujar(a, b))) prim.push(pline(L.MUROS_E, g.pts.map(pt), g.cerrada === true));
+      else for (const [a, b] of segs) {
+        const i = siguiente(a, b);
+        if (dibujar(a, b)) prim.push({...line(L.MUROS_E, pt(a), pt(b)), ...(i !== null ? {pieza: `muro-cim:${i}`} : {})});
+      }
     }
   }
   for (const c of lectura.columnetas ?? []) {
@@ -500,7 +515,7 @@ export function planoCimentacion({lectura, items, caja, k = 1, titulo = ""}, opc
   ];
 
   return {
-    tipo, avisos, zapatas, tiposZapata, huella, anchoCimiento,
+    tipo, avisos, zapatas, tiposZapata, huella, anchoCimiento, candidatosMuro: candidatosDibujo,
     // Para el metrado: la platea (huella de las columnas) o las zapatas, y las vigas de cimentación.
     modelo: {huella, area: areaHuella, zapatas: tipo === "zapatas" ? zapatas.map((z) => ({B: z.B, L: z.L, ...(z.fuente ? {fuente: z.fuente, pd: z.pd, pl: z.pl, ps: z.ps} : {})})) : [], vigas: vigas.map((t) => ({eje: t.eje, largo: t.largo})),
       ...(conReacciones ? {reacciones: {emparejadas: conReacciones.emparejadas, total: lectura.columnas.length, qadm: cargas.qadm, qadmDelEms: Boolean(o.qadmDelEms)}} : {})},

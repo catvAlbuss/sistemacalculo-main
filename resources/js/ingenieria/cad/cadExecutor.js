@@ -155,8 +155,27 @@ export function drawPrimitives(database, primitivas, {dm, edit = (db, label, fn)
       const capa = capaReal(entity.layer);
       if (capa !== entity.layer) entity.layer = capa;
       modelSpace.appendEntity(entity);
+      // Pieza que el agente puede reconocer después (p. ej. "muro-cim:12": el candidato 12 de la
+      // planta de cimentación): así sabe qué dejó, borró o agregó el ingeniero al corregir.
+      if (p.pieza) marcarPieza(database, entity, p.pieza, dm);
       count++;
     }
   });
   return {entidades: count, capasCreadas: layers, escala: k};
+}
+
+export const APP_PIEZA = "NOVACAD_PIEZA";
+function marcarPieza(database, entity, pieza, dm) {
+  const apps = database.tables.appIdTable;
+  if (!apps.has(APP_PIEZA)) apps.add(new dm.AcDbRegAppTableRecord(APP_PIEZA));
+  entity.setXData(new dm.AcDbResultBuffer([{code: dm.AcDbDxfCode.ExtendedDataRegAppName, value: APP_PIEZA}, {code: dm.AcDbDxfCode.ExtendedDataAsciiString, value: String(pieza)}]));
+}
+// Pieza marcada de una entidad ("muro-cim:12") o null.
+export function piezaDe(entity) {
+  try {
+    const rb = entity.getXData?.(APP_PIEZA);
+    if (!rb) return null;
+    const v = [...rb].find((x) => x.code === 1000);
+    return v ? String(v.value) : null;
+  } catch { return null; }
 }

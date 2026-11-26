@@ -382,6 +382,30 @@
     }
   },
   {
+    "name": "aprender_correcciones",
+    "description": "Aprende de las correcciones que el ingeniero hizo a mano en la planta de cimentación de las láminas del agente (muros que borró o que dibujó) y las guarda para dibujar con su criterio. Úsalo para 'aprende de mis correcciones', 'ya corregí la cimentación', 'aprende cómo dibujo'.",
+    "input_schema": {
+      "type": "object",
+      "properties": {}
+    }
+  },
+  {
+    "name": "estado_aprendizaje",
+    "description": "Dice qué aprendió el agente del criterio de dibujo de este usuario (cuántos módulos corregidos, si ya dibuja con su criterio y cuánto acierta). Úsalo para 'qué aprendiste de mí', 'cómo vas aprendiendo'.",
+    "input_schema": {
+      "type": "object",
+      "properties": {}
+    }
+  },
+  {
+    "name": "olvidar_aprendizaje",
+    "description": "Borra lo que el agente aprendió de las correcciones de este usuario (vuelve a dibujar con la regla del despacho). Solo si el usuario lo pide expresamente.",
+    "input_schema": {
+      "type": "object",
+      "properties": {}
+    }
+  },
+  {
     "name": "preguntar_ingeniero",
     "description": "Pregunta al ingeniero una decisión de experto con 2 a 4 opciones (se muestran como botones). Úsalo cuando falta un dato o criterio que no puedes deducir ni está en el estado (ej. tipo de cimentación sin estudio de suelos, si el techo lleva losa, qué vista usar). Recomienda una opción y di por qué en una frase.",
     "input_schema": {
