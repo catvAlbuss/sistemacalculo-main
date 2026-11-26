@@ -416,6 +416,17 @@
   {
     "type": "function",
     "function": {
+      "name": "aplicar_diseno",
+      "description": "Trae el diseño verificado en Análisis Estructural (columnas diseñadas con las fuerzas del análisis sísmico) y rehace las láminas con ese armado: el cuadro de columnas, el metrado y el modelo usan el acero que cumple. Úsalo para 'aplica el diseño', 'trae el diseño del análisis', 'actualiza las láminas con el diseño'.",
+      "parameters": {
+        "type": "object",
+        "properties": {}
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
       "name": "abrir_analisis",
       "description": "Abre Análisis Estructural con el modelo que armó modelo_analisis (en otra pestaña).",
       "parameters": {

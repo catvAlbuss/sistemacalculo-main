@@ -200,7 +200,10 @@ export function dePie(c) {
   return {...c, contorno: c.contorno.map(g)};
 }
 
-export function cuadroColumnas(columnas, {escala = 2, niveles = 1} = {}) {
+// `diseno` (opcional): por tipo, el armado que dejó verificado Análisis Estructural
+// ({n, ratio, aumentado}, ver cad/engine/disenoAgente.js). Un tipo con más acero se dibuja con ese
+// número de varillas; uno que cumplió con el mínimo conserva el del cuadro y queda marcado verificado.
+export function cuadroColumnas(columnas, {escala = 2, niveles = 1, diseno = null} = {}) {
   const tipos = [];
   for (const c of columnas) {
     const t = tipos.find((x) => x.tipo === c.tipo);
@@ -249,7 +252,8 @@ export function cuadroColumnas(columnas, {escala = 2, niveles = 1} = {}) {
   out.push(...renglones(["DESPIECE DE", "ESTRIBOS"], (c0 + c1) / 2, (y[4] + y[5]) / 2, (c0 + c1) * 0.85, hT * 0.3));
 
   const resumen = tipos.map((t, i) => {
-    const c = t.muestra, ref = refuerzoMinimo(c.area);
+    const c = t.muestra, d = diseno?.[t.tipo], minimo = refuerzoMinimo(c.area);
+    const ref = d?.aumentado && d.n > minimo.n ? {n: d.n, texto: `${d.n}Ø${C.barra}`} : minimo;
     const x0 = inicios[i], wTipo = anchos[i], xm = x0 + wTipo / 2;
     out.push(text(L.LAMINA, [r4(xm), r4((y[1] + y[2]) / 2)], t.tipo, Math.min(hT * 0.42, wTipo * 0.3)));
     // Sección a la escala del encabezado, centrada en su celda (un poco a la izquierda para el
@@ -295,7 +299,8 @@ export function cuadroColumnas(columnas, {escala = 2, niveles = 1} = {}) {
       out.push(...estriboDetallado(ejes[j], SE, {de, db}));
       out.push(...cotasDeContorno(q, SE, {separacion: hT * 0.14, alto: hT * 0.14}));
     });
-    return {tipo: t.tipo, cantidad: t.cantidad, dimensiones: dims, refuerzo: ref.texto, estribos: estribaje, varillas: varillas.length};
+    return {tipo: t.tipo, cantidad: t.cantidad, dimensiones: dims, refuerzo: ref.texto, estribos: estribaje, varillas: varillas.length,
+      ...(d && d.n > 0 ? {verificado: {ratio: d.ratio, ratioOriginal: d.ratioOriginal, aumentado: ref !== minimo, cumple: d.cumple, minimo: minimo.texto}} : {})};
   });
   return {filas: resumen, contenido: {primitivas: out, marco: {x0: 0, y0: 0, x1: r4(W), y1: r4(H)}, h: hT, notas: []}};
 }

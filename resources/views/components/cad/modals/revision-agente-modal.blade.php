@@ -94,6 +94,7 @@
 
         <div class="flex justify-end gap-2 px-4 py-3 border-t border-gray-700">
             <button @click="disenarColumnas()" class="px-3 py-1.5 bg-gray-600 hover:bg-gray-500 text-white rounded text-xs">Diseñar todas las columnas</button>
+            <button @click="enviarAlAgente()" class="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded text-xs" title="El cuadro de columnas de las láminas toma el armado verificado">Enviar diseño al agente</button>
             <button @click="explicar()" :disabled="explicando" class="px-3 py-1.5 bg-sky-700 hover:bg-sky-600 disabled:opacity-50 text-white rounded text-xs">Explicar con IA</button>
             <button @click="recalcular()" class="px-3 py-1.5 bg-gray-600 hover:bg-gray-500 text-white rounded text-xs">Volver a revisar</button>
             <button @click="open = false" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded text-xs">Cerrar</button>
@@ -126,6 +127,9 @@
             async disenarColumnas() {
                 this.open = false;
                 await window.cadSystem?.disenarTodasLasColumnas?.();
+            },
+            enviarAlAgente() {
+                window.cadSystem?.enviarDisenoAlAgente?.();
             },
             async explicar() {
                 this.explicando = true; this.errorIA = ''; this.explicacion = '';

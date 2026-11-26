@@ -3,6 +3,8 @@
 // es modals/revision-agente-modal.blade.php (evento open-revision-agente-modal).
 import {revisarModelo, revisarResultados, revisarIrregularidades, revisarDiseno, resumirRevision, rDelEspectro, mensajesExplicacion} from "../../engine/revisionE030.js";
 import {nodeHasRestraints} from "../../model/nodeSupports.js";
+import {DISENO_DEL_AGENTE, buscarArmado, paqueteParaAgente, ratioDe, totalDePatron, tipoDeSeccion} from "../../engine/disenoAgente.js";
+import {armadosMayores} from "../../../ingenieria/diseno/patronColumna.js";
 
 const LIMITES = {concreto: 0.007, acero: 0.01, albanileria: 0.005, madera: 0.01, ductilidad_limitada: 0.005};
 const esDeDireccion = (c, u) => Boolean(c?.spectra?.[u]?.functionId) || (u === "U1" ? /x/i : /y/i).test(String(c?.direction || ""));
@@ -72,6 +74,15 @@ export const revisionAgenteMixin = {
       }
     }
     const diseno = revisarDiseno({columnas: this.rcColumnDesignResults || null, viga: this.rcBeamDesign || null});
+    const ajustadas = (this.rcColumnDesignResults || []).filter((c) => c.propuesta);
+    if (ajustadas.length) {
+      const bien = ajustadas.filter((c) => !c.propuesta.sinSolucion), mal = ajustadas.filter((c) => c.propuesta.sinSolucion);
+      diseno.verificaciones.push({grupo: "Diseño", titulo: "Armado ajustado por el agente", valor: `${bien.length}/${ajustadas.length}`, norma: "E.060 art. 10.9",
+        estado: mal.length ? "no_cumple" : "observacion",
+        detalle: [...bien.map((c) => `${c.label}: ${c.propuesta.nAntes} → ${c.propuesta.n} varillas (ratio ${c.propuesta.ratioAntes.toFixed(2)} → ${c.propuesta.ratio.toFixed(2)}, ρ ${(c.propuesta.cuantia * 100).toFixed(1)} %)`),
+          ...mal.map((c) => `${c.label}: ni con 4 % de cuantía cumple (ratio ${c.propuesta.ratio.toFixed(2)})`)].join("; "),
+        accion: mal.length ? "Agranda la sección de esas columnas (o agrega placas) y vuelve a analizar." : "Envía el diseño al agente para que el cuadro de columnas lo dibuje."});
+    }
     const verificaciones = [...modelo, ...irregularidad.verificaciones, ...sismo.verificaciones, ...diseno.verificaciones];
     return {
       verificaciones, supuestos: sismo.supuestos, parametros: sismo.parametros, hayResultados,
@@ -93,7 +104,67 @@ export const revisionAgenteMixin = {
     const columnas = (this.shapes || []).filter((f) => /column/i.test(String(f.type || f.elementType || "")));
     if (!columnas.length) { this.showMessage?.("El modelo no tiene columnas.", "warning"); return false; }
     await this.openRcColumnDesignDialog?.(columnas);
+    // Las que no cumplen: el agente busca el armado que sí (queda como propuesta en la revisión).
+    try { await this.ajustarArmadoColumnas(); } catch (error) { console.warn("Ajuste de armado:", error); }
     return true;
+  },
+
+  // Columnas que no cumplen: el agente prueba armados mayores (dos varillas más del mismo diámetro
+  // cada vez, hasta 4 % de cuantía) con el MISMO motor de interacción y las mismas demandas, y deja el
+  // primero que cumple en `c.propuesta`. No cambia la sección del modelo: es la propuesta que viaja a
+  // las láminas.
+  async ajustarArmadoColumnas({limite = 1} = {}) {
+    const columnas = this.rcColumnDesignResults || [];
+    const fallan = columnas.filter((c) => !c.unsupported && c.geometry && ratioDe(c) > limite);
+    const errores = [];
+    // Una columna a la vez por dentro (cada armado depende de si el anterior cumplió), todas en paralelo.
+    await Promise.all(fallan.map(async (c) => {
+      const g = c.geometry;
+      const nAntes = totalDePatron(g), ratioAntes = ratioDe(c);
+      const puntos = [...(c.demandCandidates?.base || []), ...(c.demandCandidates?.top || [])];
+      const nBase = (c.demandCandidates?.base || []).length;
+      const opciones = armadosMayores({b: g.b, h: g.h, forma: g.shape, espesor: g.flangeThick, n: nAntes, areaBarra: g.barArea});
+      const evaluar = async (o) => {
+        const r = await this._rcFetchColumnInteraction({...g, n2: o.n2, n3: o.n3}, puntos);
+        const checks = r.demandChecks || [];
+        const base = this._rcMaxRatio(this._rcTagChecks(c.demandCandidates.base, checks.slice(0, nBase)));
+        const top = this._rcMaxRatio(this._rcTagChecks(c.demandCandidates.top, checks.slice(nBase)));
+        return Math.max(Number(base?.ratio) || 0, Number(top?.ratio) || 0);
+      };
+      let ultimo;
+      try {
+        const {opcion, ratio, mayor} = await buscarArmado(opciones, evaluar, {nAntes, ratioAntes, limite});
+        const o = opcion ?? mayor;
+        ultimo = o
+          ? {sinSolucion: !opcion, n: o.total, nAntes, n2: o.n2, n3: o.n3, patron: o.patron, ratio, ratioAntes, cuantia: o.cuantia}
+          : {sinSolucion: true, n: nAntes, nAntes, ratio: ratioAntes, ratioAntes, cuantia: 0};
+      } catch (error) {
+        // Motor caído o límite de pedidos: no se inventa una propuesta.
+        errores.push(`${c.label}: ${error.message}`);
+        return;
+      }
+      c.propuesta = ultimo;
+    }));
+    if (errores.length) this.showMessage?.(`El motor no respondió al buscar el armado de ${errores.length} columna(s); vuelve a intentarlo en un minuto. ${errores[0]}`, "warning");
+    return fallan.length;
+  },
+
+  // Diseño verificado → agente (NovaCad): por tipo de columna, el armado que cumple y su ratio.
+  enviarDisenoAlAgente() {
+    const columnas = (this.rcColumnDesignResults || []).map((c) => {
+      const frame = (this.shapes || []).find((f) => f.id === c.frameId);
+      return {...c, sectionName: c.sectionName || frame?.frameSection?.name || frame?.sectionName || null};
+    });
+    if (!columnas.some((c) => tipoDeSeccion(c.sectionName))) {
+      this.showMessage?.("Primero diseña las columnas del modelo del agente (Revisión del agente ▸ Diseñar todas las columnas).", "warning");
+      return null;
+    }
+    const revision = this.revisionAgente || this.calcularRevisionAgente();
+    const paquete = paqueteParaAgente({columnas, revision, modelo: this.modelName || this.currentModelName || ""});
+    try { localStorage.setItem(DISENO_DEL_AGENTE, JSON.stringify(paquete)); } catch { /* sin almacenamiento */ }
+    const tipos = Object.values(paquete.columnas);
+    this.showMessage?.(`🤖 Diseño enviado al agente: ${tipos.length} tipo(s) de columna (${tipos.filter((t) => t.aumentado).length} con más acero). Vuelve a NovaCad y pide «aplica el diseño».`, "success");
+    return paquete;
   },
 
   // Explicación en lenguaje de ingeniero con la IA del servidor, solo sobre los hechos de la revisión.

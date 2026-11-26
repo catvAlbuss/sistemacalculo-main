@@ -3,6 +3,18 @@
 import {modeloE2k} from "../../analisis/modeloE2k.js";
 
 export const MODELO_DEL_AGENTE = "novacad:modelo-analisis";
+// Lo escribe Análisis Estructural («Enviar diseño al agente», cad/engine/disenoAgente.js).
+export const DISENO_DEL_AGENTE = "novacad:diseno-analisis";
+
+// Una línea por tipo: lo que el cuadro va a dibujar y con qué respaldo.
+export function textoDiseno(columnas) {
+  return Object.values(columnas || {}).sort((a, b) => a.tipo.localeCompare(b.tipo, "es", {numeric: true})).map((t) => {
+    if (!t.n) return `${t.tipo}: sin diseño (${t.sinDiseno} columna(s) sin armado o con forma no soportada).`;
+    if (t.sinSolucion?.length) return `${t.tipo}: NO cumple ni con 4 % de cuantía (D/C ${t.ratio}) en ${t.sinSolucion.join(", ")}: hay que agrandar la sección.`;
+    if (t.aumentado) return `${t.tipo}: subo a ${t.n}Ø${t.barra} (D/C ${t.ratioOriginal} con el mínimo → ${t.ratio}).`;
+    return `${t.tipo}: el refuerzo del cuadro cumple (D/C máx. ${t.ratio}).`;
+  });
+}
 const RUTA_ANALISIS = "/software/etabs?desde=agente";
 
 const nombreArchivo = (ctx) => {
@@ -45,6 +57,39 @@ export const ANALISIS_SKILLS = [
         resumen: `Modelo de análisis listo (${r.pisos} piso(s), ${r.columnas} columnas, ${r.vigas} vigas, ${r.losas} losas).`,
         supuestos: g.supuestos, avisos: g.avisos,
         opciones: listo ? [{texto: "Abrir en Análisis Estructural", herramienta: "abrir_analisis", args: {}, recomendada: true}] : [],
+      };
+    },
+  },
+  {
+    name: "aplicar_diseno",
+    description: "Trae el diseño verificado en Análisis Estructural (columnas diseñadas con las fuerzas del análisis sísmico) y rehace las láminas con ese armado: el cuadro de columnas, el metrado y el modelo usan el acero que cumple. Úsalo para 'aplica el diseño', 'trae el diseño del análisis', 'actualiza las láminas con el diseño'.",
+    parameters: {type: "object", properties: {}},
+    async run(_args, ctx) {
+      let paquete = null;
+      try { paquete = JSON.parse(globalThis.localStorage?.getItem(DISENO_DEL_AGENTE) || "null"); } catch { /* sin almacenamiento */ }
+      if (!paquete?.columnas || !Object.keys(paquete.columnas).length) {
+        return {ok: false, error: "No hay un diseño enviado desde Análisis Estructural. Allí corre el análisis sísmico, abre Analizar ▸ Revisión del agente, pulsa «Diseñar todas las columnas» y luego «Enviar diseño al agente».",
+          opciones: [{texto: "Abrir Análisis Estructural", herramienta: "abrir_analisis", args: {}}]};
+      }
+      ctx.memoria.disenoColumnas = paquete.columnas;
+      ctx.memoria.revisionAnalisis = paquete.revision ?? null;
+      const lineas = textoDiseno(paquete.columnas);
+      const revision = paquete.revision?.texto ? `Revisión E.030: ${paquete.revision.texto}` : "";
+      const plano = ctx.memoria.ultimaGeneracion ? (await import("./estructuraPlano.js")).ESTRUCTURA_SKILLS.find((x) => x.name === "plano_estructuras") : null;
+      if (!plano) {
+        return {ok: true, mensaje: ["Guardé el diseño del análisis; se aplicará al generar las láminas.", ...lineas, revision].filter(Boolean).join("\n"),
+          opciones: [{texto: "Generar las láminas", herramienta: "plano_estructuras", args: {}, recomendada: true}]};
+      }
+      const r = await plano.run({}, ctx);
+      if (!r.ok) return {...r, error: `Guardé el diseño, pero no pude rehacer las láminas: ${r.error ?? "error"}`};
+      // Lo que dice el mensaje es lo que dibuja el cuadro (verificado contra el modelo recién armado).
+      const dibujado = Object.fromEntries((ctx.memoria.modeloEstructural?.refuerzoColumnas ?? []).map((f) => [f.tipo, f.refuerzo]));
+      const distintos = Object.values(paquete.columnas).filter((t) => t.aumentado && dibujado[t.tipo] && dibujado[t.tipo] !== `${t.n}Ø${t.barra}`);
+      return {
+        ...r, ok: true,
+        mensaje: [`Apliqué el diseño de Análisis Estructural al cuadro de columnas, al metrado y al modelo:`, ...lineas, revision,
+          distintos.length ? `Atención: ${distintos.map((t) => `${t.tipo} quedó dibujada con ${dibujado[t.tipo]}`).join(", ")}.` : "",
+          r.mensaje ?? ""].filter(Boolean).join("\n"),
       };
     },
   },

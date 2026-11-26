@@ -241,12 +241,12 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
   // El alero es del techo: con varios niveles, la losa de entrepiso termina en la cara de la viga
   // (el pasillo en volado sí sigue: va en `volados`).
   const ali = planoAligerado({lectura: plantaEntrepiso?.lectura ?? lectura, items, k: plantaEntrepiso?.k ?? k, espesorFijo: estructura.espesorLosa ?? null, losaMaciza: estructura.losaMaciza ?? Number(estructura.niveles) >= 2, panosMacizos: estructura.panosMacizos ?? null, volados, alero: nivelesLosa > 1 ? 0 : alero, tipoCimentacion: cim.tipo, ...vigasProyecto, aleroParaleloA});
-  const cuadro = cuadroColumnas(lectura.columnas, {niveles: Math.max(1, Number(estructura.niveles) || 1)}); // en NIVEL, los pisos que cubre
+  const cuadro = cuadroColumnas(lectura.columnas, {niveles: Math.max(1, Number(estructura.niveles) || 1), diseno: estructura.disenoColumnas ?? null}); // en NIVEL, los pisos que cubre
   // Con placas y columnas, el ingeniero hace dos cuadros: "CUADRO DE PLACAS" y "CUADRO DE COLUMNAS"
   // (así en 35 de los 44 cuadros de la biblioteca); el cuadro completo queda para el metrado.
   const placasPlanta = lectura.columnas.filter((c) => c.clase === "placa"), columnasPlanta = lectura.columnas.filter((c) => c.clase !== "placa");
   const cuadrosSeparados = placasPlanta.length && columnasPlanta.length
-    ? [cuadroColumnas(columnasPlanta, {niveles: Math.max(1, Number(estructura.niveles) || 1)}), cuadroColumnas(placasPlanta, {niveles: Math.max(1, Number(estructura.niveles) || 1)})] : null;
+    ? [cuadroColumnas(columnasPlanta, {niveles: Math.max(1, Number(estructura.niveles) || 1), diseno: estructura.disenoColumnas ?? null}), cuadroColumnas(placasPlanta, {niveles: Math.max(1, Number(estructura.niveles) || 1), diseno: estructura.disenoColumnas ?? null})] : null;
   const nNiveles = Math.max(1, Number(estructura.niveles) || 1);
   const {entrepisos, techo: altura, fuente: fuenteNiveles} = nivelesDesdeArquitectura(items, nNiveles, estructura.textosOcultos ?? (() => []));
   const altura0 = altura;
@@ -654,7 +654,7 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
       cimentacion: {tipo: cim.tipo, hz: cim.peralte, df: cim.df, fuentes: {hz: fuenteDe("hz"), df: fuenteDe("df")}, ...cim.modelo},
       cimientoCorrido: {ancho: cc.ancho, ...cc.modelo},
       columnas: lectura.columnas.map((c) => ({tipo: c.tipo, eje: c.eje, b: c.b, h: c.h, area: c.area, forma: c.forma, clase: c.clase, perimetro: perimetroDe(c.contorno)})),
-      refuerzoColumnas: cuadro.filas.map((f) => ({tipo: f.tipo, refuerzo: f.refuerzo})),
+      refuerzoColumnas: cuadro.filas.map((f) => ({tipo: f.tipo, refuerzo: f.refuerzo, ...(f.verificado ? {verificado: f.verificado} : {})})),
       // Columnetas con el eje y el alto real del pórtico donde se dibujaron (bajo el techo
       // inclinado); las que no caen en un pórtico quedan sin alto (el metrado usa el del muro).
       columnetas: (lectura.columnetas ?? []).map((c) => {

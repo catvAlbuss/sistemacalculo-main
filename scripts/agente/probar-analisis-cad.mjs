@@ -12,7 +12,9 @@ import {tmpdir} from 'node:os';
 import {spawn, execFileSync} from 'node:child_process';
 import {runBrowserFixture, removeTempDir} from '../../tests/frontend/browserFixture.mjs';
 
-const [archivoE2k] = process.argv.slice(2);
+// --limite=0.3: exige un ratio D/C menor que 1 para forzar que el agente suba acero (prueba del ajuste).
+const archivoE2k = process.argv.slice(2).find((a) => !a.startsWith('--'));
+const LIMITE = Number(process.argv.find((a) => a.startsWith('--limite='))?.slice(9)) || 1;
 if (!archivoE2k || !existsSync(archivoE2k)) { console.error('Uso: node scripts/agente/probar-analisis-cad.mjs <modelo.e2k>'); process.exit(1); }
 const browser = ['C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe', 'C:/Program Files/Microsoft/Edge/Application/msedge.exe'].find(existsSync);
 const RAIZ = resolve('.');
@@ -36,6 +38,7 @@ const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta n
 ${sinOrigen(vista.cabeza)}${vista.estilos}${sinOrigen(vista.scripts)}</head>
 <body class="h-full"><main class="h-full">${vista.cuerpo}</main><pre id="result" style="display:none">WAIT</pre>
 <script>
+  const LIMITE = ${LIMITE};
   window.__errores = [];
   window.addEventListener('error', (e) => window.__errores.push(String(e.message)));
   // Los avisos de SweetAlert se confirman solos (no hay quien haga clic).
@@ -60,13 +63,16 @@ ${sinOrigen(vista.cabeza)}${vista.estilos}${sinOrigen(vista.scripts)}</head>
       await cad.disenarTodasLasColumnas();
       for (let i = 0; i < 300 && !(cad.rcColumnDesignResults || []).length; i++) await espera(200);
       const columnas = (cad.rcColumnDesignResults || []).map((c) => [c.label, c.unsupported ? 'sin diseño: ' + c.unsupportedReason : [c.check?.base?.ratio, c.check?.top?.ratio].map((r) => (Number(r) || 0).toFixed(2)).join(' / '), c.geometry ? 'R-' + c.geometry.n2 + '-' + c.geometry.n3 : '']);
+      if (LIMITE < 1) await cad.ajustarArmadoColumnas({limite: LIMITE});
       const rev = cad.calcularRevisionAgente({});
+      cad.revisionAgente = rev;
+      const paquete = cad.enviarDisenoAlAgente();
       const resumenCaso = (r) => ({
         modos: (r.modal?.modes || []).slice(0, 3).map((m) => [m.mode, +Number(m.period).toFixed(3), +Number(m.mass_participation_x).toFixed(1), +Number(m.mass_participation_y).toFixed(1)]),
         derivaMax: Math.max(...['x', 'y'].flatMap((k) => (r.drifts?.[k] || []).map((d) => Number(d.drift_ratio) || 0))),
         cortante: r.story_shear_summary,
       });
-      fin('PASS ' + JSON.stringify({columnas, nudos: cad.nodes?.length, barras: cad.shapes?.length, areas: cad.areas?.length,
+      fin('PASS ' + JSON.stringify({paquete, columnas, nudos: cad.nodes?.length, barras: cad.shapes?.length, areas: cad.areas?.length,
         casos: Object.fromEntries(Object.entries(casos).map(([k, r]) => [k, resumenCaso(r)])),
         revision: rev.verificaciones.map((v) => [v.grupo, v.titulo, v.estado, v.valor ?? '', v.detalle, v.accion ?? '']), resumen: rev.resumen.texto, parametros: rev.parametros}));
     } catch (e) { fin('FAIL ' + (e?.stack || e?.message || e)); }
@@ -107,6 +113,7 @@ try {
     console.log(`Modelo: ${d.nudos} nudos, ${d.barras} barras, ${d.areas} áreas`);
     for (const c of d.columnas) console.log(`  Columna ${c[0].padEnd(16)} ratio base/cabeza ${c[1]}  ${c[2]}`);
     for (const [caso, c] of Object.entries(d.casos)) console.log(`Caso ${caso}: modos ${JSON.stringify(c.modos)} · deriva elástica máx ${c.derivaMax.toFixed(5)} · V ${JSON.stringify(c.cortante)}`);
+    for (const t of Object.values(d.paquete?.columnas || {})) console.log(`  Al agente ${t.tipo}: ${t.n} varillas · D/C ${t.ratioOriginal} → ${t.ratio}${t.aumentado ? ' (aumentado)' : ''}${t.sinSolucion?.length ? ' SIN SOLUCIÓN' : ''}`);
     console.log('\nRevisión del agente:', d.resumen, JSON.stringify(d.parametros));
     for (const v of d.revision) console.log(`  ${v[2].padEnd(11)} ${v[0].padEnd(13)} ${v[1].padEnd(34)} ${String(v[3]).padEnd(22)} ${v[4]}${v[5] ? `  → ${v[5]}` : ''}`);
   }

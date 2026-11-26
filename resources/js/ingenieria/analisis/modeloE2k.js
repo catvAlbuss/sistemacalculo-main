@@ -9,6 +9,7 @@
 import {parametrosSismicos} from "../criterios/datosProyecto.js";
 import {CRITERIOS} from "../criterios/criteriosEstructurales.js";
 import {refuerzoMinimo} from "../laminas/laminaEstructuras.js";
+import {patronColumna, areaColumna} from "../diseno/patronColumna.js";
 
 const r4 = (v) => Math.round(v * 10000) / 10000;
 const fmt = (v) => String(r4(Number(v) || 0));
@@ -35,37 +36,18 @@ const areaVarilla = (barra) => {
 };
 
 // Armado de columna para el .e2k con el MISMO refuerzo del cuadro de columnas (refuerzoMinimo:
-// cuantía 1 %, Ø5/8") en el patrón "R-n2-n3" de ETABS, que el diseño de columnas verifica:
-//  - rectangular: n2 varillas por cara sobre el lado b y n3 sobre el lado h (2·n2 + 2·n3 − 4);
-//  - L: pata sobre el eje 3 (ancho B) con n3 y pata sobre el eje 2 (peralte D) con n2, dos hileras
-//    cada una, solo se funde la varilla del vértice común (2·n2 + 2·n3 − 1);
-//  - T: igual pero sin varillas comunes (2·n2 + 2·n3).
-// Ver python-backend/design/column_interaction.py y column_polygon.py.
-export function armadoColumnaE2k({b, h, area, forma = null, espesor = null}) {
+// cuantía 1 %, Ø5/8") —o el que dejó verificado el diseño de Análisis Estructural (`n`)— en el
+// patrón "R-n2-n3" de ETABS (diseno/patronColumna.js), que el diseño de columnas verifica.
+export function armadoColumnaE2k({b, h, area, forma = null, espesor = null, n = null}) {
   const C = CRITERIOS.columnas;
-  const e = Number(espesor) || 0;
-  const bruta = (forma === "L" || forma === "T") && e > 0 ? e * (b + h - e) : b * h; // patas sin duplicar el cruce
-  const ref = refuerzoMinimo(Number(area) > 0 ? Number(area) : bruta);
-  const reparte = (suma, lado, otro) => {
-    const n = Math.min(suma - 2, Math.max(2, Math.round((suma * lado) / (lado + otro))));
-    return [n, suma - n];
-  };
-  let n2, n3, total;
-  if (forma === "L" || forma === "T") {
-    const suma = Math.max(4, Math.ceil((ref.n + (forma === "L" ? 1 : 0)) / 2));
-    [n3, n2] = reparte(suma, b, h);
-    total = 2 * suma - (forma === "L" ? 1 : 0);
-  } else {
-    const suma = ref.n / 2 + 2;
-    [n2, n3] = reparte(suma, b, h);
-    total = 2 * n2 + 2 * n3 - 4;
-  }
+  const nCuadro = Number(n) > 0 ? Number(n) : refuerzoMinimo(Number(area) > 0 ? Number(area) : areaColumna({b, h, forma, espesor})).n;
+  const p = patronColumna({b, h, forma, n: nCuadro});
   // Ramas del estribo en cada dirección: una por cada dos varillas de la cara (mínimo 2).
-  const ramas = (n) => Math.max(2, Math.ceil(n / 2));
+  const ramas = (k) => Math.max(2, Math.ceil(k / 2));
   return {
-    n: total, nCuadro: ref.n, texto: `${total}Ø${C.barra}`, barra: C.barra, n2, n3, patron: `R-${n2}-${n3}`,
+    n: p.total, nCuadro, texto: `${p.total}Ø${C.barra}`, barra: C.barra, n2: p.n2, n3: p.n3, patron: p.patron,
     areaBarra: areaVarilla(C.barra), estribo: C.estribo, areaEstribo: areaVarilla(C.estribo),
-    espaciamiento: 0.1, recubrimiento: C.recubrimiento, ramas2: ramas(n2), ramas3: ramas(n3),
+    espaciamiento: 0.1, recubrimiento: C.recubrimiento, ramas2: ramas(p.n2), ramas3: ramas(p.n3),
   };
 }
 
@@ -115,19 +97,21 @@ export function modeloE2k({estructura, modelo, datos = {}, nombre = "modelo", R0
 
   // ---- Secciones ----
   const secciones = new Map(); // nombre → {b, h, tipo: Column|Beam}
-  const seccion = (prefijo, b, h, tipo, forma = null, espesor = null, area = null) => {
+  const seccion = (prefijo, b, h, tipo, forma = null, espesor = null, area = null, n = null) => {
     const nombre = `${prefijo}-${cm(b)}X${cm(h)}${forma ? `X${cm(espesor)}` : ""}`;
-    if (!secciones.has(nombre)) secciones.set(nombre, {b, h, tipo, forma, espesor, armado: tipo === "Column" ? armadoColumnaE2k({b, h, area, forma, espesor}) : null});
+    if (!secciones.has(nombre)) secciones.set(nombre, {b, h, tipo, forma, espesor, armado: tipo === "Column" ? armadoColumnaE2k({b, h, area, forma, espesor, n}) : null});
     return nombre;
   };
   const enL = new Set();
   // Columnas en L o T con su sección real ("Concrete L" / "Concrete Tee"); su orientación en
   // planta (espejo) queda por confirmar.
+  // Varillas del cuadro de columnas dibujado ("12Ø5/8\""), que ya trae el diseño aplicado.
+  const varillasDelCuadro = (tipo) => Number(/^(\d+)\s*Ø/.exec(modelo?.refuerzoColumnas?.find((r) => r.tipo === tipo)?.refuerzo ?? "")?.[1]) || null;
   const seccionColumna = (c) => {
     const b = Number(c.b) || 0.25, h = Number(c.h) || 0.25, e = Number(c.espesor);
     const forma = (c.forma === "L" || c.forma === "T") && e > 0 && e < Math.min(b, h) ? c.forma : null;
     if (forma) enL.add(`${c.tipo} (${forma})`);
-    return seccion(c.tipo || "C", b, h, "Column", forma, e, c.area);
+    return seccion(c.tipo || "C", b, h, "Column", forma, e, c.area, varillasDelCuadro(c.tipo));
   };
 
   // Sección de cada columna ANTES de escribir el archivo (la tabla de secciones va antes que las
