@@ -2,7 +2,7 @@
 // Análisis Estructural (e2k-import.js), con sus supuestos a la vista.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {modeloE2k, espectroE030} from '../../resources/js/ingenieria/analisis/modeloE2k.js';
+import {modeloE2k, espectroE030, armadoColumnaE2k} from '../../resources/js/ingenieria/analisis/modeloE2k.js';
 import {leerE2k} from '../../scripts/agente/lectorE2k.mjs';
 import {rutaDirecta} from '../../resources/js/ingenieria/agente/agentRunner.js';
 import {SKILLS} from '../../resources/js/ingenieria/agente/skills/index.js';
@@ -60,4 +60,22 @@ test('el pedido lleva a la herramienta y sin láminas la herramienta lo dice', a
   const r = await SKILLS.find((s) => s.name === 'modelo_analisis').run({}, {memoria: {}});
   assert.equal(r.ok, false);
   assert.equal(r.opciones[0].herramienta, 'plano_estructuras');
+});
+
+test('las columnas llevan al .e2k el mismo refuerzo del cuadro de columnas', async () => {
+  // 0.25 x 0.50: 1 % = 12.25 cm² → 8Ø5/8" (2 por cara corta, 4 por cara larga).
+  const r = armadoColumnaE2k({b: 0.25, h: 0.5});
+  assert.deepEqual([r.n, r.texto, r.patron], [8, '8Ø5/8"', 'R-2-4']);
+  // L 0.50 x 0.50 x 0.25 (0.1875 m²): el cuadro pide 10; el patrón de ETABS en L da 11.
+  const l = armadoColumnaE2k({b: 0.5, h: 0.5, forma: 'L', espesor: 0.25});
+  assert.deepEqual([l.nCuadro, l.n], [10, 11]);
+  const g = modeloE2k({estructura, modelo, datos, nombre: 'prueba'});
+  assert.ok(g.supuestos.some((s) => /refuerzo del cuadro de columnas/.test(s)));
+  assert.ok(g.avisos.some((s) => /C2-50X50X25 11 en vez de 10/.test(s)));
+  const m = await leerE2k(g.texto);
+  const c1 = m.definitions.frameSections.find((s) => s.name === 'C1-30X30');
+  assert.deepEqual(c1.rebarPattern, {type: 'rectangular', n2: 3, n3: 2}); // 6Ø5/8": 3 + 2 por cara
+  assert.equal(c1.designCheck, 'CHECK');
+  assert.ok(Math.abs(c1.longBarDiameter - 0.015875) < 1e-5);
+  assert.equal(c1.cover, 4);
 });

@@ -7,6 +7,8 @@
 // lo informa y el ingeniero lo confirma. Unidades del archivo: TONF y M.
 
 import {parametrosSismicos} from "../criterios/datosProyecto.js";
+import {CRITERIOS} from "../criterios/criteriosEstructurales.js";
+import {refuerzoMinimo} from "../laminas/laminaEstructuras.js";
 
 const r4 = (v) => Math.round(v * 10000) / 10000;
 const fmt = (v) => String(r4(Number(v) || 0));
@@ -24,6 +26,48 @@ const pesoAligerado = (e) => {
   const k = claves.find((c) => e <= c + 1e-6) ?? claves.at(-1);
   return PESO_ALIGERADO[k];
 };
+
+// Área de una varilla (m²) por su diámetro nominal en pulgadas ('5/8"' → 1.979e-4).
+const areaVarilla = (barra) => {
+  const [a, b] = String(barra).replace('"', "").split("/").map(Number);
+  const d = (b ? a / b : a) * 0.0254;
+  return (Math.PI * d * d) / 4;
+};
+
+// Armado de columna para el .e2k con el MISMO refuerzo del cuadro de columnas (refuerzoMinimo:
+// cuantía 1 %, Ø5/8") en el patrón "R-n2-n3" de ETABS, que el diseño de columnas verifica:
+//  - rectangular: n2 varillas por cara sobre el lado b y n3 sobre el lado h (2·n2 + 2·n3 − 4);
+//  - L: pata sobre el eje 3 (ancho B) con n3 y pata sobre el eje 2 (peralte D) con n2, dos hileras
+//    cada una, solo se funde la varilla del vértice común (2·n2 + 2·n3 − 1);
+//  - T: igual pero sin varillas comunes (2·n2 + 2·n3).
+// Ver python-backend/design/column_interaction.py y column_polygon.py.
+export function armadoColumnaE2k({b, h, area, forma = null, espesor = null}) {
+  const C = CRITERIOS.columnas;
+  const e = Number(espesor) || 0;
+  const bruta = (forma === "L" || forma === "T") && e > 0 ? e * (b + h - e) : b * h; // patas sin duplicar el cruce
+  const ref = refuerzoMinimo(Number(area) > 0 ? Number(area) : bruta);
+  const reparte = (suma, lado, otro) => {
+    const n = Math.min(suma - 2, Math.max(2, Math.round((suma * lado) / (lado + otro))));
+    return [n, suma - n];
+  };
+  let n2, n3, total;
+  if (forma === "L" || forma === "T") {
+    const suma = Math.max(4, Math.ceil((ref.n + (forma === "L" ? 1 : 0)) / 2));
+    [n3, n2] = reparte(suma, b, h);
+    total = 2 * suma - (forma === "L" ? 1 : 0);
+  } else {
+    const suma = ref.n / 2 + 2;
+    [n2, n3] = reparte(suma, b, h);
+    total = 2 * n2 + 2 * n3 - 4;
+  }
+  // Ramas del estribo en cada dirección: una por cada dos varillas de la cara (mínimo 2).
+  const ramas = (n) => Math.max(2, Math.ceil(n / 2));
+  return {
+    n: total, nCuadro: ref.n, texto: `${total}Ø${C.barra}`, barra: C.barra, n2, n3, patron: `R-${n2}-${n3}`,
+    areaBarra: areaVarilla(C.barra), estribo: C.estribo, areaEstribo: areaVarilla(C.estribo),
+    espaciamiento: 0.1, recubrimiento: C.recubrimiento, ramas2: ramas(n2), ramas3: ramas(n3),
+  };
+}
 
 // Espectro E.030: Sa/g = Z·U·C·S/R, con C = 2.5, 2.5·Tp/T o 2.5·Tp·TL/T².
 export function espectroE030({Z, U, S, Tp, TL}, R) {
@@ -71,9 +115,9 @@ export function modeloE2k({estructura, modelo, datos = {}, nombre = "modelo", R0
 
   // ---- Secciones ----
   const secciones = new Map(); // nombre → {b, h, tipo: Column|Beam}
-  const seccion = (prefijo, b, h, tipo, forma = null, espesor = null) => {
+  const seccion = (prefijo, b, h, tipo, forma = null, espesor = null, area = null) => {
     const nombre = `${prefijo}-${cm(b)}X${cm(h)}${forma ? `X${cm(espesor)}` : ""}`;
-    if (!secciones.has(nombre)) secciones.set(nombre, {b, h, tipo, forma, espesor});
+    if (!secciones.has(nombre)) secciones.set(nombre, {b, h, tipo, forma, espesor, armado: tipo === "Column" ? armadoColumnaE2k({b, h, area, forma, espesor}) : null});
     return nombre;
   };
   const enL = new Set();
@@ -83,7 +127,7 @@ export function modeloE2k({estructura, modelo, datos = {}, nombre = "modelo", R0
     const b = Number(c.b) || 0.25, h = Number(c.h) || 0.25, e = Number(c.espesor);
     const forma = (c.forma === "L" || c.forma === "T") && e > 0 && e < Math.min(b, h) ? c.forma : null;
     if (forma) enL.add(`${c.tipo} (${forma})`);
-    return seccion(c.tipo || "C", b, h, "Column", forma, e);
+    return seccion(c.tipo || "C", b, h, "Column", forma, e, c.area);
   };
 
   // Sección de cada columna ANTES de escribir el archivo (la tabla de secciones va antes que las
@@ -223,8 +267,21 @@ export function modeloE2k({estructura, modelo, datos = {}, nombre = "modelo", R0
     else L.push(`  FRAMESECTION  "${n}"  MATERIAL "CONC210"  SHAPE "Concrete Rectangular"  D ${fmt(s.h)} B ${fmt(s.b)} `);
   }
   L.push("", "$ CONCRETE SECTIONS");
-  for (const [n, s] of secciones) L.push(`  CONCRETESECTION  "${n}"  LONGBARMATERIAL "fy=4200 kg/cm2"  CONFINEBARMATERIAL "fy=4200 kg/cm2"  TYPE "${s.tipo}"  COVER ${s.tipo === "Column" ? 0.04 : 0.04} `);
+  for (const [n, s] of secciones) {
+    const a = s.armado;
+    // Columnas con su armado fijo (DESIGNCHECK "CHECK"): ETABS y el diseño de columnas de la app
+    // VERIFICAN el acero que dibuja la lámina en vez de dimensionar uno distinto.
+    L.push(a
+      ? `  CONCRETESECTION  "${n}"  LONGBARMATERIAL "fy=4200 kg/cm2"  CONFINEBARMATERIAL "fy=4200 kg/cm2"  TYPE "Column"  PATTERN "${a.patron}"  TRANSREINF "Ties"  COVER ${fmt(a.recubrimiento)}  NUMCONFINEBARS2 ${a.ramas2}  NUMCONFINEBARS3 ${a.ramas3}  LONGBARAREA ${a.areaBarra.toExponential(4)}  CONFINEBARAREA ${a.areaEstribo.toExponential(4)}  CONFINEBARSPACING ${fmt(a.espaciamiento)}  DESIGNCHECK "CHECK" `
+      : `  CONCRETESECTION  "${n}"  LONGBARMATERIAL "fy=4200 kg/cm2"  CONFINEBARMATERIAL "fy=4200 kg/cm2"  TYPE "${s.tipo}"  COVER 0.04 `);
+  }
   L.push("");
+  const armados = [...secciones].filter(([, s]) => s.armado);
+  if (armados.length) {
+    supuestos.push(`Columnas con el refuerzo del cuadro de columnas (cuantía 1 %, Ø${CRITERIOS.columnas.barra}, estribos Ø${CRITERIOS.columnas.estribo}, recubrimiento ${cm(CRITERIOS.columnas.recubrimiento)} cm): ${armados.map(([n, s]) => `${n} ${s.armado.texto}`).join(", ")}. El diseño de columnas lo verifica con las fuerzas del análisis.`);
+    const distintos = armados.filter(([, s]) => s.armado.n !== s.armado.nCuadro);
+    if (distintos.length) avisos.push(`El patrón de ETABS en L/T no admite el mismo número de varillas del cuadro: ${distintos.map(([n, s]) => `${n} ${s.armado.n} en vez de ${s.armado.nCuadro}`).join(", ")} (una varilla más, del lado seguro).`);
+  }
   if (paños.length && !sinLosaTecho) {
     L.push("$ SLAB PROPERTIES", `  SHELLPROP  "${losa}"  PROPTYPE  "Slab"  MATERIAL "CONC210-LOSA"  MODELINGTYPE "Membrane"  SLABTYPE "Slab"  SLABTHICKNESS ${fmt(espesor)} `, "");
   }
@@ -316,7 +373,8 @@ export function modeloE2k({estructura, modelo, datos = {}, nombre = "modelo", R0
   return {
     texto: L.join("\r\n") + "\r\n",
     resumen: {pisos: pisos.length, nudos: puntos.length, apoyos: conColumna.length, columnas: conColumna.length * pisos.length, vigas: vigas.length * pisos.length, losas: conLosa ? paños.length * pisos.length : 0,
-      secciones: [...secciones.keys()], sismo: conEspectro ? {...sismo, R} : null, combinaciones: combos.map(([n]) => n)},
+      secciones: [...secciones.keys()],
+      armadoColumnas: Object.fromEntries([...secciones].filter(([, s]) => s.armado).map(([n, s]) => [n, s.armado])), sismo: conEspectro ? {...sismo, R} : null, combinaciones: combos.map(([n]) => n)},
     supuestos, avisos,
   };
 }
