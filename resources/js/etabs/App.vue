@@ -283,6 +283,8 @@ if (window.__NOVACAD_PRUEBA__) {
       const m = AcApDocManager.instance;
       const vista = m.curView ?? m.mainView;
       if (!vista?.activeLayoutView) throw new Error("el visor no tiene una vista activa");
+      const {irAlModelo} = await import("./visor/espacioModelo.js");
+      irAlModelo(dm, m.curDocument?.database);
       vista.zoomTo(new dm.AcGeBox2d({x: x0, y: y0}, {x: x1, y: y1}), 1.05);
     },
   };

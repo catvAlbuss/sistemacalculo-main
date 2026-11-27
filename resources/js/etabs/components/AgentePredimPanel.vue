@@ -347,6 +347,7 @@ import {plantillaDesdeEdicion} from "../../ingenieria/metrado/terminologia.js";
 import {cargarEventosPendientes, registrarEvento, resolverEventoPendiente} from "../../ingenieria/aprendizaje/registro.js";
 import {crearRevisionDePlano} from "../agente/revisionesPlano.js";
 import {crearSesionDeDocumento, vincularDocumento} from "../agente/sesionDocumento.js";
+import {irAlModelo} from "../visor/espacioModelo.js";
 import {referenciaDelDocumento} from "../../ingenieria/agente/referenciasProyecto.js";
 
 const emit = defineEmits(["close", "foundation"]);
@@ -588,6 +589,8 @@ const getContext = () => {
     // Con caja (una lámina nueva) se encuadra esa zona; si no, zoom inteligente.
     afterDraw: (box) => {
       if (box && window.__novacadPrueba) window.__novacadPrueba.ultimaZona = box;
+      // Las láminas están en el espacio modelo: si el plano abrió en una presentación, a Model.
+      irAlModelo(dm, viewer.AcApDocManager.instance?.curDocument?.database);
       const view = viewer.AcApDocManager.instance?.curView;
       if (box && view?.zoomTo) {
         view.zoomTo(new dm.AcGeBox2d({x: box.x0, y: box.y0}, {x: box.x1, y: box.y1}), 0.04 * (box.x1 - box.x0));
