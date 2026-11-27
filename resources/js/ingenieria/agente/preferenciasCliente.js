@@ -139,12 +139,18 @@ export function aplicarPreferencias(bloques, preferencias = []) {
   // Reducir o agrandar la letra y quitar achurados: en todos los bloques.
   const escala = preferencias.reduce((f, p) => f * (Number(p.accion?.escalarTextos) || 1), 1);
   const sinAchurado = preferencias.some((p) => p.accion?.sinAchurado);
+  // Estilo aprendido del despacho (aprendizaje/estiloDespacho.js): el dibujo de un elemento va a la
+  // capa que usa el despacho (los textos y achurados siguen en la suya).
+  const renombrar = preferencias.flatMap((p) => p.accion?.renombrar ?? []);
   return bloques.filter((b) => !quitar.includes(b.id) && !quitar.includes(b.tipo)).map((b) => {
-    const capas = ocultar.filter((o) => o.en.includes(b.tipo) || o.en.includes(b.id)).flatMap((o) => o.capas);
-    if (!b.contenido?.primitivas || (!capas.length && escala === 1 && !sinAchurado)) return b;
+    const enBloque = (o) => o.en.includes(b.tipo) || o.en.includes(b.id);
+    const capas = ocultar.filter(enBloque).flatMap((o) => o.capas);
+    const destino = new Map(renombrar.filter(enBloque).map((r) => [r.capa, r.destino]));
+    if (!b.contenido?.primitivas || (!capas.length && !destino.size && escala === 1 && !sinAchurado)) return b;
     const primitivas = b.contenido.primitivas
       .filter((q) => !capas.includes(q.layer) && !(sinAchurado && q.type === "hatch" && !q.solido))
-      .map((q) => (escala !== 1 && q.type === "text" ? {...q, h: q.h * escala} : q));
+      .map((q) => (escala !== 1 && q.type === "text" ? {...q, h: q.h * escala} : q))
+      .map((q) => (destino.has(q.layer) && q.type !== "text" && q.type !== "hatch" ? {...q, layer: destino.get(q.layer)} : q));
     return {...b, contenido: {...b.contenido, primitivas}};
   });
 }

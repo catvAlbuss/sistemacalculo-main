@@ -128,6 +128,26 @@
     [
       "¿qué opinas de la arquitectura de este colegio?",
       null
+    ],
+    [
+      "aprende mi estilo de este plano",
+      "aprender_estilo"
+    ],
+    [
+      "aprende de estos planos de estructuras que te paso",
+      "aprender_estilo"
+    ],
+    [
+      "qué estilo aprendiste de mis planos",
+      "estado_estilo"
+    ],
+    [
+      "olvida mi estilo",
+      "olvidar_estilo"
+    ],
+    [
+      "aprende de mis correcciones",
+      "aprender_correcciones"
     ]
   ],
   "analisis": [

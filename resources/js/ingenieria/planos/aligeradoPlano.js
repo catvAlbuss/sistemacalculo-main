@@ -418,7 +418,7 @@ export function ambientesDeLosa({lectura, items = [], k = 1}) {
 // termina en la cara de la viga (alero 0), como la dibuja el ingeniero.
 // panosMacizos: paños [["33–37´", "H–E´"], …] donde el ingeniero confirmó losa maciza (los que nombró la
 // pregunta del agente): van macizos aunque esta planta no rotule el baño.
-export function planoAligerado({lectura, items = [], k = 1, espesorFijo = null, losaMaciza = true, panosMacizos = null, conVacios = true, volados = [], alero: aleroPedido = null, tipoCimentacion = null, pisos = 1, vigaSecundaria = null, aleroParaleloA = null}) {
+export function planoAligerado({lectura, items = [], k = 1, espesorFijo = null, losaMaciza = true, panosMacizos = null, conVacios = true, volados = [], alero: aleroPedido = null, tipoCimentacion = null, pisos = 1, vigaSecundaria = null, aleroParaleloA = null, columnetas = false}) {
   const columnas = lectura.columnas;
   // Con volado los ejes pasan su borde (las burbujas quedan fuera de la losa).
   const bordeVolado = (() => {
@@ -429,6 +429,14 @@ export function planoAligerado({lectura, items = [], k = 1, espesorFijo = null, 
   const base = primitivasBase(lectura.ejes, columnas, {extra: bordeVolado});
   const {h} = base;
   const prim = [];
+  // Columnetas en la losa solo si el despacho las dibuja ahí (estilo aprendido de sus planos).
+  for (const c of columnetas ? lectura.columnetas ?? [] : []) {
+    if (!(c.contorno?.length >= 3)) continue;
+    prim.push(pline(L.COLUMNETAS, c.contorno.map(pt), true));
+    const xs = c.contorno.map((q) => q.x), ys = c.contorno.map((q) => q.y);
+    const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+    prim.push(line(L.COLUMNETAS, pt({x: x0, y: y0}), pt({x: x1, y: y1})), line(L.COLUMNETAS, pt({x: x0, y: y1}), pt({x: x1, y: y0})));
+  }
 
   // Vigas en los ejes, entre caras de columnas. Con las reglas del despacho: las que reciben las
   // viguetas (perpendiculares a ellas) con el peralte de la mayor luz libre de esas vigas (el

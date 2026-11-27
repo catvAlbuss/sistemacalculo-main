@@ -22,6 +22,7 @@ import {buscarUbicacion, textoUbicacion, categoriaPorUso} from "../../criterios/
 import {numeroModulo, vistasDelModulo, formatoDeReferencia, memoriaParaModulo} from "../referenciasProyecto.js";
 import {datosTecnicosFaltantes, firmaDeGeneracion} from '../contratoDibujo.js';
 import {cargarModeloCliente, decidirMuroDeContexto} from './aprendizajeDibujo.js';
+import {cargarEstiloDespacho} from './estiloDespacho.js';
 import {preferenciasDe, registroDe} from './justificacion.js';
 import {resumenRegistro} from '../../criterios/justificacion.js';
 import {revisarContraNorma, textoRevisorNorma} from '../../laminas/revisorNorma.js';
@@ -615,6 +616,7 @@ export const ESTRUCTURA_SKILLS = [
       const e = leerEstructura(ctx, "", args.vista);
       // El criterio de dibujo aprendido de las correcciones de este usuario (aprendizajeDibujo.js).
       await cargarModeloCliente(ctx);
+      await cargarEstiloDespacho(ctx);
       // Antes de dibujar, el panel muestra los datos del proyecto en un formulario, ya llenos con
       // lo guardado y con lo que propone el agente (Hz, Df y niveles de proyectos parecidos); el
       // personal los revisa o corrige y recién ahí se arma el plano. Cancelar no dibuja nada.
@@ -682,7 +684,9 @@ export const ESTRUCTURA_SKILLS = [
         resultadosSismicos: ctx.memoria.resultadosSismicos ?? null,
         // Un pedido del cliente ("sin columnas en el aligerado") cambia el dibujo: entra en la firma.
         preferencias: preferenciasDe(ctx).map((p) => `${p.pedido}:${p.opcion}`),
-        modeloCliente: ctx.memoria.modeloCliente?.activo ? {muestras: ctx.memoria.modeloCliente.muestrasCliente, fecha: ctx.memoria.modeloCliente.fecha} : null});
+        modeloCliente: ctx.memoria.modeloCliente?.activo ? {muestras: ctx.memoria.modeloCliente.muestrasCliente, fecha: ctx.memoria.modeloCliente.fecha} : null,
+        // El estilo aprendido de los planos del despacho también cambia el dibujo.
+        estiloDespacho: ctx.memoria.estiloDespacho ? {ocultar: ctx.memoria.estiloDespacho.ocultar, renombrar: ctx.memoria.estiloDespacho.renombrar, opciones: ctx.memoria.estiloDespacho.opciones} : null});
       if (!args.conservar && ctx.memoria.ultimaGeneracion?.clave === clave && ctx.memoria.ultimaGeneracion.firma === firma
           && (ctx.generaciones?.()[clave] ?? 0) > 0) return {
         ok: true, sinCambios: true, terminal: true,
@@ -972,6 +976,8 @@ async function generarLaminas(args, ctx, {e, guardados, invalidos, quitadas}) {
           ...(ctx.memoria.resultadosSismicos ? {resultadosSismicos: ctx.memoria.resultadosSismicos} : {}),
           // Muros de la cimentación con el criterio aprendido del cliente, si ya le gana a la regla.
           ...(decidirMuroDeContexto(ctx) ? {decidirMuro: decidirMuroDeContexto(ctx)} : {}),
+          // Estilo aprendido de los planos terminados del cliente (qué dibuja en cada planta y en qué capa).
+          ...(ctx.memoria.estiloDespacho ? {estiloDespacho: ctx.memoria.estiloDespacho} : {}),
           losaMaciza: "losaMaciza" in elegido ? elegido.losaMaciza : undefined,
           // Los paños que nombró la pregunta: si el ingeniero dijo que sí, esos van macizos.
           panosMacizos: elegido.losaMaciza === true ? consultas?.consultas?.find((c) => c.clave === "losaMaciza")?.ejes ?? null : null,

@@ -509,6 +509,39 @@
   {
     "type": "function",
     "function": {
+      "name": "aprender_estilo",
+      "description": "Aprende el estilo de dibujo del cliente con un plano de ESTRUCTURAS terminado suyo que está abierto (qué dibuja en la cimentación, el cimiento corrido, la losa y la tabiquería, y en qué capas). Úsalo para 'aprende mi estilo de este plano', 'así dibujo yo mis láminas', 'aprende de este plano de estructuras'. No es para corregir láminas del agente (eso es aprender_correcciones).",
+      "parameters": {
+        "type": "object",
+        "properties": {}
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "estado_estilo",
+      "description": "Dice qué aprendió el agente del estilo de dibujo de este usuario con sus planos terminados (qué quita, qué agrega y qué capas usa). Úsalo para 'qué estilo aprendiste', 'cómo dibujas mis láminas'.",
+      "parameters": {
+        "type": "object",
+        "properties": {}
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "olvidar_estilo",
+      "description": "Borra el estilo de dibujo aprendido de los planos de este usuario (vuelve al estilo del despacho). Solo si el usuario lo pide expresamente.",
+      "parameters": {
+        "type": "object",
+        "properties": {}
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
       "name": "justificar",
       "description": "Explica por qué el agente puso algo en las láminas o en el modelo: la norma y el artículo que lo respaldan (y si está confirmado), de dónde salió el dato (plano, cálculo, dato del proyecto, criterio del despacho, pedido del cliente o supuesto) y qué alternativas había. Úsalo para '¿por qué…?', 'justifica…', '¿en qué norma…?', '¿de dónde sale…?', 'fundamenta el diseño'.",
       "parameters": {
@@ -541,7 +574,10 @@
               "sin_cotas",
               "sin_porticos",
               "sin_tablas",
-              "sin_notas"
+              "sin_notas",
+              "tamano_texto",
+              "sin_achurado",
+              "sin_malla"
             ],
             "description": "Pedido ya reconocido"
           },

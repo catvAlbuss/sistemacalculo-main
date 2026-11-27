@@ -18,12 +18,17 @@ import {leerCache} from './volcar-planos.mjs';
 import {paresDelManifiesto} from './pares-entrenamiento.mjs';
 import {nivelDeTitulo} from '../../resources/js/ingenieria/aprendizaje/casos.js';
 import {cargarPlantillaAdaptativa} from './plantilla.mjs';
+import {medirEstiloDePlano, reglasDeEstilo} from '../../resources/js/ingenieria/aprendizaje/estiloDespacho.js';
 
 const args = process.argv.slice(2);
 const filtro = args.filter((a) => /^modulo-/.test(a));
 const png = args.includes('--png') ? args[args.indexOf('--png') + 1] : null;
 const salidaJson = args.find((a) => a.startsWith('--json='))?.slice(7);
 const grupo = args.find((a) => a.startsWith('--grupo='))?.slice(8);
+// --estilo[=N]: el agente dibuja con el estilo aprendido de N planos del ingeniero de OTROS módulos del
+// mismo proyecto (nunca del que se evalúa), como si el cliente le hubiera dado esos planos.
+const argEstilo = args.find((a) => a === '--estilo' || a.startsWith('--estilo='));
+const planosEstilo = argEstilo ? Number(argEstilo.split('=')[1] ?? 5) || 5 : 0;
 // --diag: qué capas del agente dejan dibujo sobrante y qué capas del ingeniero quedan sin cubrir.
 const diag = args.includes('--diag') ? {sobra: {}, falta: {}} : null;
 const BASE = join(PLANOS, 'estructuras');
@@ -137,6 +142,15 @@ function cubiertos(desde, hacia, conClase = false) {
 const escalaDe = (radio) => (radio >= 40 ? 1000 : radio >= 4 ? 100 : 1);
 
 const filas = [];
+const estilos = new Map();
+if (planosEstilo) {
+  const todos = paresDelManifiesto(BASE, JSON.parse(readFileSync(join(BASE, 'pares.json'), 'utf8')), existsSync).filter((p) => !grupo || p.grupo === grupo);
+  for (const p of todos) { const c = leerCache(p.rutaEstructura); if (c) estilos.set(p, medirEstiloDePlano(c.items)); }
+}
+const estiloPara = (par) => {
+  const otros = [...estilos].filter(([p]) => p.grupo === par.grupo && p.id !== par.id).sort(([a], [b]) => a.id.localeCompare(b.id)).slice(0, planosEstilo).map(([, m]) => m);
+  return otros.length ? reglasDeEstilo(otros) : null;
+};
 for (const par of pares) {
   const ce = leerCache(par.rutaEstructura);
   if (!ce) { console.log(`${par.id}: sin caché`); continue; }
@@ -144,6 +158,7 @@ for (const par of pares) {
   const db = await leer(par.rutaArquitectura, dm.AcDbFileType.DWG);
   const antes = db.tables.blockTable.modelSpace.newIterator().toArray().length;
   const ctx = createDrawingContext({getDatabase: () => db, dm, loadTemplate: async () => plantilla, getProjectData: () => ({}), afterDraw: () => {}});
+  if (planosEstilo) ctx.memoria.estiloDespacho = estiloPara(par);
   const r = await SKILLS.find((s) => s.name === 'plano_estructuras').run({}, ctx).catch((e) => ({ok: false, error: e.message}));
   if (!r.ok) { console.log(`${par.id}: el agente falló (${r.error})`); continue; }
   // Sin las cotas del agente (capa 0, color 142): las del ingeniero son DIMENSION y no se cuentan.

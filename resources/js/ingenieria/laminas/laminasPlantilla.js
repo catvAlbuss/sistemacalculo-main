@@ -22,6 +22,7 @@ import {separarTextos} from "./separarTextos.js";
 import {planoPortico, baseDeNiveles, cumbreraDesdeArquitectura, nivelesDesdeArquitectura, pendienteDesdeArquitectura, pendienteAnotada, vanosDesdeArquitectura} from "../planos/porticoPlano.js";
 import {porticoDesdeBiblioteca} from "../planos/porticoBiblioteca.js";
 import {aplicarPreferencias} from "../agente/preferenciasCliente.js";
+import {preferenciaDeEstilo} from "../aprendizaje/estiloDespacho.js";
 import {techoDesdeArquitectura, nivelCumbreraEscrito, cotaDelTecho} from "../lectura/techoArquitectura.js";
 import {detalleDesdeBiblioteca} from "./detalleBiblioteca.js";
 import {datosParaLaminas, datosTecnicos, CAMPOS_TECNICOS} from "../criterios/datosProyecto.js";
@@ -202,6 +203,9 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
   const adaptativa = config.modo === 'adaptativa';
   const previas = items.filter((it) => it.tipo === "texto" && it.capa === L.LAMINA && /^E-\d{2}$/.test(it.texto)).length;
 
+  // Estilo aprendido de los planos terminados del despacho (aprendizaje/estiloDespacho.js).
+  const estiloOp = estructura.estiloDespacho?.opciones ?? {};
+  const prefEstilo = preferenciaDeEstilo(estructura.estiloDespacho);
   // Contenido de cada espacio.
   // Muros del edificio sobre la planta de cimentación (estructura.murosEnCimentacion; por defecto sí).
   // Con platea solo va la cara exterior del edificio (el ingeniero dibuja el borde) y sin las
@@ -210,7 +214,9 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
   const cim = planoCimentacion({lectura, items, caja, k, titulo: lectura.titulo}, {tipo: cimentacion, ...dp.cimentacion, malla: estructura.mallaCimentacion, muros: estructura.murosEnCimentacion !== false,
     reacciones: estructura.reaccionesColumnas ?? null, qadmDelEms: dp.qadmDelEms, decidirMuro: estructura.decidirMuro ?? decidirMuroAprendido,
     // Las caras de los muros en la cimentación solo con el criterio aprendido de un cliente (muro por muro).
-    murosCaras: Boolean(estructura.decidirMuro)});
+    murosCaras: Boolean(estructura.decidirMuro) || estiloOp.murosCimentacion === true,
+    // Estilo aprendido de los planos del despacho: columnetas en la cimentación si siempre las dibuja.
+    ...(estiloOp.columnetasCimentacion ? {columnetasEnCimentacion: true} : {})});
   const cc = planoCimientoCorrido({lectura, items, caja, k}, {columnetas: lectura.columnetas ?? [], ...(dp.cimentacion.pisos ? {pisos: dp.cimentacion.pisos} : {})});
   const volados = estructura.volados ?? [];
   // Baños en losa maciza solo en losas de entrepiso (con baños encima); en un nivel la losa es techo.
@@ -258,7 +264,7 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
   })();
   // El alero es del techo: con varios niveles, la losa de entrepiso termina en la cara de la viga
   // (el pasillo en volado sí sigue: va en `volados`).
-  const ali = planoAligerado({lectura: plantaEntrepiso?.lectura ?? lectura, items, k: plantaEntrepiso?.k ?? k, espesorFijo: estructura.espesorLosa ?? null, losaMaciza: estructura.losaMaciza ?? Number(estructura.niveles) >= 2, panosMacizos: estructura.panosMacizos ?? null, volados, alero: nivelesLosa > 1 ? 0 : alero, tipoCimentacion: cim.tipo, ...vigasProyecto, aleroParaleloA});
+  const ali = planoAligerado({lectura: plantaEntrepiso?.lectura ?? lectura, items, k: plantaEntrepiso?.k ?? k, espesorFijo: estructura.espesorLosa ?? null, losaMaciza: estructura.losaMaciza ?? Number(estructura.niveles) >= 2, panosMacizos: estructura.panosMacizos ?? null, volados, alero: nivelesLosa > 1 ? 0 : alero, tipoCimentacion: cim.tipo, ...vigasProyecto, aleroParaleloA, columnetas: estiloOp.columnetasLosa === true});
   const planoAligeradoTieneCumbrera = Boolean(ali.cumbrera);
   const cuadro = cuadroColumnas(lectura.columnas, {niveles: Math.max(1, Number(estructura.niveles) || 1), diseno: estructura.disenoColumnas ?? null}); // en NIVEL, los pisos que cubre
   // Con placas y columnas, el ingeniero hace dos cuadros: "CUADRO DE PLACAS" y "CUADRO DE COLUMNAS"
@@ -289,7 +295,7 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
   const losasDibujadas = sinLosa ? [] : [{titulo: ali.contenido.titulo, espesor: ali.espesor, viguetas: ali.viguetas, macizas: ali.modelo?.losa?.macizas ?? {}}];
   if (nNiveles > 1 && losaTecho) {
     const plantaTecho = plantaNivel(nNiveles);
-    const aliT = planoAligerado({lectura: plantaTecho?.lectura ?? lectura, items, k: plantaTecho?.k ?? k, espesorFijo: estructura.espesorLosa ?? null, losaMaciza: estructura.losaMaciza ?? Number(estructura.niveles) >= 2, conVacios: false, volados, alero, tipoCimentacion: cim.tipo, ...vigasProyecto, aleroParaleloA});
+    const aliT = planoAligerado({lectura: plantaTecho?.lectura ?? lectura, items, k: plantaTecho?.k ?? k, espesorFijo: estructura.espesorLosa ?? null, losaMaciza: estructura.losaMaciza ?? Number(estructura.niveles) >= 2, conVacios: false, volados, alero, tipoCimentacion: cim.tipo, ...vigasProyecto, aleroParaleloA, columnetas: estiloOp.columnetasLosa === true});
     aliT.contenido.titulo = "PLANO DE LOSA ALIGERADA TECHO";
     extras.push(aliT.contenido);
     losasDibujadas.push({titulo: aliT.contenido.titulo, espesor: aliT.espesor, viguetas: aliT.viguetas, macizas: aliT.modelo?.losa?.macizas ?? {}});
@@ -490,7 +496,7 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
       {id: 'cuadroColumnas', tipo: 'cuadroColumnas', contenido: contenidos.cuadroColumnas, nominal: 1, repetible: true},
       // Detalles estándar del despacho (biblioteca): llenan el hueco libre como en sus láminas.
       ...estandar.map((d) => ({...d, nominal: 1, relleno: true})),
-    ].filter((c) => c.contenido), estructura.preferencias ?? []);
+    ].filter((c) => c.contenido), [...(estructura.preferencias ?? []), ...(prefEstilo ? [prefEstilo] : [])]);
     for (const c of lista) c.caja = medir(c.contenido, c.titulado);
     paquete = componerPaqueteLaminas({marco: estructura.formatoReferencia ?? null, escalaPlanos: nominal, proyecto, contenidos: lista});
   }

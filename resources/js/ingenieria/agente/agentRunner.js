@@ -190,6 +190,10 @@ export function rutaDirecta(texto) {
   if (/^[¿]?\s*(en que vamos|que falta|que (llevas|tenemos|decidiste|hiciste)|estado del proyecto|resumen del proyecto)\b/.test(t)) return {tool: "estado_proyecto", args: {}};
   // Revisión de las láminas contra la norma (revisorNorma.js).
   if (/\brevisa\w*\b.*\b(como ingeniero|contra la norma|con la norma)\b|\bque (le )?falta\w*\b.*\blaminas?\b|\bchecklist\b/.test(t)) return {tool: "revisar_norma", args: {}};
+  // Estilo del despacho aprendido de sus planos terminados (skills/estiloDespacho.js).
+  if (/\b(olvida|borra)\w*\b.*\bestilo\b/.test(t)) return {tool: "olvidar_estilo", args: {}};
+  if (/\bque estilo\b|\b(aprendiste|has aprendido)\b.*\bestilo\b/.test(t)) return {tool: "estado_estilo", args: {}};
+  if (/\baprend\w*\b.*\b(estilo|de (este|mis|estos) planos?)\b|\basi dibujo yo\b/.test(t)) return {tool: "aprender_estilo", args: {}};
   // Aprender a dibujar con el cliente (aprendizajeDibujo.js).
   if (/\b(olvida|borra)\w*\b.*\b(aprendi\w*|correcciones|criterio)\b/.test(t)) return {tool: "olvidar_aprendizaje", args: {}};
   if (/\baprend\w*\b.*\b(correcci\w*|como dibujo|mi criterio|de mi)\b|\bya corregi\b/.test(t) && !/\bque aprendiste\b/.test(t)) return {tool: "aprender_correcciones", args: {}};

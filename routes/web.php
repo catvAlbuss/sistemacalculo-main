@@ -271,6 +271,9 @@ Route::middleware(["auth", "verified", "check.subscription", "throttle:calculati
         Route::post('/etabs/agente/aprendizaje/dibujo', [\App\Http\Controllers\AgenteAprendizajeDibujoController::class, 'guardar'])->name('etabs.agente.aprendizaje.dibujo.guardar');
         Route::get('/etabs/agente/aprendizaje/dibujo', [\App\Http\Controllers\AgenteAprendizajeDibujoController::class, 'datos'])->name('etabs.agente.aprendizaje.dibujo.datos');
         Route::delete('/etabs/agente/aprendizaje/dibujo', [\App\Http\Controllers\AgenteAprendizajeDibujoController::class, 'olvidar'])->name('etabs.agente.aprendizaje.dibujo.olvidar');
+        Route::post('/etabs/agente/aprendizaje/estilo', [\App\Http\Controllers\AgenteEstiloDespachoController::class, 'guardar'])->name('etabs.agente.aprendizaje.estilo.guardar');
+        Route::get('/etabs/agente/aprendizaje/estilo', [\App\Http\Controllers\AgenteEstiloDespachoController::class, 'datos'])->name('etabs.agente.aprendizaje.estilo.datos');
+        Route::delete('/etabs/agente/aprendizaje/estilo', [\App\Http\Controllers\AgenteEstiloDespachoController::class, 'olvidar'])->name('etabs.agente.aprendizaje.estilo.olvidar');
         Route::get('/etabs/agente/aprendizaje/pendientes', [\App\Http\Controllers\AgenteAprendizajeController::class, 'pendientes'])
             ->middleware('role_or_permission:root|agente.aprendizaje.aprobar')->name('etabs.agente.aprendizaje.pendientes');
         Route::post('/etabs/agente/aprendizaje/{id}/aprobar', [\App\Http\Controllers\AgenteAprendizajeController::class, 'aprobar'])
