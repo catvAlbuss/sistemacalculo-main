@@ -176,7 +176,8 @@ for (const par of pares) {
     const conTr = candidatas.map((v) => ({v, tr: alinear(posEjes(v), posEjes(va))})).filter((x) => x.tr)
       .sort((a, b) => mismoNivel(b.v) - mismoNivel(a.v) || (b.tr.x.n + b.tr.y.n) - (a.tr.x.n + a.tr.y.n));
     if (!conTr.length) { fila.tipos[tipo.id] = {estado: 'sin ejes comunes'}; continue; }
-    const {v: vi, tr} = conTr[0];
+    const {v: vi} = conTr[0];
+    let {tr} = conTr[0];
     const ki = escalaDe(vi.radio);
     const ident = {x: {a: 1, b: 0}, y: {a: 1, b: 0}};
     const cajaI = ampliar(vi.caja, 1.5 * ki), cajaA = ampliar(va.caja, 1.5 * kAg);
@@ -186,7 +187,25 @@ for (const par of pares) {
     // La caja del agente en su marco; las muestras se llevan al del ingeniero.
     // La planta del agente está en la lámina a su escala (1/50 → 1, 1/100 → 0.5): el clasificador
     // mide en metros reales (espesor de muro, paso de malla), así que se deshace esa escala.
-    const ma = muestras(itemsA, cajaA, tr, ki, va.caja, clasesDe(itemsA, va, kAg * (u.escala || 1), tipo.id));
+    const clasesAg = clasesDe(itemsA, va, kAg * (u.escala || 1), tipo.id);
+    const muestrasAg = (t) => muestras(itemsA, cajaA, t, ki, va.caja, clasesAg);
+    let ma = muestrasAg(tr);
+    // Un plano tiene la misma escala en x y en y. Si el ajuste por ejes da escalas distintas, un
+    // rótulo de eje quedó asignado a otra línea al leer el DWG: se toma la escala de la dirección
+    // con más ejes y, en la otra, el desplazamiento de eje común que mejor hace coincidir.
+    if (Math.abs(tr.x.a - tr.y.a) > 0.1 * Math.max(Math.abs(tr.x.a), Math.abs(tr.y.a))) {
+      const [buena, mala] = tr.x.n >= tr.y.n ? ['x', 'y'] : ['y', 'x'];
+      const A = posEjes(vi)[mala], B = posEjes(va)[mala], a = tr[buena].a;
+      const f1De = (m) => { const p = cubiertos(m, mi), e = cubiertos(mi, m); return p + e ? (2 * p * e) / (p + e) : 0; };
+      let mejor = {f1: f1De(ma), ma, tr};
+      for (const k of Object.keys(A).filter((k) => k in B)) {
+        const t = {...tr, [mala]: {a, b: A[k] - a * B[k], n: tr[mala].n}};
+        const m = muestrasAg(t), f = f1De(m);
+        if (f > mejor.f1) mejor = {f1: f, ma: m, tr: t};
+      }
+      if (mejor.tr !== tr) console.log(`${par.id} ${tipo.id}: ejes en ${mala} con escala distinta (${tr[mala].a.toFixed(2)} vs ${a.toFixed(2)}); alineado con la escala de ${buena}.`);
+      ({tr, ma} = mejor);
+    }
     const prec = cubiertos(ma, mi), exh = cubiertos(mi, ma);
     const f1 = prec + exh ? (2 * prec * exh) / (prec + exh) : 0;
     // Dibujo estructural: solo elementos (sin textos, cuadros, cotas, ejes ni fondo de arquitectura).
