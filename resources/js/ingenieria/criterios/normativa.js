@@ -26,7 +26,8 @@ export const CITAS = {
   desarrollo: "E.060 12.2",
   empalmes: "E.060 12.15",
   ganchos: "E.060 7.1",
-  estribosConfinamiento: "E.060 21.4 y 21.6",
+  // Pórticos: vigas 21.5.3 y columnas 21.6.4 (el 21.4 es para sistemas de muros y duales tipo I).
+  estribosConfinamiento: "E.060 21.5.3 y 21.6.4",
   espectro: "E.030 cap. 4",
   categoriaU: "E.030 tabla de categorías (factor U)",
   deriva: "E.030 límites de distorsión de entrepiso",

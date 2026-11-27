@@ -9,19 +9,19 @@ const hay = (T, re) => T.some((t) => re.test(t));
 const cuenta = (T, re) => T.filter((t) => re.test(t)).length;
 
 export const PUNTOS_REVISOR = [
-  {id: 1, titulo: "Láminas que pide la GE.020 (art. 12)", norma: "GE.020 art. 12"},
-  {id: 2, titulo: "Normas, cargas, f'c y fy", norma: "E.060 cap. 1"},
+  {id: 1, titulo: "Láminas que pide la GE.020 (art. 12)", norma: "E.060 1.2.4 (y GE.020 art. 12)"},
+  {id: 2, titulo: "Normas, cargas, f'c y fy", norma: "E.060 1.2.4 a–d"},
   {id: 3, titulo: "Parámetros sísmicos con T, cortante basal y deriva", norma: "E.030-2026 art. 9.2"},
-  {id: 4, titulo: "Condiciones de cimentación del EMS (q adm, Df, cemento)", norma: "E.050"},
+  {id: 4, titulo: "Condiciones de cimentación del EMS (q adm, Df, cemento)", norma: "E.050 art. 12, 17 y 19"},
   {id: 5, titulo: "Recubrimientos por elemento", norma: "E.060 7.7.1"},
   {id: 6, titulo: "Ganchos estándar y sísmico de 135°", norma: "E.060 7.1 y 21.1"},
   {id: 7, titulo: "Anclajes y empalmes por diámetro", norma: "E.060 12"},
-  {id: 8, titulo: "Zonas donde no se empalma", norma: "E.060 21.4.4.3 y 21.6.3.3"},
-  {id: 9, titulo: "Estribos de vigas con zona de confinamiento", norma: "E.060 21.4.4.4 / 21.5.3"},
-  {id: 10, titulo: "Cuadro de columnas con estribaje de confinamiento", norma: "E.060 21.4.5 / 21.6.4"},
+  {id: 8, titulo: "Zonas donde no se empalma", norma: "E.060 21.5.2.3 (vigas) y 21.6.3.2 (columnas)"},
+  {id: 9, titulo: "Estribos de vigas con zona de confinamiento", norma: "E.060 21.5.3"},
+  {id: 10, titulo: "Cuadro de columnas con estribaje de confinamiento", norma: "E.060 21.6.4"},
   {id: 11, titulo: "Cotas, ejes y niveles (NPT, NFC, NFZ)", norma: "práctica de revisión"},
   {id: 12, titulo: "Aligerado: viguetas, acero de temperatura y bastones", norma: "E.060 9.7"},
-  {id: 13, titulo: "Cimentación: planta, cortes y Df", norma: "GE.020 art. 12 a)"},
+  {id: 13, titulo: "Cimentación: planta, cortes y Df", norma: "E.060 1.2.4 e y E.050 art. 19"},
   {id: 14, titulo: "Escalas declaradas y sin textos encimados", norma: "práctica de revisión"},
   {id: 15, titulo: "Rótulo completo (proyecto, lámina, escala, fecha, ingeniero, CIP)", norma: "práctica de revisión"},
 ];
