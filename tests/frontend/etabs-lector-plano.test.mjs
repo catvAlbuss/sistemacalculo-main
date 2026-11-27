@@ -89,7 +89,8 @@ test('without the template, plano_estructuras draws a simple sheet below the arc
   // Cimentación (auto: zapatas, cimiento corrido bajo los 3 muros, VC donde hay puertas).
   assert.equal(polilineas('E-ZAPATAS'), 4);
   assert.equal(polilineas('E-CIMIENTO-CORRIDO'), 3);
-  assert.equal(polilineas('E-VIGAS-CIMENTACION'), 1);
+  // La VC de la puerta y, bajo los muros, sus caras en la capa de vigas de cimentación.
+  assert.equal(polilineas('E-VIGAS-CIMENTACION'), 6);
   // Aligerado: vigas en los 4 tramos de ejes, paño y viguetas.
   assert.equal(polilineas('E-VIGAS'), 4);
   assert.equal(polilineas('E-ALIGERADO'), 1, 'one slab panel');

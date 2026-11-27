@@ -142,7 +142,7 @@
       },
       "E-VIGAS-CIMENTACION": {
         "geo": {
-          "capa": "0",
+          "capa": "02 Vigas",
           "color": 4
         },
         "texto": {

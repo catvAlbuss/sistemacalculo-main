@@ -22,6 +22,7 @@ import {buscarUbicacion, textoUbicacion, categoriaPorUso} from "../../criterios/
 import {numeroModulo, vistasDelModulo, formatoDeReferencia, memoriaParaModulo} from "../referenciasProyecto.js";
 import {datosTecnicosFaltantes, firmaDeGeneracion} from '../contratoDibujo.js';
 import {cargarModeloCliente, decidirMuroDeContexto} from './aprendizajeDibujo.js';
+import {cargarEstiloDespacho} from './estiloDespacho.js';
 import {preferenciasDe, registroDe} from './justificacion.js';
 import {resumenRegistro} from '../../criterios/justificacion.js';
 import {revisarContraNorma, textoRevisorNorma} from '../../laminas/revisorNorma.js';
@@ -396,6 +397,41 @@ export const ESTRUCTURA_SKILLS = [
     },
   },
   {
+    name: "informe_arquitectura",
+    description: "Informe de lectura de la arquitectura ANTES de dibujar: qué identificó el agente en el plano (niveles, ejes y luces contrastadas con las cotas del arquitecto, columnas, placas, columnetas, ambientes, techo), qué valida contra la norma (sección de columnas, espesor de losa y peralte de vigas por la Tabla 9.1 de la E.060, EMS, versión de la E.030), qué datos faltan y qué recomienda con su fundamento. Con descargar=true entrega el informe en HTML para el cliente. Úsalo para 'analiza la arquitectura', 'qué identificaste', 'informe', 'diagnóstico', 'qué requisitos tiene'.",
+    parameters: {type: "object", properties: {
+      descargar: {type: "boolean", description: "true para descargar el informe en HTML (para el cliente)"},
+    }},
+    async run(args = {}, ctx) {
+      if (!ctx.readPlan().vistas.length) return {ok: false, error: "No encontré plantas con ejes con nombre en el plano abierto: abre la arquitectura."};
+      const {rasgos, propuesta} = await propuestaDelPlano(ctx);
+      let e = null;
+      try { e = leerEstructura(ctx, ""); } catch { e = ctx.memoria?.estructura ?? null; }
+      const plano = ctx.readPlan();
+      const items = plano.itemsArquitectura ?? plano.items;
+      let techo = null;
+      try {
+        const {techoDesdeArquitectura, nivelCumbreraEscrito} = await import("../../lectura/techoArquitectura.js");
+        const {direccionPrincipal} = await import("../../planos/aligeradoPlano.js");
+        if (e?.columnas?.length && e?.ejesNombrados?.length) {
+          const t = techoDesdeArquitectura(items, {lectura: {columnas: e.columnas, ejes: e.ejesNombrados}, k: e.escala ?? 1, u: direccionPrincipal(e.ejesNombrados)});
+          if (t) techo = {...t, H: nivelCumbreraEscrito(items)};
+        }
+      } catch { /* sin techo inclinado en los cortes */ }
+      const {informeArquitectura} = await import("../informeArquitectura.js");
+      const inf = informeArquitectura({rasgos, propuesta, estructura: e, cotas: plano.cotas ?? [], datos: ctx.datosProyecto?.() ?? {}, techo, titulo: e?.titulo || rasgos.vista || ctx.nombreDocumento?.() || ""});
+      ctx.memoria.informeArquitectura = {fecha: new Date().toISOString(), pendientes: inf.pendientes.length, faltan: inf.faltan};
+      if (args.descargar) { try { ctx.descargarTexto?.("informe-arquitectura.html", inf.html); } catch { /* sin panel: queda el texto */ } }
+      return {ok: true, mensaje: inf.texto,
+        resumen: `Leí la arquitectura: ${inf.secciones[0].filas.length} datos identificados, ${inf.pendientes.length} para revisar y ${inf.faltan} datos que faltan.`,
+        opciones: [
+          ...(inf.faltan ? [{texto: "Completar los datos del proyecto", herramienta: "datos_proyecto", args: {}, recomendada: true}] : []),
+          {texto: "Generar las láminas con estos criterios", herramienta: "plano_estructuras", args: {}, recomendada: !inf.faltan},
+          ...(args.descargar ? [] : [{texto: "Descargar el informe para el cliente", herramienta: "informe_arquitectura", args: {descargar: true}}]),
+        ]};
+    },
+  },
+  {
     name: "metrar_estructura",
     description: "Saca el metrado de estructuras (movimiento de tierras, concreto simple, concreto armado: concreto, encofrado, acero, curado, ladrillo de techo) de la estructura que dibujó el agente, con el formato de la planilla del despacho. Con excel=true descarga la planilla .xlsx. Úsalo cuando pidan metrado, metrar, cantidades o planilla de metrados.",
     parameters: {type: "object", properties: {
@@ -580,6 +616,7 @@ export const ESTRUCTURA_SKILLS = [
       const e = leerEstructura(ctx, "", args.vista);
       // El criterio de dibujo aprendido de las correcciones de este usuario (aprendizajeDibujo.js).
       await cargarModeloCliente(ctx);
+      await cargarEstiloDespacho(ctx);
       // Antes de dibujar, el panel muestra los datos del proyecto en un formulario, ya llenos con
       // lo guardado y con lo que propone el agente (Hz, Df y niveles de proyectos parecidos); el
       // personal los revisa o corrige y recién ahí se arma el plano. Cancelar no dibuja nada.
@@ -647,7 +684,9 @@ export const ESTRUCTURA_SKILLS = [
         resultadosSismicos: ctx.memoria.resultadosSismicos ?? null,
         // Un pedido del cliente ("sin columnas en el aligerado") cambia el dibujo: entra en la firma.
         preferencias: preferenciasDe(ctx).map((p) => `${p.pedido}:${p.opcion}`),
-        modeloCliente: ctx.memoria.modeloCliente?.activo ? {muestras: ctx.memoria.modeloCliente.muestrasCliente, fecha: ctx.memoria.modeloCliente.fecha} : null});
+        modeloCliente: ctx.memoria.modeloCliente?.activo ? {muestras: ctx.memoria.modeloCliente.muestrasCliente, fecha: ctx.memoria.modeloCliente.fecha} : null,
+        // El estilo aprendido de los planos del despacho también cambia el dibujo.
+        estiloDespacho: ctx.memoria.estiloDespacho ? {ocultar: ctx.memoria.estiloDespacho.ocultar, renombrar: ctx.memoria.estiloDespacho.renombrar, opciones: ctx.memoria.estiloDespacho.opciones} : null});
       if (!args.conservar && ctx.memoria.ultimaGeneracion?.clave === clave && ctx.memoria.ultimaGeneracion.firma === firma
           && (ctx.generaciones?.()[clave] ?? 0) > 0) return {
         ok: true, sinCambios: true, terminal: true,
@@ -937,6 +976,8 @@ async function generarLaminas(args, ctx, {e, guardados, invalidos, quitadas}) {
           ...(ctx.memoria.resultadosSismicos ? {resultadosSismicos: ctx.memoria.resultadosSismicos} : {}),
           // Muros de la cimentación con el criterio aprendido del cliente, si ya le gana a la regla.
           ...(decidirMuroDeContexto(ctx) ? {decidirMuro: decidirMuroDeContexto(ctx)} : {}),
+          // Estilo aprendido de los planos terminados del cliente (qué dibuja en cada planta y en qué capa).
+          ...(ctx.memoria.estiloDespacho ? {estiloDespacho: ctx.memoria.estiloDespacho} : {}),
           losaMaciza: "losaMaciza" in elegido ? elegido.losaMaciza : undefined,
           // Los paños que nombró la pregunta: si el ingeniero dijo que sí, esos van macizos.
           panosMacizos: elegido.losaMaciza === true ? consultas?.consultas?.find((c) => c.clave === "losaMaciza")?.ejes ?? null : null,

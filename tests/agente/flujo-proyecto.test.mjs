@@ -7,7 +7,11 @@ import {SKILLS} from '../../resources/js/ingenieria/agente/skills/index.js';
 test('el siguiente paso acompaña al proyecto de punta a punta', () => {
   assert.equal(siguientePaso({}, 'vacio').herramienta, null);
   assert.equal(siguientePaso({}, 'leyendo').herramienta, null);
-  const inicio = siguientePaso({}, 'lista');
+  // Primero el informe de lectura (qué identificó, norma, datos, recomendación); después, dibujar.
+  const lectura = siguientePaso({}, 'lista');
+  assert.equal(lectura.herramienta, 'informe_arquitectura');
+  assert.deepEqual(lectura.alternativas.map((a) => a.herramienta), ['ciclo_completo', 'plano_estructuras']);
+  const inicio = siguientePaso({informeArquitectura: {}}, 'lista');
   assert.equal(inicio.herramienta, 'ciclo_completo');
   assert.deepEqual(inicio.alternativas.map((a) => a.herramienta), ['plano_estructuras', 'construir_estructura']);
   const conLaminas = {modeloEstructural: {}};

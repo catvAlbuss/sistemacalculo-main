@@ -249,6 +249,30 @@ export function huellaColumnas(columnas = []) {
   return [{x: x0, y: y0}, {x: x1, y: y0}, {x: x1, y: y1}, {x: x0, y: y1}];
 }
 
+// Corre hacia adentro las zapatas de las columnas del borde: una columna es exterior por un lado
+// cuando ninguna otra de su fila (o columna de ejes) queda más allá. Devuelve cuántas movió.
+export function excentrizarZapatas(zapatas, columnas) {
+  const caja = (c) => {
+    const pts = c.contorno?.length ? c.contorno : [{x: c.x - (c.b ?? 0) / 2, y: c.y - (c.h ?? 0) / 2}, {x: c.x + (c.b ?? 0) / 2, y: c.y + (c.h ?? 0) / 2}];
+    return {x0: Math.min(...pts.map((p) => p.x)), x1: Math.max(...pts.map((p) => p.x)), y0: Math.min(...pts.map((p) => p.y)), y1: Math.max(...pts.map((p) => p.y))};
+  };
+  const tol = 0.3, r3 = (v) => Math.round(v * 1000) / 1000;
+  let movidas = 0;
+  zapatas.forEach((z, i) => {
+    const c = columnas[i], k = caja(c);
+    const fila = columnas.filter((o) => o !== c && Math.abs(o.y - c.y) < tol);
+    const col = columnas.filter((o) => o !== c && Math.abs(o.x - c.x) < tol);
+    const izq = !fila.some((o) => o.x < c.x - 0.05), der = !fila.some((o) => o.x > c.x + 0.05);
+    const abj = !col.some((o) => o.y < c.y - 0.05), arr = !col.some((o) => o.y > c.y + 0.05);
+    let cambio = false;
+    // Exterior por un solo lado (una columna sola en su fila queda centrada).
+    if (izq !== der && fila.length) { cambio = true; if (izq) { z.x0 = r3(k.x0); z.x1 = r3(k.x0 + z.B); } else { z.x1 = r3(k.x1); z.x0 = r3(k.x1 - z.B); } }
+    if (abj !== arr && col.length) { cambio = true; if (abj) { z.y0 = r3(k.y0); z.y1 = r3(k.y0 + z.L); } else { z.y1 = r3(k.y1); z.y0 = r3(k.y1 - z.L); } }
+    if (cambio) { z.excentrica = izq !== der && abj !== arr && fila.length && col.length ? "esquinera" : "medianera"; movidas++; }
+  });
+  return movidas;
+}
+
 export function envolvente(puntos) {
   const pts = [...puntos].sort((a, b) => a.x - b.x || a.y - b.y);
   const cross = (o, a, b) => (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
@@ -332,6 +356,14 @@ export function planoCimentacion({lectura, items, caja, k = 1, titulo = ""}, opc
       : placas.length ? `Hay placas (${[...new Set(placas)].join(", ")}): se propone platea (pide "con zapatas" si prefieres zapatas aisladas).`
       : preferida && areaZapatas <= 0.5 * areaHuella ? `Criterio del despacho: platea (pide "con zapatas" si prefieres zapatas aisladas).`
       : `Las zapatas ocupan ${Math.round((100 * areaZapatas) / areaHuella)} % de la planta: se propone platea.`);
+  }
+
+  // Zapatas del perímetro: excéntricas (medianeras y esquineras), con la cara exterior al ras de la
+  // cara de la columna y creciendo hacia adentro, como las dibuja el despacho. La excentricidad la
+  // toma la viga de cimentación que las une con las interiores.
+  if (tipo === "zapatas" && o.zapatasExcentricas !== false) {
+    const excentricas = excentrizarZapatas(zapatas, columnas);
+    if (excentricas) avisos.push(`${excentricas} zapata(s) del perímetro excéntricas (medianeras/esquineras): la viga de cimentación toma el momento por excentricidad; verifícalas en Calcular zapatas.`);
   }
 
   // Límites de cada tramo: la zapata (si hay) o la columna.
@@ -418,14 +450,27 @@ export function planoCimentacion({lectura, items, caja, k = 1, titulo = ""}, opc
       // Cada muro con su marca de pieza ("muro-cim:i"): al corregir la lámina, el agente sabe qué
       // tramo dejó o borró el ingeniero (aprender_correcciones). Sin candidato, como antes.
       const conPieza = segs.some(([a, b]) => indice.has(clave(a, b)));
-      if (!conPieza && segs.every(([a, b]) => dibujar(a, b))) prim.push(pline(L.MUROS_E, g.pts.map(pt), g.cerrada === true));
+      // En la planta de cimentación lo que va bajo el muro es el elemento de cimentación: el borde de
+      // la platea o la viga/cimiento bajo el muro (así lo dibuja el ingeniero; como "muro" no tenía
+      // contraparte en 19 de 23 módulos).
+      // Con platea, el borde ya es el contorno de la platea (dibujado abajo): las caras del muro no
+      // van (medido: ningún módulo con platea baja y la clase "muro" deja de quedar sin contraparte).
+      // Con zapatas siguen (en ILO 3, VINCHOS 7 y el colegio coinciden con lo del ingeniero), y también
+      // si el criterio aprendido de un cliente decide muro por muro.
+      if (tipo === "platea" && o.murosCaras !== true) continue;
+      // Con zapatas, bajo el muro va la viga de cimentación (en ILO del ancho del muro): se dibuja como
+      // tal, no como muro (la clase "muro" no tenía contraparte en 16 plantas).
+      const capa = o.murosCaras === true ? L.MUROS_E : L.VIGAS_CIM;
+      if (!conPieza && segs.every(([a, b]) => dibujar(a, b))) prim.push(pline(capa, g.pts.map(pt), g.cerrada === true));
       else for (const [a, b] of segs) {
         const i = siguiente(a, b);
-        if (dibujar(a, b)) prim.push({...line(L.MUROS_E, pt(a), pt(b)), ...(i !== null ? {pieza: `muro-cim:${i}`} : {})});
+        if (dibujar(a, b)) prim.push({...line(capa, pt(a), pt(b)), ...(i !== null ? {pieza: `muro-cim:${i}`} : {})});
       }
     }
   }
-  for (const c of lectura.columnetas ?? []) {
+  // Las columnetas van en la planta de cimiento corrido, no en la de cimentación (el ingeniero las
+  // dibuja aquí en 3 de 23 módulos); solo si se pide expresamente.
+  for (const c of o.columnetasEnCimentacion === true ? lectura.columnetas ?? [] : []) {
     if (!(c.contorno?.length >= 3)) continue;
     // Con platea, sin los muros interiores tampoco van sus columnetas: solo las del perímetro.
     const cc = c.contorno.reduce((q, p) => ({x: q.x + p.x / c.contorno.length, y: q.y + p.y / c.contorno.length}), {x: 0, y: 0});
@@ -445,7 +490,9 @@ export function planoCimentacion({lectura, items, caja, k = 1, titulo = ""}, opc
         const s = huella.map((p) => dot(p, rep));
         for (let t = Math.min(...s) + CRITERIOS.platea.malla; t < Math.max(...s) - 0.02; t += CRITERIOS.platea.malla) {
           const tramo = recortar({x: rep.x * t, y: rep.y * t}, dir, huella);
-          if (tramo) prim.push(line(L.MALLA, pt(tramo[0]), pt(tramo[1])));
+          // La malla de la platea es acero de refuerzo (el ingeniero la dibuja en su capa de acero,
+          // VINCHOS 4 y 6); la de la losa maciza sigue en la capa de malla.
+          if (tramo) prim.push(line(L.ACERO_LONG, pt(tramo[0]), pt(tramo[1])));
         }
       }
     }
@@ -494,7 +541,7 @@ export function planoCimentacion({lectura, items, caja, k = 1, titulo = ""}, opc
   if (tipo === "zapatas") {
     for (const z of zapatas) {
       prim.push(pline(L.ZAPATAS, [{x: z.x0, y: z.y0}, {x: z.x1, y: z.y0}, {x: z.x1, y: z.y1}, {x: z.x0, y: z.y1}].map(pt), true));
-      prim.push(text(L.ZAPATAS, pt({x: z.x, y: z.y0 - h * 0.6}), z.tipo, h * 0.55));
+      prim.push(text(L.ZAPATAS, pt({x: (z.x0 + z.x1) / 2, y: z.y0 - h * 0.6}), z.tipo, h * 0.55));
     }
   }
   // Con platea, el cimiento corrido va en su propio plano (el ingeniero no lo repite aquí).
@@ -552,6 +599,15 @@ export function planoCimientoCorrido({lectura, items, caja, k = 1}, opciones = {
     const n = t.adentro, e = t.espesor / 2;
     const q = (p, s) => pt({x: p.x + n.x * s, y: p.y + n.y * s});
     prim.push(hatch(L.MUROS_E, [q(t.a, -e), q(t.b, -e), q(t.b, e), q(t.a, e)], {patron: "ANSI31", escala: 0.02, angulo: 0}));
+  }
+  // Contorno del cimiento corrido: sus dos bordes a ±ancho/2 del eje del muro, a lo largo de cada
+  // tramo. Es lo que define esta planta (el ingeniero lo dibuja en todos sus módulos; antes el agente
+  // solo dibujaba el muro y el cimiento no se veía).
+  for (const t of tramos) {
+    if (!(t.largo > 0.3)) continue;
+    const n = t.adentro, s = Math.max(ancho, t.espesor + 0.1) / 2;
+    const q = (p, d) => pt({x: p.x + n.x * d, y: p.y + n.y * d});
+    prim.push(line(L.CIMIENTO, q(t.a, -s), q(t.b, -s)), line(L.CIMIENTO, q(t.a, s), q(t.b, s)));
   }
   // 3. Rótulo "Cimiento corrido" dentro de cada ambiente, junto a su muro, y marcas de corte.
   const hr = MEDIDAS.rotulo;

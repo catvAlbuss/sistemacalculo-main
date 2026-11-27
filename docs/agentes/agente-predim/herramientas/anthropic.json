@@ -188,6 +188,19 @@
     }
   },
   {
+    "name": "informe_arquitectura",
+    "description": "Informe de lectura de la arquitectura ANTES de dibujar: qué identificó el agente en el plano (niveles, ejes y luces contrastadas con las cotas del arquitecto, columnas, placas, columnetas, ambientes, techo), qué valida contra la norma (sección de columnas, espesor de losa y peralte de vigas por la Tabla 9.1 de la E.060, EMS, versión de la E.030), qué datos faltan y qué recomienda con su fundamento. Con descargar=true entrega el informe en HTML para el cliente. Úsalo para 'analiza la arquitectura', 'qué identificaste', 'informe', 'diagnóstico', 'qué requisitos tiene'.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "descargar": {
+          "type": "boolean",
+          "description": "true para descargar el informe en HTML (para el cliente)"
+        }
+      }
+    }
+  },
+  {
     "name": "metrar_estructura",
     "description": "Saca el metrado de estructuras (movimiento de tierras, concreto simple, concreto armado: concreto, encofrado, acero, curado, ladrillo de techo) de la estructura que dibujó el agente, con el formato de la planilla del despacho. Con excel=true descarga la planilla .xlsx. Úsalo cuando pidan metrado, metrar, cantidades o planilla de metrados.",
     "input_schema": {
@@ -422,6 +435,30 @@
     }
   },
   {
+    "name": "aprender_estilo",
+    "description": "Aprende el estilo de dibujo del cliente con un plano de ESTRUCTURAS terminado suyo que está abierto (qué dibuja en la cimentación, el cimiento corrido, la losa y la tabiquería, y en qué capas). Úsalo para 'aprende mi estilo de este plano', 'así dibujo yo mis láminas', 'aprende de este plano de estructuras'. No es para corregir láminas del agente (eso es aprender_correcciones).",
+    "input_schema": {
+      "type": "object",
+      "properties": {}
+    }
+  },
+  {
+    "name": "estado_estilo",
+    "description": "Dice qué aprendió el agente del estilo de dibujo de este usuario con sus planos terminados (qué quita, qué agrega y qué capas usa). Úsalo para 'qué estilo aprendiste', 'cómo dibujas mis láminas'.",
+    "input_schema": {
+      "type": "object",
+      "properties": {}
+    }
+  },
+  {
+    "name": "olvidar_estilo",
+    "description": "Borra el estilo de dibujo aprendido de los planos de este usuario (vuelve al estilo del despacho). Solo si el usuario lo pide expresamente.",
+    "input_schema": {
+      "type": "object",
+      "properties": {}
+    }
+  },
+  {
     "name": "justificar",
     "description": "Explica por qué el agente puso algo en las láminas o en el modelo: la norma y el artículo que lo respaldan (y si está confirmado), de dónde salió el dato (plano, cálculo, dato del proyecto, criterio del despacho, pedido del cliente o supuesto) y qué alternativas había. Úsalo para '¿por qué…?', 'justifica…', '¿en qué norma…?', '¿de dónde sale…?', 'fundamenta el diseño'.",
     "input_schema": {
@@ -451,7 +488,10 @@
             "sin_cotas",
             "sin_porticos",
             "sin_tablas",
-            "sin_notas"
+            "sin_notas",
+            "tamano_texto",
+            "sin_achurado",
+            "sin_malla"
           ],
           "description": "Pedido ya reconocido"
         },

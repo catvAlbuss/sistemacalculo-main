@@ -99,7 +99,12 @@ test('etapas, un botón con el siguiente paso y sugerencias según la etapa', as
   const vacio = await panel();
   assert.match(vacio, /Abre la arquitectura \(DWG\) para empezar/);
   assert.match(vacio, /Abre primero la arquitectura/);
-  const listo = await panel(flujoDe({}, 'lista'));
+  // Plano leído: primero el informe de lectura; dibujar queda como alternativa.
+  const lectura = await panel(flujoDe({}, 'lista'));
+  assert.match(lectura, /Leer la arquitectura y ver los criterios/);
+  assert.match(lectura, /O bien:[\s\S]*Hacer todo[\s\S]*Solo las láminas/);
+  assert.equal(lectura.match(/Hacer todo: láminas, análisis y diseño/g).length, 1, 'la alternativa no se repite en el menú');
+  const listo = await panel(flujoDe({informeArquitectura: {}}, 'lista'));
   assert.match(listo, /Hacer todo: láminas, análisis y diseño/);
   assert.match(listo, /O bien:[\s\S]*Solo las láminas[\s\S]*Paso a paso/);
   assert.match(listo, /Más acciones/);

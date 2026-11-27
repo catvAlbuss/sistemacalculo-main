@@ -18,12 +18,17 @@ import {leerCache} from './volcar-planos.mjs';
 import {paresDelManifiesto} from './pares-entrenamiento.mjs';
 import {nivelDeTitulo} from '../../resources/js/ingenieria/aprendizaje/casos.js';
 import {cargarPlantillaAdaptativa} from './plantilla.mjs';
+import {medirEstiloDePlano, reglasDeEstilo} from '../../resources/js/ingenieria/aprendizaje/estiloDespacho.js';
 
 const args = process.argv.slice(2);
 const filtro = args.filter((a) => /^modulo-/.test(a));
 const png = args.includes('--png') ? args[args.indexOf('--png') + 1] : null;
 const salidaJson = args.find((a) => a.startsWith('--json='))?.slice(7);
 const grupo = args.find((a) => a.startsWith('--grupo='))?.slice(8);
+// --estilo[=N]: el agente dibuja con el estilo aprendido de N planos del ingeniero de OTROS módulos del
+// mismo proyecto (nunca del que se evalúa), como si el cliente le hubiera dado esos planos.
+const argEstilo = args.find((a) => a === '--estilo' || a.startsWith('--estilo='));
+const planosEstilo = argEstilo ? Number(argEstilo.split('=')[1] ?? 5) || 5 : 0;
 // --diag: qué capas del agente dejan dibujo sobrante y qué capas del ingeniero quedan sin cubrir.
 const diag = args.includes('--diag') ? {sobra: {}, falta: {}} : null;
 const BASE = join(PLANOS, 'estructuras');
@@ -137,6 +142,15 @@ function cubiertos(desde, hacia, conClase = false) {
 const escalaDe = (radio) => (radio >= 40 ? 1000 : radio >= 4 ? 100 : 1);
 
 const filas = [];
+const estilos = new Map();
+if (planosEstilo) {
+  const todos = paresDelManifiesto(BASE, JSON.parse(readFileSync(join(BASE, 'pares.json'), 'utf8')), existsSync).filter((p) => !grupo || p.grupo === grupo);
+  for (const p of todos) { const c = leerCache(p.rutaEstructura); if (c) estilos.set(p, medirEstiloDePlano(c.items)); }
+}
+const estiloPara = (par) => {
+  const otros = [...estilos].filter(([p]) => p.grupo === par.grupo && p.id !== par.id).sort(([a], [b]) => a.id.localeCompare(b.id)).slice(0, planosEstilo).map(([, m]) => m);
+  return otros.length ? reglasDeEstilo(otros) : null;
+};
 for (const par of pares) {
   const ce = leerCache(par.rutaEstructura);
   if (!ce) { console.log(`${par.id}: sin caché`); continue; }
@@ -144,6 +158,7 @@ for (const par of pares) {
   const db = await leer(par.rutaArquitectura, dm.AcDbFileType.DWG);
   const antes = db.tables.blockTable.modelSpace.newIterator().toArray().length;
   const ctx = createDrawingContext({getDatabase: () => db, dm, loadTemplate: async () => plantilla, getProjectData: () => ({}), afterDraw: () => {}});
+  if (planosEstilo) ctx.memoria.estiloDespacho = estiloPara(par);
   const r = await SKILLS.find((s) => s.name === 'plano_estructuras').run({}, ctx).catch((e) => ({ok: false, error: e.message}));
   if (!r.ok) { console.log(`${par.id}: el agente falló (${r.error})`); continue; }
   // Sin las cotas del agente (capa 0, color 142): las del ingeniero son DIMENSION y no se cuentan.
@@ -176,7 +191,8 @@ for (const par of pares) {
     const conTr = candidatas.map((v) => ({v, tr: alinear(posEjes(v), posEjes(va))})).filter((x) => x.tr)
       .sort((a, b) => mismoNivel(b.v) - mismoNivel(a.v) || (b.tr.x.n + b.tr.y.n) - (a.tr.x.n + a.tr.y.n));
     if (!conTr.length) { fila.tipos[tipo.id] = {estado: 'sin ejes comunes'}; continue; }
-    const {v: vi, tr} = conTr[0];
+    const {v: vi} = conTr[0];
+    let {tr} = conTr[0];
     const ki = escalaDe(vi.radio);
     const ident = {x: {a: 1, b: 0}, y: {a: 1, b: 0}};
     const cajaI = ampliar(vi.caja, 1.5 * ki), cajaA = ampliar(va.caja, 1.5 * kAg);
@@ -186,7 +202,25 @@ for (const par of pares) {
     // La caja del agente en su marco; las muestras se llevan al del ingeniero.
     // La planta del agente está en la lámina a su escala (1/50 → 1, 1/100 → 0.5): el clasificador
     // mide en metros reales (espesor de muro, paso de malla), así que se deshace esa escala.
-    const ma = muestras(itemsA, cajaA, tr, ki, va.caja, clasesDe(itemsA, va, kAg * (u.escala || 1), tipo.id));
+    const clasesAg = clasesDe(itemsA, va, kAg * (u.escala || 1), tipo.id);
+    const muestrasAg = (t) => muestras(itemsA, cajaA, t, ki, va.caja, clasesAg);
+    let ma = muestrasAg(tr);
+    // Un plano tiene la misma escala en x y en y. Si el ajuste por ejes da escalas distintas, un
+    // rótulo de eje quedó asignado a otra línea al leer el DWG: se toma la escala de la dirección
+    // con más ejes y, en la otra, el desplazamiento de eje común que mejor hace coincidir.
+    if (Math.abs(tr.x.a - tr.y.a) > 0.1 * Math.max(Math.abs(tr.x.a), Math.abs(tr.y.a))) {
+      const [buena, mala] = tr.x.n >= tr.y.n ? ['x', 'y'] : ['y', 'x'];
+      const A = posEjes(vi)[mala], B = posEjes(va)[mala], a = tr[buena].a;
+      const f1De = (m) => { const p = cubiertos(m, mi), e = cubiertos(mi, m); return p + e ? (2 * p * e) / (p + e) : 0; };
+      let mejor = {f1: f1De(ma), ma, tr};
+      for (const k of Object.keys(A).filter((k) => k in B)) {
+        const t = {...tr, [mala]: {a, b: A[k] - a * B[k], n: tr[mala].n}};
+        const m = muestrasAg(t), f = f1De(m);
+        if (f > mejor.f1) mejor = {f1: f, ma: m, tr: t};
+      }
+      if (mejor.tr !== tr) console.log(`${par.id} ${tipo.id}: ejes en ${mala} con escala distinta (${tr[mala].a.toFixed(2)} vs ${a.toFixed(2)}); alineado con la escala de ${buena}.`);
+      ({tr, ma} = mejor);
+    }
     const prec = cubiertos(ma, mi), exh = cubiertos(mi, ma);
     const f1 = prec + exh ? (2 * prec * exh) / (prec + exh) : 0;
     // Dibujo estructural: solo elementos (sin textos, cuadros, cotas, ejes ni fondo de arquitectura).

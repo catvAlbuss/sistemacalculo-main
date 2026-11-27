@@ -13,7 +13,7 @@ Pedidos del cliente sobre lo que llevan las láminas: sin columnas, sin cotas, s
 | Parámetro | Tipo | Descripción |
 |---|---|---|
 | `texto` | string | El pedido tal como lo dijo el cliente |
-| `pedido` | string (sin_columnas, sin_cotas, sin_porticos, sin_tablas, sin_notas) | Pedido ya reconocido |
+| `pedido` | string (sin_columnas, sin_cotas, sin_porticos, sin_tablas, sin_notas, tamano_texto, sin_achurado, sin_malla) | Pedido ya reconocido |
 | `opcion` | string | Opción elegida por el cliente (id de la opción) o 'dejar' para no cambiar nada |
 | `deshacer` | boolean | true para volver a dibujar lo que se había quitado |
 
