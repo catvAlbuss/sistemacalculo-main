@@ -247,6 +247,16 @@ export function activarRecortesDeCopia(lista) {
   return RECORTES_DE_COPIA?.size ?? 0;
 }
 
+// Recortes leídos de un DXF al abrirlo (xclipDxf.js): base de datos → Map(handle de la inserción →
+// {bloque, poli}). El lector DXF de la librería no interpreta SPATIAL_FILTER.
+const RECORTES_POR_INSERCION = new WeakMap();
+export function registrarRecortesDeInsercion(db, lista) {
+  if (!db || !Array.isArray(lista) || !lista.length) return 0;
+  const mapa = new Map(lista.filter((r) => r?.h && r.poli?.length >= 3).map((r) => [normalizarHandle(r.h), {bloque: r.bloque, poli: r.poli}]));
+  if (mapa.size) RECORTES_POR_INSERCION.set(db, mapa);
+  return mapa.size;
+}
+
 export function recorteDeInsercion(insercion) {
   const propio = insercion?.[POLIGONO];
   if (propio) return {poli: propio, clave: insercion[CLAVE]};
@@ -255,6 +265,9 @@ export function recorteDeInsercion(insercion) {
   try { db = insercion.database; } catch { db = null; }
   const poli = xd && db ? RECORTES.get(db)?.get(xd) : null;
   if (poli) return {poli, clave: normalizarHandle(insercion.objectId) || xd};
+  const delDxf = db ? RECORTES_POR_INSERCION.get(db)?.get(normalizarHandle(insercion?.objectId)) : null;
+  // Mismo handle Y mismo bloque (el DXF trae el nombre del bloque de la inserción).
+  if (delDxf && (!delDxf.bloque || delDxf.bloque === nombreDeBloque(insercion))) return {poli: delDxf.poli, clave: `dxf:${normalizarHandle(insercion.objectId)}`};
   if (RECORTES_DE_COPIA) {
     const h = normalizarHandle(insercion?.objectId);
     const r = h && RECORTES_DE_COPIA.get(h);
@@ -266,7 +279,9 @@ export function recorteDeInsercion(insercion) {
 
 // Recortes de las inserciones del dibujo (espacio modelo y bloques, un nivel), para guardarlos con
 // la copia de recuperación.
-export function recortesParaCopia(db, ClaseInsercion = null) {
+// conInversa: también la inversa de la transformación de cada inserción (16 valores por columnas),
+// que el DXF guarda en el SPATIAL_FILTER (xclipDxf.js).
+export function recortesParaCopia(db, ClaseInsercion = null, {conInversa = false} = {}) {
   const out = [];
   const vistos = new Set();
   const revisar = (registro) => {
@@ -274,7 +289,12 @@ export function recortesParaCopia(db, ClaseInsercion = null) {
       if (!esInsercion(e, ClaseInsercion)) continue;
       const r = recorteDeInsercion(e);
       const h = normalizarHandle(e.objectId);
-      if (r && h && !vistos.has(h)) { vistos.add(h); out.push({h, bloque: nombreDeBloque(e), poli: r.poli.map(({x, y}) => ({x, y}))}); }
+      if (r && h && !vistos.has(h)) {
+        vistos.add(h);
+        let inversa = null;
+        if (conInversa) { try { inversa = [...e.blockTransform.clone().invert().elements]; } catch { inversa = null; } }
+        out.push({h, bloque: nombreDeBloque(e), poli: r.poli.map(({x, y}) => ({x, y})), ...(inversa ? {inversa} : {})});
+      }
     }
   };
   try {

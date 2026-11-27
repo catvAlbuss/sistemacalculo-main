@@ -104,7 +104,7 @@ ${sinOrigen(vista.cabeza)}${vista.estilos}${sinOrigen(vista.scripts)}</head>
         derivaMax: Math.max(...['x', 'y'].flatMap((k) => (r.drifts?.[k] || []).map((d) => Number(d.drift_ratio) || 0))),
         cortante: r.story_shear_summary,
       });
-      fin('PASS ' + JSON.stringify({paquete, columnas, nudos: cad.nodes?.length, barras: cad.shapes?.length, areas: cad.areas?.length,
+      fin('PASS ' + JSON.stringify({paquete, columnas, nudos: cad.nodes?.length, cotas: [...new Set((cad.nodes || []).map((n) => Math.round(Number(n.position?.z ?? n.z) * 100) / 100))].sort((a, b) => a - b), barras: cad.shapes?.length, areas: cad.areas?.length,
         casos: Object.fromEntries(Object.entries(casos).map(([k, r]) => [k, resumenCaso(r)])),
         revision: rev.verificaciones.map((v) => [v.grupo, v.titulo, v.estado, v.valor ?? '', v.detalle, v.accion ?? '']), resumen: rev.resumen.texto, parametros: rev.parametros}));
     } catch (e) { fin('FAIL ' + (e?.stack || e?.message || e)); }
@@ -154,7 +154,7 @@ try {
   if (!r.startsWith('PASS')) { console.log(r.slice(0, 2000)); process.exitCode = 1; }
   else {
     const d = JSON.parse(r.slice(5));
-    console.log(`Modelo: ${d.nudos} nudos, ${d.barras} barras, ${d.areas} áreas`);
+    console.log(`Modelo: ${d.nudos} nudos, ${d.barras} barras, ${d.areas} áreas · cotas de nudos ${d.cotas?.join(' / ')} m`);
     for (const c of d.columnas) console.log(`  Columna ${c[0].padEnd(16)} ratio base/cabeza ${c[1]}  ${c[2]}`);
     for (const [caso, c] of Object.entries(d.casos)) console.log(`Caso ${caso}: modos ${JSON.stringify(c.modos)} · deriva elástica máx ${c.derivaMax.toFixed(5)} · V ${JSON.stringify(c.cortante)}`);
     for (const t of Object.values(d.paquete?.columnas || {})) console.log(`  Al agente ${t.tipo}: ${t.n} varillas · D/C ${t.ratioOriginal} → ${t.ratio}${t.aumentado ? ' (aumentado)' : ''}${t.sinSolucion?.length ? ' SIN SOLUCIÓN' : ''}`);

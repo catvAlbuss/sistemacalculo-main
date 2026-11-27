@@ -75,8 +75,8 @@ const rutasCad = acierto(frases.analisis, rutaCad, (r) => r?.accion ?? null);
 const E030 = [
   ['Masa participativa ≥ 90 %', true], ['Deriva inelástica (0.75·R / 0.85·R) ≤ límite', true], ['Cortante dinámico ≥ 80/90 % del estático', true],
   ['C/R ≥ 0.11', true], ['Irregularidad torsional', true], ['Irregularidad de rigidez (piso blando)', true], ['Irregularidad de masa', true],
-  ['Irregularidad de resistencia (piso débil)', false], ['Irregularidad geométrica vertical', false], ['Discontinuidad de sistemas resistentes', false],
-  ['Esquinas entrantes', false], ['Discontinuidad del diafragma', false], ['Sistemas no paralelos', false], ['Junta sísmica / separación', false],
+  ['Irregularidad de resistencia (piso débil)', false], ['Irregularidad geométrica vertical', true], ['Discontinuidad de sistemas resistentes', true],
+  ['Esquinas entrantes', true], ['Discontinuidad del diafragma', true], ['Sistemas no paralelos', true], ['Junta sísmica / separación', true],
 ];
 const DISENO = [
   ['Columnas: flexocompresión E.060 (con el acero de las láminas)', true], ['Columnas: el menor armado que cumple', true], ['Columnas: corte y confinamiento', true],

@@ -97,7 +97,8 @@ export function createDrawingContext({getDatabase, dm, edit, afterDraw, onFounda
       const todas = entities();
       const propias = todas.filter((e) => marcaDe(e) !== null);
       const arquitectura = propias.length ? todas.filter((e) => marcaDe(e) === null) : todas;
-      const {items: itemsArq, bloques} = aplanarModelo(arquitectura, {capasApagadas});
+      const cotas = [];
+      const {items: itemsArq, bloques} = aplanarModelo(arquitectura, {capasApagadas, cotas});
       const items = propias.length ? [...itemsArq, ...aplanarModelo(propias, {capasApagadas}).items] : itemsArq;
       // Textos de capas apagadas o congeladas: solo a pedido (p. ej. los NPT de los niveles
       // superiores que el arquitecto dejó en una capa congelada); no se leen en cada skill.
@@ -109,7 +110,7 @@ export function createDrawingContext({getDatabase, dm, edit, afterDraw, onFounda
         ocultos = capasApagadas.size ? aplanarModelo(arquitectura).items.filter((it) => it.tipo === "texto" && !visibles.has(clave(it))) : [];
         return ocultos;
       };
-      this.memoria.lectura = {database, items, itemsArquitectura: itemsArq, bloques, vistas: detectarVistas(itemsArq), textosOcultos};
+      this.memoria.lectura = {database, items, itemsArquitectura: itemsArq, bloques, cotas, vistas: detectarVistas(itemsArq), textosOcultos};
       return this.memoria.lectura;
     },
     datosProyecto() {

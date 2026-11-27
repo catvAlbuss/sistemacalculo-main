@@ -10,6 +10,7 @@ const icons = {
   foundation:'M9 2h6v12H9zM4 14h16v4H4zM2 21h20',
   agent:'m12 2 2 7 7 3-7 2-2 8-2-8-7-2 7-3z',
   results:'M3 3h18v18H3zm0 6h18M9 3v18M3 15h18',
+  descomponer:'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z',
   layers:'m12 2 10 5-10 5L2 7zm-10 10 10 5 10-5M2 17l10 5 10-5',
 };
 </script>

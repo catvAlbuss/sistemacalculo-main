@@ -10,6 +10,10 @@
         <NovaCadIcon name="agent" />
         <span>Agente<br />NovaCad</span>
       </button>
+      <button type="button" class="prg-button etabs-descomponer" title="Descomponer: separa en sus partes los bloques seleccionados (columnas, puertas…), como EXPLODE de AutoCAD" @click="emit('descomponer')">
+        <NovaCadIcon name="descomponer" />
+        <span>Descomponer</span>
+      </button>
       <button type="button" class="prg-button etabs-results-open" :disabled="!hasResults" title="Resultados de cimentación" @click="emit('open-results')">
         <NovaCadIcon name="results" />
         <span>Resultados</span>
@@ -28,7 +32,7 @@ defineProps({
   hasResults: {type: Boolean, default: false},
   foundationPending: {type: Boolean, default: false},
 });
-const emit = defineEmits(["open-cimentacion", "open-agent", "open-results", "about"]);
+const emit = defineEmits(["open-cimentacion", "open-agent", "open-results", "about", "descomponer"]);
 </script>
 
 <style scoped>

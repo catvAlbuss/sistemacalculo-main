@@ -1736,8 +1736,13 @@ export const e2kImportMixin = {
           n1 = getNode(pi.x, pi.y, ziForced != null ? ziForced : zStory);
           n2 = getNode(pj.x, pj.y, zjForced != null ? zjForced : zStory);
         } else if (conn.kind === "COLUMN") {
+          // Columna de piso (self-loop) en un punto con offset Z: en ETABS el tope queda bajo el piso
+          // (elevPiso − offset), donde llegan las vigas del faldón. Sin esto, en un techo a dos aguas
+          // de un solo piso las columnas del alero subían a la cumbrera y quedaban sueltas de sus
+          // vigas (modelo del agente, VILCABAMBA 1 y VINCHOS 8). Sin offset, como antes.
+          const offTope = isSelfLoopColumn ? Number(pointCoords.get(conn.pi)?.z) : 0;
           n1 = getNode(pi.x, pi.y, zLineBottom);
-          n2 = getNode(pi.x, pi.y, zStory);
+          n2 = getNode(pi.x, pi.y, offTope > 0 ? zStory - offTope : zStory);
         } else {
           n1 = getNode(pi.x, pi.y, zStory);
           n2 = getNode(pj.x, pj.y, zStory);

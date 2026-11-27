@@ -1,6 +1,7 @@
 // Puente agente → Análisis Estructural: de la arquitectura leída (y las láminas ya generadas) al
 // modelo de análisis (.e2k de ETABS) que abre el módulo de análisis — y ETABS, para contrastar.
 import {modeloE2k} from "../../analisis/modeloE2k.js";
+import {verificarContraPlano, textoConformidad} from "../../analisis/conformidadPlano.js";
 
 export const MODELO_DEL_AGENTE = "novacad:modelo-analisis";
 const RUTA_CICLO = "/software/etabs?desde=agente&auto=1";
@@ -56,7 +57,18 @@ export const ANALISIS_SKILLS = [
       const R0 = [3, 6, 7, 8].includes(Number(args.R0)) ? Number(args.R0) : 8;
       const nombre = nombreArchivo(ctx);
       const g = modeloE2k({estructura, modelo, datos: ctx.datosProyecto?.() ?? {}, nombre: nombre.replace(/\.e2k$/, ""), R0});
-      ctx.memoria.modeloAnalisis = {nombre, resumen: g.resumen, supuestos: g.supuestos, avisos: g.avisos};
+      // Lo que se calcula debe tener las medidas del plano: luces entre ejes contra las cotas del
+      // arquitecto, niveles, forma y pendientes del techo, columnas. Si algo no coincide, no se envía.
+      let plano = null;
+      try { plano = ctx.readPlan?.() ?? null; } catch { /* sin dibujo abierto: sin verificación */ }
+      const conformidad = plano ? verificarContraPlano({estructura, modelo, resumen: g.resumen, items: plano.itemsArquitectura ?? plano.items ?? [], cotas: plano.cotas ?? []}) : null;
+      ctx.memoria.modeloAnalisis = {nombre, resumen: g.resumen, supuestos: g.supuestos, avisos: g.avisos, conformidad};
+      if (conformidad?.noCumple.length) {
+        // Con el porqué del modelo (ejes inclinados sin modelar, cumbrera sin nudos…), para corregirlo.
+        return {ok: false, error: [textoConformidad(conformidad), g.avisos.length ? `Por qué: ${g.avisos.join(" ")}` : ""].filter(Boolean).join("\n"), conformidad: conformidad.verificaciones,
+          resumen: `Modelo detenido: ${conformidad.noCumple.length} medida(s) no coinciden con el plano.`,
+          opciones: [{texto: "Revisar las láminas", herramienta: "revisar_laminas", args: {}, recomendada: true}]};
+      }
       // Queda para que Análisis Estructural lo abra (mismo sitio) y se descarga para ETABS.
       let listo = false;
       try { globalThis.localStorage?.setItem(MODELO_DEL_AGENTE, JSON.stringify({nombre, texto: g.texto, fecha: new Date().toISOString()})); listo = true; } catch { /* sin almacenamiento: queda la descarga */ }
@@ -66,6 +78,7 @@ export const ANALISIS_SKILLS = [
       return {
         ok: true,
         mensaje: [
+          conformidad ? textoConformidad(conformidad) : "",
           `Armé el modelo de análisis ${nombre}: ${r.pisos} piso(s), ${r.columnas} columnas, ${r.vigas} vigas y ${r.losas} paños de losa; secciones ${r.secciones.join(", ")}; cargas CM/CV de la E.020, masa E.030 y ${sismo}; ${r.combinaciones.length} combinaciones E.060.`,
           "Lo descargué para ETABS y está listo para abrir en Análisis Estructural.",
           g.supuestos.length ? `Supuestos que debes confirmar: ${g.supuestos.join(" ")}` : "",

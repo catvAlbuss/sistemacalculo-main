@@ -1,7 +1,8 @@
 // resources/js/etabs/main.js
 import { createApp } from 'vue'
 import { i18n, MlCadViewer } from '@mlightcad/cad-viewer'
-import { AcApDocManager, AcApI18n, AcApSettingManager, AcEdCommand } from '@mlightcad/cad-simple-viewer'
+import { AcApDocManager, AcApI18n, AcApSettingManager, AcEdCommand, AcEdOpenMode } from '@mlightcad/cad-simple-viewer'
+import * as dataModel from '@mlightcad/data-model'
 import { AcDbBlockReference, AcDbDatabaseConverterManager, AcDbFileType } from '@mlightcad/data-model'
 import { AcDbLibreDwgConverter } from '@mlightcad/libredwg-converter'
 import ElementPlus from 'element-plus'
@@ -14,7 +15,9 @@ import { installSpanishCad } from './locale/spanishCad.js'
 import { installCadFontMapping } from './cadFonts.js'
 import { installNovaCadAbout } from './product/installAbout.js'
 import { installNovaCadLabels } from './product/labels.js'
-import { instalarRecorteXclip } from './visor/recorteXclip.js'
+import { instalarRecorteXclip, recorteDeInsercion } from './visor/recorteXclip.js'
+import { instalarXclipEnDxf } from './visor/xclipDxf.js'
+import { installDescomponer } from './product/descomponer.js'
 
 // Desde cad-simple-viewer 1.7 el visor ya no registra un lector DWG: sin esto
 // solo se podían abrir DXF. LibreDWG (GPL) corre aislado en su propio worker.
@@ -26,6 +29,9 @@ AcDbDatabaseConverterManager.instance.register(AcDbFileType.DWG, new AcDbLibreDw
 // Bloques recortados con XCLIP (p. ej. el plano de ubicación del rótulo): el visor dibujaba
 // el terreno completo alrededor de las láminas. Ver visor/recorteXclip.js.
 instalarRecorteXclip({AcDbLibreDwgConverter, AcDbBlockReference})
+// Y en los DXF: al guardar (Exportar DXF, copia de recuperación) el recorte se escribe como en
+// AutoCAD y al abrir un DXF se vuelve a aplicar; sin esto el plano se reabría con el terreno entero.
+instalarXclipEnDxf({AcDbDatabase: dataModel.AcDbDatabase, AcDbNativeDxfConverter: dataModel.AcDbNativeDxfConverter, AcDbBlockReference})
 
 // Configurar workers (parsers DXF/DWG y render de MText)
 const originalCreateInstance = AcApDocManager.createInstance.bind(AcApDocManager)
@@ -39,6 +45,8 @@ AcApDocManager.createInstance = (options = {}) => {
   const manager = originalCreateInstance(options)
   installCadDrawingDefaults(manager)
   installNovaCadAbout(manager, {CommandBase:AcEdCommand,openAbout:()=>window.dispatchEvent(new CustomEvent('novacad:about'))})
+  // DESCOMPONER (EXPLODE): el visor base no lo trae; los bloques del arquitecto se separan en sus partes.
+  installDescomponer(manager, {CommandBase:AcEdCommand, dm:dataModel, recortado:(e)=>Boolean(recorteDeInsercion(e)), modoEscritura:AcEdOpenMode.Write})
   return manager
 }
 

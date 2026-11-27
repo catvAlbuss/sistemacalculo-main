@@ -121,6 +121,20 @@ try {
           }
         }
       }
+      // VISOR_DESCOMPONER=1: selecciona el primer bloque del dibujo (no recortado), corre DESCOMPONER y
+      // dice cuántos bloques e entidades había antes y después (prueba del comando en el visor real).
+      if (process.env.VISOR_DESCOMPONER) {
+        console.log('descomponer:', await evaluar('window.__novacadPrueba.probarDescomponer()'));
+      }
+      // VISOR_PANEL=1 (con VISOR_SOLO_ABRIR): abre el panel del agente para fotografiarlo, sin pedirle nada.
+      if (process.env.VISOR_PANEL) { await evaluar('window.__novacadPrueba.abrirAgente()'); await pausa(6000); }
+      // VISOR_CLIC="texto": además aprieta el botón del panel con ese texto (como el ingeniero) y espera.
+      if (process.env.VISOR_PANEL && process.env.VISOR_CLIC) {
+        const t = JSON.stringify(process.env.VISOR_CLIC);
+        console.log('clic:', await evaluar(`(() => { const b = [...document.querySelectorAll('.ag button')].find((x) => x.textContent.includes(${t}) && !x.disabled); if (!b) return 'no encontré el botón'; b.click(); return 'ok'; })()`));
+        for (let i = 0; i < 240 && await evaluar("Boolean(document.querySelector('.ag.is-busy'))"); i++) await pausa(1000);
+        await pausa(2000);
+      }
       if (esDwg && !process.env.VISOR_SOLO_ABRIR) {
         // Como el ingeniero: abrir el panel del agente y pedirle las láminas.
         await evaluar('window.__novacadPrueba.abrirAgente()');
