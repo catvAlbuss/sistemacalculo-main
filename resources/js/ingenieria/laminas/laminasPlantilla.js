@@ -21,6 +21,7 @@ import {aplicarEstilo} from "../criterios/estiloLaminas.js";
 import {separarTextos} from "./separarTextos.js";
 import {planoPortico, baseDeNiveles, cumbreraDesdeArquitectura, nivelesDesdeArquitectura, pendienteDesdeArquitectura, pendienteAnotada, vanosDesdeArquitectura} from "../planos/porticoPlano.js";
 import {porticoDesdeBiblioteca} from "../planos/porticoBiblioteca.js";
+import {aplicarPreferencias} from "../agente/preferenciasCliente.js";
 import {techoDesdeArquitectura, nivelCumbreraEscrito, cotaDelTecho} from "../lectura/techoArquitectura.js";
 import {detalleDesdeBiblioteca} from "./detalleBiblioteca.js";
 import {datosParaLaminas, datosTecnicos, CAMPOS_TECNICOS} from "../criterios/datosProyecto.js";
@@ -453,10 +454,12 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
     };
     const tipoExtra = (c) => (/TABIQUER/i.test(c.titulo) ? "tabiqueria" : /ESCALERA/i.test(c.titulo) ? "escalera" : /LOSA|ALIGERAD/i.test(c.titulo) ? "losaTecho" : "otro");
     const notas = notasTecnicas({sismo: dp.sismo, df: cim.df, hz: cim.peralte, altura: Math.max(altura, ...porticos.map((p) => p.cumbrera ?? 0)), losaTecho: !sinLosa, cimentacion: cim.tipo, conCimiento: Boolean(cc.tramos), conAlbanileria: Boolean(cc.tramos || (lectura.columnetas ?? []).length),
-      qadm: dp.cimentacion.qadm ?? null, resultados: estructura.resultadosSismicos ?? null});
+      qadm: dp.cimentacion.qadm ?? null, resultados: estructura.resultadosSismicos ?? null,
+      // Pedidos del cliente aceptados (preferenciasCliente.js): quedan escritos en la lámina.
+      pedidosCliente: (estructura.preferencias ?? []).map((p) => p.nota).filter(Boolean)});
     const estandar = detallesEstandar(estructura.detallesEstandar ?? [], {espesor: ali.espesor}, {conLosa: !sinLosa, conCanaleta: Boolean(cumbrera) || items.some((it) => it.tipo === "texto" && /canaleta/i.test(it.texto ?? ""))});
     const estandarDe = (clave) => estandar.some((d) => d.clave === clave);
-    const lista = [
+    const lista = aplicarPreferencias([
       {id: 'cimentacion', tipo: 'cimentacion', contenido: contenidos.cimentacion, titulado: true},
       ...(cc.tramos ? [{id: 'cimiento', tipo: 'cimiento', contenido: contenidos.cimiento, titulado: true}] : []),
       ...cortesAdaptados.map((contenido, i) => ({id: `corte${i + 1}`, tipo: 'corte', contenido, nominal: 2, titulado: Boolean(contenido.titulo) && !contenido.tituloPropio})),
@@ -485,7 +488,7 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
       {id: 'cuadroColumnas', tipo: 'cuadroColumnas', contenido: contenidos.cuadroColumnas, nominal: 1, repetible: true},
       // Detalles estándar del despacho (biblioteca): llenan el hueco libre como en sus láminas.
       ...estandar.map((d) => ({...d, nominal: 1, relleno: true})),
-    ].filter((c) => c.contenido);
+    ].filter((c) => c.contenido), estructura.preferencias ?? []);
     for (const c of lista) c.caja = medir(c.contenido, c.titulado);
     paquete = componerPaqueteLaminas({marco: estructura.formatoReferencia ?? null, escalaPlanos: nominal, proyecto, contenidos: lista});
   }

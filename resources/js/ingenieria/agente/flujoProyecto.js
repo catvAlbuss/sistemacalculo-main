@@ -67,4 +67,5 @@ export function sugerencias(memoria = {}, lectura = "vacio") {
 // Acciones del menú inicial: las tres principales y el resto en «más acciones».
 export const ACCIONES_PRINCIPALES = [A.todo, A.laminas, A.metrado];
 export const MAS_ACCIONES = [A.pasoAPaso, {texto: "Proponer la estructura", herramienta: "proponer_estructura", pedido: "Analiza este plano y propón la estructura", detalle: "Qué estructura conviene y por qué, sin dibujar."}, A.revisar, A.ordenar, A.aplicar, A.aprender,
+  {texto: "Justificar el diseño", herramienta: "justificar", pedido: "Justifica el diseño", detalle: "Cada decisión con su norma, de dónde salió y qué alternativas había."},
   {texto: "Abrir Análisis Estructural", herramienta: "abrir_analisis", pedido: "Abre análisis estructural", detalle: "Con el modelo que armé desde la arquitectura."}];

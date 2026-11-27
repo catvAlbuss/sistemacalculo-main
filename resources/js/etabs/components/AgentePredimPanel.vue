@@ -403,6 +403,8 @@ const PASOS = {
   abrir_analisis: {titulo: "Abrí Análisis Estructural", icono: "analizar", siguientes: []},
   aplicar_diseno: {titulo: "Apliqué el diseño a las láminas", vivo: "Aplicando el diseño a las láminas…", icono: "estructura", siguientes: [{texto: "Revisar como ingeniero", herramienta: "revisar_norma"}, {texto: "Sacar el metrado", herramienta: "metrar_estructura"}]},
   revisar_norma: {titulo: "Revisé las láminas contra la norma", vivo: "Revisando los 15 puntos de la norma…", icono: "revisar", siguientes: []},
+  justificar: {titulo: "Justifiqué el diseño", vivo: "Buscando la norma y la fuente de cada decisión…", icono: "revisar", siguientes: [{texto: "Revisar como ingeniero", herramienta: "revisar_norma"}]},
+  preferencia_laminas: {titulo: "Tu pedido sobre las láminas", vivo: "Revisando tu pedido contra la norma…", icono: "estructura", siguientes: [{texto: "Justificar el diseño", herramienta: "justificar"}]},
   aprender_correcciones: {titulo: "Aprendí de tus correcciones", vivo: "Leyendo tus correcciones…", icono: "corregir", siguientes: []},
   estado_aprendizaje: {titulo: "Revisé lo que aprendí de ti", icono: "chispa", siguientes: []},
   olvidar_aprendizaje: {titulo: "Olvidé tus correcciones", icono: "borrar", siguientes: []},
