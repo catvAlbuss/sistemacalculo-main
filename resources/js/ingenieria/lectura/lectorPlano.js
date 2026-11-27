@@ -67,7 +67,10 @@ const tipoDe = (entity) => String(entity.dxfTypeName ?? "").toUpperCase();
 // lazos, patron, solido, escala, angulo}); sin él se ignoran (la lectura de la arquitectura no
 // los usa). La biblioteca de detalles los necesita: sin ellos los cortes del ingeniero quedan en
 // alambre (sin concreto, relleno ni muros achurados).
-export function aplanarModelo(entidades, {capasApagadas = new Set(), achurados = null} = {}) {
+// cotas: arreglo donde dejar las cotas del arquitecto (DIMENSION alineada o rotada): {capa, a, b,
+// direccion, valor (m del dibujo: el texto escrito si lo cambió, si no la medida), texto}. Sirven para
+// verificar que el modelo tenga las medidas del plano; sin el arreglo se ignoran como antes.
+export function aplanarModelo(entidades, {capasApagadas = new Set(), achurados = null, cotas = null} = {}) {
   const items = [];
   const bloques = new Map();
   // Trazabilidad: id = camino de identificadores del DWG (INSERT/…/entidad) y color propio si lo tiene.
@@ -118,6 +121,17 @@ export function aplanarModelo(entidades, {capasApagadas = new Set(), achurados =
             angulo: Math.round(((Number(entity.patternAngle) || 0) * 180) / Math.PI * 10) / 10, bloque: ruta,
             ...(Number.isInteger(c) && c !== 256 && c !== 0 ? {color: c} : {})});
         }
+      } else if (tipo === "DIMENSION" && cotas && entity.xLine1Point && entity.xLine2Point) {
+        const a = aplicar(m, entity.xLine1Point), b = aplicar(m, entity.xLine2Point);
+        // La medida guardada en el archivo (la rotación de las cotas rotadas no siempre llega): la
+        // dirección es la que la reproduce (horizontal, vertical o alineada).
+        const dx = b.x - a.x, dy = b.y - a.y, l = Math.hypot(dx, dy) || 1;
+        const guardada = Number(entity.measurement) * escalaDe(m);
+        const opciones = [[Math.abs(dx), {x: 1, y: 0}], [Math.abs(dy), {x: 0, y: 1}], [l, {x: dx / l, y: dy / l}]];
+        const [medida, dir] = Number.isFinite(guardada) && guardada > 0 ? [guardada, opciones.sort((p, q) => Math.abs(p[0] - guardada) - Math.abs(q[0] - guardada))[0][1]] : opciones[2];
+        const escrito = textoPlano(entity.dimensionText ?? "").replace(/<>/g, "").trim();
+        const num = /^\s*(\d+(?:[.,]\d+)?)\s*$/.exec(escrito);
+        cotas.push({capa, a, b, direccion: dir, medida, valor: num ? Number(num[1].replace(",", ".")) : medida, texto: escrito || null, bloque: ruta});
       } else if (tipo === "TEXT" || tipo === "MTEXT" || tipo === "ATTDEF") {
         const at = entity.position ?? entity.location;
         if (at && tipo !== "ATTDEF") agregar(entity, ids, {tipo: "texto", capa, centro: aplicar(m, at), texto: textoPlano(entity.textString ?? entity.contents), alto: (entity.height ?? 0) * escalaDe(m), ...rotacionTexto(entity, m), bloque: ruta});

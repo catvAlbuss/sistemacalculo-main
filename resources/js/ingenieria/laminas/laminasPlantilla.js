@@ -19,8 +19,9 @@ import {criteriosMetrado} from "../metrado/metrado.js";
 import {datosDesdeArquitectura, textoEnCasilla, anchoTexto} from "./rotulo.js";
 import {aplicarEstilo} from "../criterios/estiloLaminas.js";
 import {separarTextos} from "./separarTextos.js";
-import {planoPortico, cumbreraDesdeArquitectura, nivelesDesdeArquitectura, pendienteDesdeArquitectura, pendienteAnotada, vanosDesdeArquitectura} from "../planos/porticoPlano.js";
+import {planoPortico, baseDeNiveles, cumbreraDesdeArquitectura, nivelesDesdeArquitectura, pendienteDesdeArquitectura, pendienteAnotada, vanosDesdeArquitectura} from "../planos/porticoPlano.js";
 import {porticoDesdeBiblioteca} from "../planos/porticoBiblioteca.js";
+import {techoDesdeArquitectura, nivelCumbreraEscrito, cotaDelTecho} from "../lectura/techoArquitectura.js";
 import {detalleDesdeBiblioteca} from "./detalleBiblioteca.js";
 import {datosParaLaminas, datosTecnicos, CAMPOS_TECNICOS} from "../criterios/datosProyecto.js";
 import {MODELO_MUROS_CIMENTACION} from "../aprendizaje/modelosAprendidos.js";
@@ -215,6 +216,10 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
   // mejoran 12 de 14 plantas de losa de los dos proyectos).
   const conAlero = estructura.techoDosAguas === true || pendienteAnotada(items) || items.some((it) => it.tipo === "texto" && /\balero|\bPTE\s*=?\s*\d|cumbrera/i.test(it.texto ?? ""));
   const alero = conAlero ? null : 0;
+  // Techo a dos aguas dibujado en los cortes de la arquitectura: dónde va la cumbrera (en qué eje) y
+  // la pendiente de cada faldón. Lo que dice el plano manda sobre la cumbrera supuesta al centro.
+  const techoArq = estructura.techoDosAguas === false || !lectura.columnas?.length ? null
+    : techoDesdeArquitectura(items, {lectura, k, u: direccionPrincipal(lectura.ejes)});
   // Cada losa con la planta del piso que cubre, como el ingeniero: la de entrepiso con la del 2°
   // nivel y la de techo con la del último (antes ambas copiaban la del 1er nivel). Solo plantas
   // completas (≥ 60 % de las columnas de la base): una caseta de azotea no es la planta del piso.
@@ -231,6 +236,8 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
   // 14 54→56 %, ningún módulo baja).
   const aleroParaleloA = (() => {
     if (alero === 0 || !lectura.columnas?.length) return null;
+    // Con la cumbrera de la arquitectura, el agua cae a los lados paralelos a ella.
+    if (techoArq) return techoArq.linea.d;
     const pano = huellaColumnas(lectura.columnas), du = direccionPrincipal(lectura.ejes), dv = {x: -du.y, y: du.x};
     const rg = (eje) => { const p = pano.map((q) => q.x * eje.x + q.y * eje.y); return [Math.min(...p), Math.max(...p)]; };
     const [u0, u1] = rg(du), [v0, v1] = rg(dv);
@@ -249,6 +256,7 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
   // El alero es del techo: con varios niveles, la losa de entrepiso termina en la cara de la viga
   // (el pasillo en volado sí sigue: va en `volados`).
   const ali = planoAligerado({lectura: plantaEntrepiso?.lectura ?? lectura, items, k: plantaEntrepiso?.k ?? k, espesorFijo: estructura.espesorLosa ?? null, losaMaciza: estructura.losaMaciza ?? Number(estructura.niveles) >= 2, panosMacizos: estructura.panosMacizos ?? null, volados, alero: nivelesLosa > 1 ? 0 : alero, tipoCimentacion: cim.tipo, ...vigasProyecto, aleroParaleloA});
+  const planoAligeradoTieneCumbrera = Boolean(ali.cumbrera);
   const cuadro = cuadroColumnas(lectura.columnas, {niveles: Math.max(1, Number(estructura.niveles) || 1), diseno: estructura.disenoColumnas ?? null}); // en NIVEL, los pisos que cubre
   // Con placas y columnas, el ingeniero hace dos cuadros: "CUADRO DE PLACAS" y "CUADRO DE COLUMNAS"
   // (así en 35 de los 44 cuadros de la biblioteca); el cuadro completo queda para el metrado.
@@ -256,7 +264,14 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
   const cuadrosSeparados = placasPlanta.length && columnasPlanta.length
     ? [cuadroColumnas(columnasPlanta, {niveles: Math.max(1, Number(estructura.niveles) || 1), diseno: estructura.disenoColumnas ?? null}), cuadroColumnas(placasPlanta, {niveles: Math.max(1, Number(estructura.niveles) || 1), diseno: estructura.disenoColumnas ?? null})] : null;
   const nNiveles = Math.max(1, Number(estructura.niveles) || 1);
-  const {entrepisos, techo: altura, fuente: fuenteNiveles} = nivelesDesdeArquitectura(items, nNiveles, estructura.textosOcultos ?? (() => []));
+  const niv = nivelesDesdeArquitectura(items, nNiveles, estructura.textosOcultos ?? (() => []));
+  const {entrepisos, fuente: fuenteNiveles} = niv;
+  // Nivel de la cumbrera: el N.T.T. sobre el alero o, si no, el NFT/NTT más alto cuando hay otro
+  // más bajo. Con el techo de los cortes y ese nivel, el alero sale de la cumbrera y las pendientes
+  // (VILCABAMBA 1: NFT +5.91 es la cumbrera; tomarlo como alero ponía todo el techo a 5.91).
+  const nivelCumbreraArq = techoArq && nNiveles <= 1 && !planoAligeradoTieneCumbrera ? (cumbreraDesdeArquitectura(items, niv.techo) ?? ((v) => (v ? v - baseDeNiveles(items) : null))(nivelCumbreraEscrito(items))) : null;
+  const techoPortico = nivelCumbreraArq ? {...techoArq, H: nivelCumbreraArq} : null;
+  const altura = techoPortico ? Math.min(...lectura.columnas.map((c) => cotaDelTecho(techoPortico, c.nodo ?? c, techoPortico.H))) : niv.techo;
   const altura0 = altura;
   const losaTecho = estructura.losaTecho ?? true;
   // Losas como el ingeniero: "LOSA ALIGERADA 1°-2° PISO" (entrepisos típicos) y aparte la del
@@ -368,9 +383,9 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
   // Con la pendiente escrita en la arquitectura (PTE=43 %) el techo es inclinado aunque la losa sea
   // de varios paños (módulo 8): a dos aguas, salvo que el ingeniero haya dicho que es plano.
   const dosAguas = estructura.techoDosAguas === true || (estructura.techoDosAguas !== false && pendienteAnotada(items));
-  const cumbrera = ali.cumbrera ?? (dosAguas ? cumbreraAlCentro(lectura) : null);
+  const cumbrera = ali.cumbrera ?? (dosAguas ? (techoArq?.linea ?? cumbreraAlCentro(lectura)) : null);
   const porticos = ejesPortico.map(({eje, columnas}) => {
-    const p = planoPortico({eje, columnas, altura, espesorLosa: ali.espesor, viga: vigaDelEje(eje.nombre), cimentacion: {tipo: cim.tipo, peralte: cim.peralte, df: cim.df}, columnetas: lectura.columnetas ?? [], cumbrera, pendiente, vanos, entrepisos, losaTecho, nivelCumbrera: dosAguas ? cumbreraDesdeArquitectura(items, altura) : null});
+    const p = planoPortico({eje, columnas, altura, espesorLosa: ali.espesor, viga: vigaDelEje(eje.nombre), cimentacion: {tipo: cim.tipo, peralte: cim.peralte, df: cim.df}, columnetas: lectura.columnetas ?? [], cumbrera, pendiente, vanos, entrepisos, losaTecho, nivelCumbrera: dosAguas ? cumbreraDesdeArquitectura(items, altura) : null, techo: dosAguas ? techoPortico : null});
     return bibliotecaPorticos ? porticoDesdeBiblioteca(p, bibliotecaPorticos) : p;
   });
   // Pórticos repetidos: como el ingeniero, uno solo por dibujo idéntico (módulo 12: dibuja E´ y 8,
@@ -675,7 +690,10 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
       }),
       vsa: porticos.flatMap((p) => (p.modelo?.vsa ?? []).map((v) => ({...v, eje: p.modelo.eje}))),
       dinteles: porticos.flatMap((p) => (p.modelo?.dinteles ?? []).map((v) => ({...v, eje: p.modelo.eje}))),
-      cubierta: cumbrera ? {pendiente, cumbrera: Math.max(...porticos.map((p) => p.cumbrera ?? 0)), alero: CRITERIOS.aligerado.alero} : null,
+      cubierta: cumbrera ? {pendiente, cumbrera: Math.max(...porticos.map((p) => p.cumbrera ?? 0)), alero: CRITERIOS.aligerado.alero,
+        // Techo de la arquitectura (para el modelo de análisis): recta de la cumbrera en planta (metros),
+        // pendiente de cada faldón y el eje donde se apoya.
+        ...(dosAguas && techoPortico ? {linea: techoPortico.linea, pendientes: techoPortico.pendientes, ejeCumbrera: techoPortico.eje, nivelCumbrera: techoPortico.H, fuente: "cortes de la arquitectura"} : techoDePorticos(porticos, cumbrera))} : null,
       vigas: ali.modelo?.vigas ?? [],
       losa: ali.modelo?.losa ?? null,
       vigaPeralte: vigaTipo.h,
@@ -697,6 +715,20 @@ function interiorSinRotulo(lamina) {
 const perimetroDe = (pts = []) => pts.reduce((s, p, i) => s + Math.hypot(pts[(i + 1) % pts.length].x - p.x, pts[(i + 1) % pts.length].y - p.y), 0);
 
 // Cumbrera supuesta: recta por el centro de las columnas, en la dirección del lado largo.
+// Techo a dos aguas tal como quedó dibujado en los pórticos (sin perfil en los cortes): la recta de la
+// cumbrera de la losa, su nivel y la pendiente del faldón (de la cara interior de la columna a la
+// cumbrera, la que dibuja el pórtico). Así el modelo de análisis tiene el mismo techo que las láminas.
+function techoDePorticos(porticos, cumbrera) {
+  const p = porticos.find((x) => x.geometria?.xCumbrera != null && x.geometria?.cumbrera > x.geometria?.techo);
+  if (!p || !cumbrera?.a || !cumbrera?.d) return {};
+  const g = p.geometria, iL = g.ejes[0].s1, iR = g.ejes.at(-1).s0;
+  const sL = (g.cumbrera - g.techo) / Math.max(0.3, g.xCumbrera - iL), sR = (g.cumbrera - g.techo) / Math.max(0.3, iR - g.xCumbrera);
+  const s = Math.round(((sL + sR) / 2) * 10000) / 10000;
+  const l = Math.hypot(cumbrera.d.x, cumbrera.d.y) || 1;
+  return {linea: {a: cumbrera.a, d: {x: cumbrera.d.x / l, y: cumbrera.d.y / l}}, pendientes: {neg: s, pos: s}, ejeCumbrera: null,
+    nivelCumbrera: Math.max(...porticos.map((x) => x.geometria?.cumbrera ?? 0)), fuente: "pórticos dibujados"};
+}
+
 function cumbreraAlCentro(lectura) {
   const pts = (lectura.columnas ?? []).flatMap((c) => c.contorno ?? []);
   if (pts.length < 3) return null;

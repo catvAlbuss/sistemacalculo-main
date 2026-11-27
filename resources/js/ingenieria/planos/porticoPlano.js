@@ -18,6 +18,7 @@ import {L, line, pline, circle, text, cota, hatch} from "../cad/primitives.js";
 import {CRITERIOS, textoEstribos, posicionesEstribos} from "../criterios/criteriosEstructurales.js";
 // Armado de la viga: el mismo que se metra (varillas corridas del despacho).
 import {criteriosMetrado} from "../metrado/metrado.js";
+import {pendientesDeTecho, cotaDelTecho} from "../lectura/techoArquitectura.js";
 
 const r4 = (v) => Math.round(v * 10000) / 10000;
 const pt = (x, y) => [r4(x), r4(y)];
@@ -57,6 +58,11 @@ const frecuentes = (mapa) => {
 function baseDelModulo(niveles) {
   const npt = frecuentes(niveles.npt);
   return npt.length === 1 && npt[0] >= 1 ? npt[0] : 0;
+}
+
+// Base de los niveles del módulo (0, o el N.P.T. de la plataforma): los niveles se cuentan desde ahí.
+export function baseDeNiveles(items) {
+  return baseDelModulo(textosDeNivel(items));
 }
 
 // Cumbrera escrita en la arquitectura: el N.T.T. (techo terminado) más alto que queda sobre el
@@ -117,22 +123,17 @@ export function nivelesDesdeArquitectura(items, niveles = 1, ocultos = () => [])
   return {entrepisos, techo, fuente};
 }
 
-// Pendiente del techo: el menor "PTE=33%" de la arquitectura (la cobertura); si no hay, el criterio.
+// Pendiente del techo: la menor de la cubierta escrita en la arquitectura ("PTE=33%", "PENDIENTE:
+// 50.95%"); si no hay, el criterio. Las de rampas, pisos y drenaje no cuentan (VILCABAMBA 1: la
+// "RAMPA PENDIENTE 10%" salía como pendiente del techo y el techo de 51 % quedaba casi plano).
 // ¿La arquitectura escribe una pendiente de techo (≥ 5 %: una de piso como S=0.5 % no cuenta)?
 export function pendienteAnotada(items = []) {
-  return items.some((it) => it.tipo === "texto" && (() => { const m = PATRON_PENDIENTE.exec(it.texto ?? ""); return Boolean(m) && Number(m[1].replace(",", ".")) >= 5; })());
+  return pendientesDeTecho(items).length > 0;
 }
-const PATRON_PENDIENTE = /(?:PTE|PEND(?:IENTE)?)\.?\s*[=:]?\s*(\d+(?:[.,]\d+)?)\s*%/i;
 
 export function pendienteDesdeArquitectura(items) {
-  const valores = [];
-  for (const it of items) {
-    if (it.tipo !== "texto") continue;
-    const m = /(?:PTE|PEND(?:IENTE)?)\.?\s*[=:]?\s*(\d+(?:[.,]\d+)?)\s*%/i.exec(it.texto);
-    if (m) valores.push(Number(m[1].replace(",", ".")) / 100);
-  }
-  const utiles = valores.filter((v) => v >= 0.05 && v <= 1.5);
-  return utiles.length ? Math.min(...utiles) : CRITERIOS.techo.pendiente;
+  const utiles = pendientesDeTecho(items);
+  return utiles.length ? utiles[0] : CRITERIOS.techo.pendiente;
 }
 
 // Vanos de la arquitectura: rótulos "P-10" (puertas) y "V-3" (ventanas) y los puntos de
@@ -156,7 +157,7 @@ export function vanosDesdeArquitectura(items, k = 1) {
 // entrepisos: pisos de los niveles superiores (NPT, m) en edificios de varios niveles: en cada
 // uno van su viga y su losa, y muros, columnetas y estribos se dibujan por nivel.
 // losaTecho: false cuando el último nivel lleva solo cobertura (sin losa de techo).
-export function planoPortico({eje, columnas, altura = 3, espesorLosa = 0.2, viga = {b: 0.25, h: 0.4}, cimentacion = {tipo: "zapatas"}, columnetas = [], cumbrera = null, pendiente = CRITERIOS.techo.pendiente, vanos = [], entrepisos = [], losaTecho = true, nivelCumbrera = null}) {
+export function planoPortico({eje, columnas, altura = 3, espesorLosa = 0.2, viga = {b: 0.25, h: 0.4}, cimentacion = {tipo: "zapatas"}, columnetas = [], cumbrera = null, pendiente = CRITERIOS.techo.pendiente, vanos = [], entrepisos = [], losaTecho = true, nivelCumbrera = null, techo = null}) {
   const ux = eje.q.x - eje.p.x, uy = eje.q.y - eje.p.y, l = Math.hypot(ux, uy) || 1;
   const u = {x: ux / l, y: uy / l};
   const proy = (p) => (p.x - eje.p.x) * u.x + (p.y - eje.p.y) * u.y;
@@ -182,9 +183,23 @@ export function planoPortico({eje, columnas, altura = 3, espesorLosa = 0.2, viga
   const notas = [];
 
   // ---- Perfil del techo: y(x) = nivel superior de la losa. ----
-  const T = altura; // TECHO NFP en el alero (N.F.T. de la arquitectura), como el expediente (+3.57 / +3.58)
+  let T = altura; // TECHO NFP en el alero (N.F.T. de la arquitectura), como el expediente (+3.57 / +3.58)
   let xr = null, H = T, sL = 0, sR = 0;
-  if (cumbrera && lista.length >= 2) {
+  // Techo leído de la arquitectura (lectura/techoArquitectura.js): cumbrera en su eje, nivel escrito y
+  // la pendiente de cada faldón. Manda sobre la cumbrera supuesta y la pendiente única.
+  const enPlanta = (x) => ({x: eje.p.x + u.x * (x + origen), y: eje.p.y + u.y * (x + origen)});
+  if (techo?.linea && techo.H > 0 && lista.length >= 2) {
+    const c = techo.linea, den = u.x * c.d.y - u.y * c.d.x;
+    const s = Math.abs(den) > 0.5 ? ((c.a.x - eje.p.x) * c.d.y - (c.a.y - eje.p.y) * c.d.x) / den - origen : null;
+    if (s !== null && s > lista[0].s1 + 0.3 && s < lista.at(-1).s0 - 0.3) {
+      xr = s; H = techo.H;
+      const pend = (x) => (techo.H - cotaDelTecho(techo, enPlanta(x), techo.H)) / Math.max(1e-6, Math.abs(x - xr));
+      sL = pend(xr - 1); sR = pend(xr + 1);
+    } else {
+      // Pórtico paralelo a la cumbrera: plano, a la cota del techo sobre su eje.
+      T = H = cotaDelTecho(techo, enPlanta((lista[0].sn + lista.at(-1).sn) / 2), techo.H);
+    }
+  } else if (cumbrera && lista.length >= 2) {
     const den = u.x * cumbrera.d.y - u.y * cumbrera.d.x;
     if (Math.abs(den) > 0.5) { // el eje cruza la cumbrera (casi perpendicular)
       const s = ((cumbrera.a.x - eje.p.x) * cumbrera.d.y - (cumbrera.a.y - eje.p.y) * cumbrera.d.x) / den - origen;
@@ -199,6 +214,9 @@ export function planoPortico({eje, columnas, altura = 3, espesorLosa = 0.2, viga
   }
   const dosAguas = xr !== null;
   const y = (x) => (!dosAguas ? T : x <= xr ? H - sL * (xr - x) : H - sR * (x - xr));
+  // Con el techo de la arquitectura el alero sale de la cumbrera y las pendientes: TECHO NFP en la cara
+  // interior de la columna más baja (el otro alero puede quedar más alto: techo asimétrico).
+  if (dosAguas && techo?.linea) T = Math.min(y(lista[0].s1), y(lista.at(-1).s0));
   // Puntos del perfil entre a y b (con la cumbrera si cae dentro), desplazados dy.
   const perfil = (a, b, dy = 0) => [a, ...(dosAguas && xr > a && xr < b ? [xr] : []), b].map((x) => pt(x, y(x) + dy));
 
@@ -413,7 +431,19 @@ export function planoPortico({eje, columnas, altura = 3, espesorLosa = 0.2, viga
     // Rótulo de la cobertura con su pendiente, sobre el faldón izquierdo.
     const xc = (xa + xr) / 2;
     prim.push(line(L.COBERTURA, pt(xc, y(xc) + 0.06), pt(xc - 0.3, y(xc) + 0.55)));
-    prim.push(text(L.COBERTURA, pt(xc - 0.3, y(xc) + 0.62), `${CRITERIOS.techo.cobertura} · PTE=${Math.round(pendiente * 100)}%`, h * 0.32, 0, "izq"));
+    const pct = (v) => `${Math.round(v * 10000) / 100}`; // como lo escribe el plano: 50.95 %
+    if (techo?.linea) {
+      // Techo de la arquitectura: la pendiente de cada faldón junto a él (corta, no choca con la
+      // cumbrera) y el nombre de la cobertura sobre la cumbrera, a la izquierda de su eje.
+      prim.push(text(L.COBERTURA, pt(xc - 0.3, y(xc) + 0.62), `PTE=${pct(sL)}%`, h * 0.32, 0, "izq"));
+      const xd = (xr + xb) / 2;
+      prim.push(line(L.COBERTURA, pt(xd, y(xd) + 0.06), pt(xd + 0.3, y(xd) + 0.55)));
+      prim.push(text(L.COBERTURA, pt(xd + 0.3, y(xd) + 0.62), `PTE=${pct(sR)}%`, h * 0.32, 0, "izq"));
+      const nombre = CRITERIOS.techo.cobertura, ancho = nombre.length * h * 0.32 * 0.75;
+      prim.push(text(L.COBERTURA, pt(xr - 0.3 - ancho, H + 0.4), nombre, h * 0.32, 0, "izq"));
+    } else {
+      prim.push(text(L.COBERTURA, pt(xc - 0.3, y(xc) + 0.62), `${CRITERIOS.techo.cobertura} · PTE=${Math.round(pendiente * 100)}%`, h * 0.32, 0, "izq"));
+    }
   }
 
   // ---- Ejes que cruzan: línea vertical y burbuja arriba con el nombre ----
@@ -433,7 +463,7 @@ export function planoPortico({eje, columnas, altura = 3, espesorLosa = 0.2, viga
   for (let i = 0; i < cadenaV.length - 1; i++) prim.push(...cota(L.COTAS_E, pt(xv, cadenaV[i + 1]), pt(xv, cadenaV[i]), 0, h * 0.42));
 
   // Niveles a la izquierda, como los rotula el expediente.
-  const niveles = [[0, "BASE NPN=+0.00m"], ...pisos.slice(1).map((z, n) => [z, `${n + 2}° NIVEL NPT=+${z.toFixed(2)}m`]), [T, `TECHO NFP=+${T.toFixed(2)}m`], ...(dosAguas ? [[H, `CUMBRERA NFP=+${H.toFixed(2)}m`]] : []), [-df, `NFZ=-${df.toFixed(2)}m`]];
+  const niveles = [[0, "BASE NPN=+0.00m"], ...pisos.slice(1).map((z, n) => [z, `${n + 2}° NIVEL NPT=+${z.toFixed(2)}m`]), [T, `TECHO NFP=+${T.toFixed(2)}m`], ...(dosAguas && techo?.linea && Math.abs(y(lista[0].s1) - y(lista.at(-1).s0)) > 0.05 ? [[Math.max(y(lista[0].s1), y(lista.at(-1).s0)), `ALERO NFP=+${Math.max(y(lista[0].s1), y(lista.at(-1).s0)).toFixed(2)}m`]] : []), ...(dosAguas ? [[H, `CUMBRERA NFP=+${H.toFixed(2)}m`]] : []), [-df, `NFZ=-${df.toFixed(2)}m`]];
   for (const [yy, rotulo] of niveles) {
     prim.push(line(L.NIVELES, pt(xa - alero - 1.2, yy), pt(xa - alero - 0.15, yy)));
     prim.push(text(L.NIVELES, pt(xa - alero - 1.2, yy + h * 0.22), rotulo, Math.min(h * 0.4, 1.0 / (rotulo.length * 0.62)), 0, "izq"));
@@ -468,7 +498,7 @@ export function planoPortico({eje, columnas, altura = 3, espesorLosa = 0.2, viga
     geometria: {
       eje: eje.nombre,
       ejes: lista.map((x) => ({nombre: x.cruce, x: r4(x.sn), s0: r4(x.s0), s1: r4(x.s1), tipo: x.c.tipo})),
-      pisos: pisos.map(r4), techo: r4(T), cumbrera: dosAguas ? r4(H) : null, xCumbrera: dosAguas ? r4(xr) : null, pendiente,
+      pisos: pisos.map(r4), techo: r4(T), cumbrera: dosAguas ? r4(H) : null, xCumbrera: dosAguas ? r4(xr) : null, pendiente, ...(dosAguas && techo?.linea ? {pendientes: [r4(sL), r4(sR)]} : {}),
       cimentacion: {tipo: platea ? "platea" : "zapatas", df: r4(df), hz: r4(hz)},
       viga: {b: viga.b, h: vh}, losaTecho, h,
     },

@@ -10,6 +10,7 @@ import {parametrosSismicos} from "../criterios/datosProyecto.js";
 import {CRITERIOS} from "../criterios/criteriosEstructurales.js";
 import {refuerzoMinimo} from "../laminas/laminaEstructuras.js";
 import {patronColumna, areaColumna} from "../diseno/patronColumna.js";
+import {cotaDelTecho} from "../lectura/techoArquitectura.js";
 
 const r4 = (v) => Math.round(v * 10000) / 10000;
 const fmt = (v) => String(r4(Number(v) || 0));
@@ -92,6 +93,12 @@ export function modeloE2k({estructura, modelo, datos = {}, nombre = "modelo", R0
     elev = Array.from({length: niveles}, (_, i) => r4(3 * (i + 1)));
     supuestos.push("Altura de piso de 3.00 m (la arquitectura no trae los niveles de todos los pisos).");
   }
+  // Techo a dos aguas de la arquitectura (un nivel): el piso va a la cumbrera y cada punto baja según
+  // su faldón (3er valor del POINT de ETABS: profundidad bajo el piso). Así el modelo tiene las
+  // alturas del plano (aleros y cumbrera) y no un techo plano a una sola cota.
+  const cub = modelo?.cubierta;
+  let techoInclinado = niveles === 1 && cub?.linea && cub?.pendientes && Number(cub.nivelCumbrera) > 0 ? cub : null;
+  if (techoInclinado) elev = [r4(Number(cub.nivelCumbrera))];
   const pisos = elev.map((z, i) => ({nombre: `Piso${i + 1}`, elev: r4(z)}));
   supuestos.push("Columnas empotradas en la cota ±0.00 (base del modelo); la cimentación se diseña aparte con las reacciones.");
 
@@ -170,6 +177,44 @@ export function modeloE2k({estructura, modelo, datos = {}, nombre = "modelo", R0
   const tieneViga = (a, b) => vigas.some((v) => (v.i === a && v.j === b) || (v.i === b && v.j === a));
   if (sinSeccion) supuestos.push(`Viga 0.25x0.40 en ${sinSeccion} eje(s) sin sección dibujada en la losa.`);
   if (enL.size) supuestos.push(`Columnas ${[...enL].join(", ")} con su sección en L/T; confirma su orientación en planta.`);
+
+  // ---- Techo inclinado: profundidad de cada punto bajo la cumbrera ----
+  if (techoInclinado) {
+    const H = Number(techoInclinado.nivelCumbrera);
+    const enPlano = (pt) => ({x: x0 + pt.x * k, y: y0 + pt.y * k});
+    for (const pt of puntos) pt.profundidad = r4(Math.max(0, H - cotaDelTecho(techoInclinado, enPlano(pt), H)));
+    // La cumbrera debe caer sobre una línea de nudos (viga de cumbrera en un eje): si no, los paños se
+    // quebrarían a la mitad. Entonces el techo va plano a la cota del alero y se avisa.
+    // Cumbrera entre ejes (VCUMBRERA sobre un muro interior): nudos donde cruza las vigas y una viga
+    // de cumbrera entre ellos, como se modela en ETABS; los paños quedan partidos en la cumbrera.
+    if (puntos.filter((pt) => pt.profundidad < 0.02).length < 2) {
+      const A = aM(techoInclinado.linea.a), D = techoInclinado.linea.d;
+      const lado = (pt) => D.x * (pt.y - A.y) - D.y * (pt.x - A.x);
+      const enCumbrera = [];
+      for (const v of [...vigas]) {
+        const sa = lado(v.i), sb = lado(v.j);
+        if (!(Math.abs(sa) > 0.02 && Math.abs(sb) > 0.02 && sa * sb < 0)) continue;
+        const t = sa / (sa - sb);
+        const X = {x: r4(v.i.x + t * (v.j.x - v.i.x)), y: r4(v.i.y + t * (v.j.y - v.i.y))};
+        let p = puntoEn(X);
+        if (!p) { p = {nombre: String(puntos.length + 1), ...X, columnas: [], profundidad: 0}; puntos.push(p); }
+        vigas.splice(vigas.indexOf(v), 1, {i: v.i, j: p, eje: v.eje, seccion: v.seccion}, {i: p, j: v.j, eje: v.eje, seccion: v.seccion});
+        if (!enCumbrera.includes(p)) enCumbrera.push(p);
+      }
+      enCumbrera.sort((p, q) => (p.x * D.x + p.y * D.y) - (q.x * D.x + q.y * D.y));
+      for (let i = 1; i < enCumbrera.length; i++) vigas.push({i: enCumbrera[i - 1], j: enCumbrera[i], eje: "CUMBRERA", seccion: vigas.find((v) => v.j === enCumbrera[i] || v.i === enCumbrera[i])?.seccion ?? seccion("V", 0.25, 0.4, "Beam")});
+      if (enCumbrera.length >= 2) supuestos.push(`Viga de cumbrera entre ejes: ${enCumbrera.length} nudos donde la cumbrera cruza las vigas.`);
+    }
+    if (puntos.filter((pt) => pt.profundidad < 0.02).length < 2) {
+      avisos.push(`La cumbrera de la arquitectura no cae sobre un eje con nudos: el modelo va con techo plano a +${fmt(Number(modelo?.techo) || 3)}; agrega la viga de cumbrera en su eje para modelar los faldones.`);
+      techoInclinado = null;
+      pisos[0].elev = r4(Number(modelo?.techo) || 3);
+    } else {
+      const pct = (v) => `${Math.round(v * 10000) / 100}`; // como lo escribe el plano: 50.95 %
+      const aleros = [...new Set(puntos.filter((pt) => pt.columnas.length && pt.profundidad > 0.02).map((pt) => fmt(H - pt.profundidad)))];
+      supuestos.push(`Techo a dos aguas (${techoInclinado.fuente ?? "arquitectura"}): cumbrera${techoInclinado.ejeCumbrera ? ` en el eje ${techoInclinado.ejeCumbrera}` : ""} a +${fmt(H)}, faldones al ${[...new Set([techoInclinado.pendientes.neg, techoInclinado.pendientes.pos])].map(pct).join(" % y ")} %; columnas hasta su faldón (alero en el eje +${aleros.join(" / +")}); diafragma rígido en el techo inclinado.`);
+    }
+  }
 
   // ---- Losas: paños entre ejes cerrados por vigas ----
   const xs = [...new Set(puntos.map((p) => p.x))].sort((a, b) => a - b);
@@ -271,7 +316,7 @@ export function modeloE2k({estructura, modelo, datos = {}, nombre = "modelo", R0
   }
 
   L.push("$ POINT COORDINATES");
-  for (const pt of puntos) L.push(`  POINT "${pt.nombre}"  ${fmt(pt.x)} ${fmt(pt.y)} `);
+  for (const pt of puntos) L.push(`  POINT "${pt.nombre}"  ${fmt(pt.x)} ${fmt(pt.y)} ${techoInclinado ? `${fmt(pt.profundidad)} ` : ""}`);
   L.push("", "$ LINE CONNECTIVITIES");
   const conColumna = puntos.filter((pt) => pt.columnas.length);
   conColumna.forEach((pt, i) => { pt.columna = `C${i + 1}`; L.push(`  LINE  "${pt.columna}"  COLUMN  "${pt.nombre}"  "${pt.nombre}"  1`); });
@@ -356,7 +401,7 @@ export function modeloE2k({estructura, modelo, datos = {}, nombre = "modelo", R0
 
   return {
     texto: L.join("\r\n") + "\r\n",
-    resumen: {pisos: pisos.length, nudos: puntos.length, apoyos: conColumna.length, columnas: conColumna.length * pisos.length, vigas: vigas.length * pisos.length, losas: conLosa ? paños.length * pisos.length : 0,
+    resumen: {pisos: pisos.length, elevaciones: pisos.map((p) => p.elev), techo: techoInclinado ? {cumbrera: pisos[0].elev, eje: techoInclinado.ejeCumbrera ?? null, pendientes: techoInclinado.pendientes, aleros: [...new Set(puntos.filter((pt) => pt.columnas.length).map((pt) => r4(pisos[0].elev - pt.profundidad)))].sort((a, b) => a - b)} : null, nudos: puntos.length, apoyos: conColumna.length, columnas: conColumna.length * pisos.length, vigas: vigas.length * pisos.length, losas: conLosa ? paños.length * pisos.length : 0,
       secciones: [...secciones.keys()],
       armadoColumnas: Object.fromEntries([...secciones].filter(([, s]) => s.armado).map(([n, s]) => [n, s.armado])), sismo: conEspectro ? {...sismo, R} : null, combinaciones: combos.map(([n]) => n)},
     supuestos, avisos,
