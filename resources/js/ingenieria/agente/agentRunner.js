@@ -176,6 +176,10 @@ export function rutaDirecta(texto) {
   if (/\b(ordena|ordenar|acomoda|acomodar|alinea|alinear)\b.*\b(lamina|laminas|textos|rotulos|dibujo|plano)\b|\bdesordenad/.test(t)) return {tool: "ordenar_lamina", args: {}};
   if (/\bencimad/.test(t)) return {tool: "revisar_laminas", args: /\b(corrige|corregir|separa|arregla|quita)/.test(t) ? {corregir: true} : {}};
   // "¿Por qué platea?", "¿por qué losa maciza?": la explicación de la propuesta, sin costo.
+  // Informe de lectura de la arquitectura antes de dibujar (qué identificó, norma, datos, recomendación).
+  if (/\b(informe|diagnostico|que identificaste|que encontraste|que (requisitos|requerimientos))\b|\b(analiza|revisa|lee)\w*\b.*\barquitectura\b/.test(t) && !/\blaminas?\b.*\b(norma|ingeniero)\b/.test(t)) {
+    return {tool: "informe_arquitectura", args: /\b(descarga|html|pdf|cliente|imprim)/.test(t) ? {descargar: true} : {}};
+  }
   // Pedidos del cliente sobre las láminas ("sin columnas", "quita las cotas"): se aconseja y se ejecuta.
   if (reconocerPedido(texto)) return {tool: "preferencia_laminas", args: {texto}};
   // "¿Por qué platea?", "justifica la viga", "¿en qué norma…?": la decisión con su norma y su fuente.

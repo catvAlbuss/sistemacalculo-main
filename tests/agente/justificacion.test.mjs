@@ -106,3 +106,23 @@ test('estribos contra la E.060: vigas d/4, 2h y d/2; columnas b/3, 6 db y 100 mm
   const R = registroDeDecisiones({modelo: {cimentacion: {tipo: 'zapatas', hz: 0.5, df: 0.6, fuentes: {}}}});
   assert.equal(R.find((d) => d.elemento === 'profundidad de desplante Df').verificacion.cumple, false);
 });
+
+test('informe de lectura: identifica, valida con la norma, pide lo que falta y recomienda con fundamento', async () => {
+  const {informeArquitectura} = await import('../../resources/js/ingenieria/agente/informeArquitectura.js');
+  const rasgos = {vista: 'PLANTA 1ER NIVEL', niveles: 1, largo: 8, ancho: 3.86, area: 30.88, ejes: {x: 3, y: 2}, luzLosa: 3.86, luzMax: 4.18, columnas: 6,
+    tipos: [{nombre: 'C1', forma: 'L', b: 0.45, h: 0.45}, {nombre: 'C2', b: 0.2, h: 0.4}], columnetas: 16, banos: true};
+  const ejes = [{nombre: 'A', p: {x: 0, y: -1}, q: {x: 0, y: 5}}, {nombre: 'C', p: {x: 3.82, y: -1}, q: {x: 3.82, y: 5}}];
+  const estructura = {escala: 1, ejesNombrados: ejes, columnas: [{eje: '4/A'}, {eje: '4/C'}]};
+  const cotas = [{a: {x: 0, y: -2}, b: {x: 3.82, y: -2}, direccion: {x: 1, y: 0}, medida: 3.82, valor: 3.9, texto: '3.90'}]; // escrita a mano
+  const inf = informeArquitectura({rasgos, propuesta: {decisiones: {espesorLosa: {valor: 0.18, fuentes: ['a']}, cimentacion: {valor: 'platea', fuentes: ['a', 'b']}}}, estructura, cotas, datos: {}});
+  const filas = Object.fromEntries(inf.secciones.flatMap((s) => s.filas.map((f) => [f.dato, f])));
+  assert.equal(filas['Luz A–C'].estado, 'revisar');                 // la cota del arquitecto no coincide
+  assert.equal(filas['Sección de columnas'].estado, 'revisar');     // C2 0.20 < 0.25 m (E.060 21.6.1.2)
+  assert.match(filas['Sección de columnas'].cita, /21\.6\.1\.2/);
+  assert.equal(filas['Espesor de aligerado'].estado, 'revisar');    // 0.18 ≥ ℓ/21 = 0.172 pero < ℓ/18.5 = 0.195
+  const delgada = informeArquitectura({rasgos, propuesta: {decisiones: {espesorLosa: {valor: 0.17}}}, datos: {}});
+  assert.equal(delgada.secciones[1].filas.find((f) => f.dato === 'Espesor de aligerado').estado, 'no cumple');
+  assert.ok(inf.faltan >= 5);
+  assert.match(inf.html, /<table>.*Fundamento/s);
+  assert.match(inf.texto, /la revisa y firma el ingeniero \(E\.060 1\.2\.1\.2\)/);
+});

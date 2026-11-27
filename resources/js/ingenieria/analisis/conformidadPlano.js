@@ -8,7 +8,7 @@ const TOL_LUZ = 0.02; // m: una cota redondeada al cm
 const r2 = (v) => Math.round(v * 100) / 100;
 
 // Luces entre ejes paralelos consecutivos con columnas, en metros (coordenadas de la lectura).
-function lucesEntreEjes(estructura) {
+export function lucesEntreEjes(estructura) {
   const ejes = (estructura.ejesNombrados ?? []).filter((e) => e?.p && e?.q && !e.inclinado);
   const columnas = estructura.columnas ?? [];
   const usados = ejes.filter((e) => columnas.some((c) => String(c.eje ?? "").split("/").includes(e.nombre)));
@@ -32,7 +32,7 @@ function lucesEntreEjes(estructura) {
 }
 
 // Cota del arquitecto entre dos ejes: misma dirección y sus extremos sobre los dos ejes.
-function cotaEntre(cotas, luz, k, caja) {
+export function cotaEntre(cotas, luz, k, caja) {
   let mejor = null;
   for (const c of cotas) {
     const a = {x: c.a.x / k, y: c.a.y / k}, b = {x: c.b.x / k, y: c.b.y / k};

@@ -396,6 +396,41 @@ export const ESTRUCTURA_SKILLS = [
     },
   },
   {
+    name: "informe_arquitectura",
+    description: "Informe de lectura de la arquitectura ANTES de dibujar: qué identificó el agente en el plano (niveles, ejes y luces contrastadas con las cotas del arquitecto, columnas, placas, columnetas, ambientes, techo), qué valida contra la norma (sección de columnas, espesor de losa y peralte de vigas por la Tabla 9.1 de la E.060, EMS, versión de la E.030), qué datos faltan y qué recomienda con su fundamento. Con descargar=true entrega el informe en HTML para el cliente. Úsalo para 'analiza la arquitectura', 'qué identificaste', 'informe', 'diagnóstico', 'qué requisitos tiene'.",
+    parameters: {type: "object", properties: {
+      descargar: {type: "boolean", description: "true para descargar el informe en HTML (para el cliente)"},
+    }},
+    async run(args = {}, ctx) {
+      if (!ctx.readPlan().vistas.length) return {ok: false, error: "No encontré plantas con ejes con nombre en el plano abierto: abre la arquitectura."};
+      const {rasgos, propuesta} = await propuestaDelPlano(ctx);
+      let e = null;
+      try { e = leerEstructura(ctx, ""); } catch { e = ctx.memoria?.estructura ?? null; }
+      const plano = ctx.readPlan();
+      const items = plano.itemsArquitectura ?? plano.items;
+      let techo = null;
+      try {
+        const {techoDesdeArquitectura, nivelCumbreraEscrito} = await import("../../lectura/techoArquitectura.js");
+        const {direccionPrincipal} = await import("../../planos/aligeradoPlano.js");
+        if (e?.columnas?.length && e?.ejesNombrados?.length) {
+          const t = techoDesdeArquitectura(items, {lectura: {columnas: e.columnas, ejes: e.ejesNombrados}, k: e.escala ?? 1, u: direccionPrincipal(e.ejesNombrados)});
+          if (t) techo = {...t, H: nivelCumbreraEscrito(items)};
+        }
+      } catch { /* sin techo inclinado en los cortes */ }
+      const {informeArquitectura} = await import("../informeArquitectura.js");
+      const inf = informeArquitectura({rasgos, propuesta, estructura: e, cotas: plano.cotas ?? [], datos: ctx.datosProyecto?.() ?? {}, techo, titulo: e?.titulo || rasgos.vista || ctx.nombreDocumento?.() || ""});
+      ctx.memoria.informeArquitectura = {fecha: new Date().toISOString(), pendientes: inf.pendientes.length, faltan: inf.faltan};
+      if (args.descargar) { try { ctx.descargarTexto?.("informe-arquitectura.html", inf.html); } catch { /* sin panel: queda el texto */ } }
+      return {ok: true, mensaje: inf.texto,
+        resumen: `Leí la arquitectura: ${inf.secciones[0].filas.length} datos identificados, ${inf.pendientes.length} para revisar y ${inf.faltan} datos que faltan.`,
+        opciones: [
+          ...(inf.faltan ? [{texto: "Completar los datos del proyecto", herramienta: "datos_proyecto", args: {}, recomendada: true}] : []),
+          {texto: "Generar las láminas con estos criterios", herramienta: "plano_estructuras", args: {}, recomendada: !inf.faltan},
+          ...(args.descargar ? [] : [{texto: "Descargar el informe para el cliente", herramienta: "informe_arquitectura", args: {descargar: true}}]),
+        ]};
+    },
+  },
+  {
     name: "metrar_estructura",
     description: "Saca el metrado de estructuras (movimiento de tierras, concreto simple, concreto armado: concreto, encofrado, acero, curado, ladrillo de techo) de la estructura que dibujó el agente, con el formato de la planilla del despacho. Con excel=true descarga la planilla .xlsx. Úsalo cuando pidan metrado, metrar, cantidades o planilla de metrados.",
     parameters: {type: "object", properties: {

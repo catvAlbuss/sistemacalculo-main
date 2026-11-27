@@ -217,6 +217,22 @@
   {
     "type": "function",
     "function": {
+      "name": "informe_arquitectura",
+      "description": "Informe de lectura de la arquitectura ANTES de dibujar: qué identificó el agente en el plano (niveles, ejes y luces contrastadas con las cotas del arquitecto, columnas, placas, columnetas, ambientes, techo), qué valida contra la norma (sección de columnas, espesor de losa y peralte de vigas por la Tabla 9.1 de la E.060, EMS, versión de la E.030), qué datos faltan y qué recomienda con su fundamento. Con descargar=true entrega el informe en HTML para el cliente. Úsalo para 'analiza la arquitectura', 'qué identificaste', 'informe', 'diagnóstico', 'qué requisitos tiene'.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "descargar": {
+            "type": "boolean",
+            "description": "true para descargar el informe en HTML (para el cliente)"
+          }
+        }
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
       "name": "metrar_estructura",
       "description": "Saca el metrado de estructuras (movimiento de tierras, concreto simple, concreto armado: concreto, encofrado, acero, curado, ladrillo de techo) de la estructura que dibujó el agente, con el formato de la planilla del despacho. Con excel=true descarga la planilla .xlsx. Úsalo cuando pidan metrado, metrar, cantidades o planilla de metrados.",
       "parameters": {

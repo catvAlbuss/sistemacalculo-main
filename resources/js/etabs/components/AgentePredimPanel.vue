@@ -116,7 +116,7 @@
         <h3>¿Qué necesitas hacer?</h3>
         <p>Usa el botón de arriba, elige otra opción o escríbelo con tus palabras («saca el metrado», «revisa como ingeniero»…).</p>
         <div class="ag-caps">
-          <button v-for="c in ACCIONES_PRINCIPALES.filter((a) => a.herramienta !== paso.herramienta)" :key="c.texto" type="button" class="ag-cap" :disabled="busy || !planoListo" @click="accion(c)">
+          <button v-for="c in ACCIONES_PRINCIPALES.filter((a) => a.herramienta !== paso.herramienta && !(paso.alternativas ?? []).some((x) => x.texto === a.texto))" :key="c.texto" type="button" class="ag-cap" :disabled="busy || !planoListo" @click="accion(c)">
             <span class="ag-cap-ic"><svg viewBox="0 0 24 24"><path :d="ICON[ICONO_ACCION[c.herramienta] ?? 'chispa']" /></svg></span>
             <strong>{{ c.texto }}</strong>
             <small>{{ c.detalle }}</small>
@@ -403,6 +403,7 @@ const PASOS = {
   abrir_analisis: {titulo: "Abrí Análisis Estructural", icono: "analizar", siguientes: []},
   aplicar_diseno: {titulo: "Apliqué el diseño a las láminas", vivo: "Aplicando el diseño a las láminas…", icono: "estructura", siguientes: [{texto: "Revisar como ingeniero", herramienta: "revisar_norma"}, {texto: "Sacar el metrado", herramienta: "metrar_estructura"}]},
   revisar_norma: {titulo: "Revisé las láminas contra la norma", vivo: "Revisando los 15 puntos de la norma…", icono: "revisar", siguientes: []},
+  informe_arquitectura: {titulo: "Leí la arquitectura", vivo: "Leyendo la arquitectura y revisando la norma…", icono: "analizar", siguientes: [{texto: "Generar las láminas", herramienta: "plano_estructuras"}, {texto: "Descargar el informe", herramienta: "informe_arquitectura", args: {descargar: true}}]},
   justificar: {titulo: "Justifiqué el diseño", vivo: "Buscando la norma y la fuente de cada decisión…", icono: "revisar", siguientes: [{texto: "Revisar como ingeniero", herramienta: "revisar_norma"}]},
   preferencia_laminas: {titulo: "Tu pedido sobre las láminas", vivo: "Revisando tu pedido contra la norma…", icono: "estructura", siguientes: [{texto: "Justificar el diseño", herramienta: "justificar"}]},
   aprender_correcciones: {titulo: "Aprendí de tus correcciones", vivo: "Leyendo tus correcciones…", icono: "corregir", siguientes: []},
@@ -614,7 +615,7 @@ const getContext = () => {
   ctx.nombreDocumento = () => { databaseActual(); return documento?.fileName || documento?.docTitle || ''; };
   // Modelo de análisis (.e2k) para ETABS: se descarga como archivo de texto (CRLF, como lo pide ETABS).
   ctx.descargarTexto = (nombre, texto) => {
-    const url = URL.createObjectURL(new Blob([texto], {type: "text/plain;charset=utf-8"}));
+    const url = URL.createObjectURL(new Blob([texto], {type: /\.html?$/i.test(nombre) ? "text/html;charset=utf-8" : "text/plain;charset=utf-8"}));
     const a = Object.assign(document.createElement("a"), {href: url, download: nombre});
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 2000);
