@@ -201,7 +201,9 @@ test('module 3 with its soil study and E.030 data: Hz 0.60, Df 2.50 and Z/U/S/Tp
   assert.match(r2.mensaje, /^Guardé zona, suelo, categoría en Datos del proyecto\. Reemplacé las láminas anteriores\. Generé las láminas E-01/);
   assert.match(r2.mensaje, /Z=0\.35, U=1, S=1\.15, Tp=0\.6/);
   const despues2 = db.tables.blockTable.modelSpace.newIterator().toArray().length;
-  assert.ok(Math.abs(despues2 - despues1) < 0.05 * (despues1 - antes), `sheets replaced, not stacked: ${antes} → ${despues1} → ${despues2}`);
+  // Con otro suelo la cimentación puede cambiar (platea → zapatas con sus vigas bajo los muros):
+  // reemplazar no deja la misma cantidad de entidades, pero apilar la duplicaría.
+  assert.ok(despues2 - antes < 1.4 * (despues1 - antes), `sheets replaced, not stacked: ${antes} → ${despues1} → ${despues2}`);
   assert.equal(ctx.datosProyecto().zona, '3', 'chat data kept for the next requests');
   // Con "conservar" se agregan otras láminas debajo.
   const r3 = await SKILLS.find((s) => s.name === 'plano_estructuras').run({vista: '1ER NIVEL', conservar: true}, ctx);

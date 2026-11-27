@@ -249,6 +249,30 @@ export function huellaColumnas(columnas = []) {
   return [{x: x0, y: y0}, {x: x1, y: y0}, {x: x1, y: y1}, {x: x0, y: y1}];
 }
 
+// Corre hacia adentro las zapatas de las columnas del borde: una columna es exterior por un lado
+// cuando ninguna otra de su fila (o columna de ejes) queda más allá. Devuelve cuántas movió.
+export function excentrizarZapatas(zapatas, columnas) {
+  const caja = (c) => {
+    const pts = c.contorno?.length ? c.contorno : [{x: c.x - (c.b ?? 0) / 2, y: c.y - (c.h ?? 0) / 2}, {x: c.x + (c.b ?? 0) / 2, y: c.y + (c.h ?? 0) / 2}];
+    return {x0: Math.min(...pts.map((p) => p.x)), x1: Math.max(...pts.map((p) => p.x)), y0: Math.min(...pts.map((p) => p.y)), y1: Math.max(...pts.map((p) => p.y))};
+  };
+  const tol = 0.3, r3 = (v) => Math.round(v * 1000) / 1000;
+  let movidas = 0;
+  zapatas.forEach((z, i) => {
+    const c = columnas[i], k = caja(c);
+    const fila = columnas.filter((o) => o !== c && Math.abs(o.y - c.y) < tol);
+    const col = columnas.filter((o) => o !== c && Math.abs(o.x - c.x) < tol);
+    const izq = !fila.some((o) => o.x < c.x - 0.05), der = !fila.some((o) => o.x > c.x + 0.05);
+    const abj = !col.some((o) => o.y < c.y - 0.05), arr = !col.some((o) => o.y > c.y + 0.05);
+    let cambio = false;
+    // Exterior por un solo lado (una columna sola en su fila queda centrada).
+    if (izq !== der && fila.length) { cambio = true; if (izq) { z.x0 = r3(k.x0); z.x1 = r3(k.x0 + z.B); } else { z.x1 = r3(k.x1); z.x0 = r3(k.x1 - z.B); } }
+    if (abj !== arr && col.length) { cambio = true; if (abj) { z.y0 = r3(k.y0); z.y1 = r3(k.y0 + z.L); } else { z.y1 = r3(k.y1); z.y0 = r3(k.y1 - z.L); } }
+    if (cambio) { z.excentrica = izq !== der && abj !== arr && fila.length && col.length ? "esquinera" : "medianera"; movidas++; }
+  });
+  return movidas;
+}
+
 export function envolvente(puntos) {
   const pts = [...puntos].sort((a, b) => a.x - b.x || a.y - b.y);
   const cross = (o, a, b) => (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
@@ -332,6 +356,14 @@ export function planoCimentacion({lectura, items, caja, k = 1, titulo = ""}, opc
       : placas.length ? `Hay placas (${[...new Set(placas)].join(", ")}): se propone platea (pide "con zapatas" si prefieres zapatas aisladas).`
       : preferida && areaZapatas <= 0.5 * areaHuella ? `Criterio del despacho: platea (pide "con zapatas" si prefieres zapatas aisladas).`
       : `Las zapatas ocupan ${Math.round((100 * areaZapatas) / areaHuella)} % de la planta: se propone platea.`);
+  }
+
+  // Zapatas del perímetro: excéntricas (medianeras y esquineras), con la cara exterior al ras de la
+  // cara de la columna y creciendo hacia adentro, como las dibuja el despacho. La excentricidad la
+  // toma la viga de cimentación que las une con las interiores.
+  if (tipo === "zapatas" && o.zapatasExcentricas !== false) {
+    const excentricas = excentrizarZapatas(zapatas, columnas);
+    if (excentricas) avisos.push(`${excentricas} zapata(s) del perímetro excéntricas (medianeras/esquineras): la viga de cimentación toma el momento por excentricidad; verifícalas en Calcular zapatas.`);
   }
 
   // Límites de cada tramo: la zapata (si hay) o la columna.
@@ -509,7 +541,7 @@ export function planoCimentacion({lectura, items, caja, k = 1, titulo = ""}, opc
   if (tipo === "zapatas") {
     for (const z of zapatas) {
       prim.push(pline(L.ZAPATAS, [{x: z.x0, y: z.y0}, {x: z.x1, y: z.y0}, {x: z.x1, y: z.y1}, {x: z.x0, y: z.y1}].map(pt), true));
-      prim.push(text(L.ZAPATAS, pt({x: z.x, y: z.y0 - h * 0.6}), z.tipo, h * 0.55));
+      prim.push(text(L.ZAPATAS, pt({x: (z.x0 + z.x1) / 2, y: z.y0 - h * 0.6}), z.tipo, h * 0.55));
     }
   }
   // Con platea, el cimiento corrido va en su propio plano (el ingeniero no lo repite aquí).
