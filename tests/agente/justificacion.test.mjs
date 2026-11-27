@@ -2,7 +2,7 @@
 // cliente sobre las láminas, dejándolos escritos.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {registroDeDecisiones, buscarDecisiones, textoDecision, resumenRegistro} from '../../resources/js/ingenieria/criterios/justificacion.js';
+import {registroDeDecisiones, buscarDecisiones, textoDecision, resumenRegistro, verificarEstribosViga, verificarEstribosColumna} from '../../resources/js/ingenieria/criterios/justificacion.js';
 import {reconocerPedido, pedidoPorId, preferenciaDe, aplicarPreferencias} from '../../resources/js/ingenieria/agente/preferenciasCliente.js';
 import {notasTecnicas} from '../../resources/js/ingenieria/laminas/formatoDespacho.js';
 import {rutaDirecta} from '../../resources/js/ingenieria/agente/agentRunner.js';
@@ -19,7 +19,10 @@ const propuesta = {decisiones: {cimentacion: {valor: 'platea', fuentes: ['a', 'b
 test('cada decisión dice por qué, con qué norma y de dónde salió', () => {
   const R = registroDeDecisiones({modelo, propuesta, datos: {normaE030: '2018'}});
   const rec = R.find((d) => d.elemento === 'recubrimientos');
-  assert.deepEqual(rec.cita, {norma: 'E.060 7.7.1', estado: 'confirmada'});
+  assert.equal(rec.cita.norma, 'E.060 7.7.1');
+  assert.equal(rec.cita.estado, 'confirmada');
+  assert.match(rec.cita.dice, /70 mm/);
+  assert.match(rec.cita.texto, /DS 010-2009/);
   assert.equal(rec.fuente, 'norma');
   const cim = R.find((d) => d.elemento === 'tipo de cimentación');
   assert.equal(cim.fuente, 'despacho');
@@ -29,10 +32,12 @@ test('cada decisión dice por qué, con qué norma y de dónde salió', () => {
   assert.equal(R.find((d) => d.elemento === 'profundidad de desplante Df').fuente, 'supuesto');
   assert.equal(R.find((d) => d.elemento === 'techo inclinado').fuente, 'plano');
   assert.equal(R.find((d) => d.elemento === 'secciones de vigas').valor, '0.30x0.40');
-  // Lo que no tiene artículo confirmado lo dice.
-  assert.match(textoDecision(R.find((d) => d.elemento === 'estribos de vigas')), /por cotejar con el texto oficial/);
+  // Citas verificadas en el texto y valores verificados contra sus límites.
+  assert.match(textoDecision(R.find((d) => d.elemento === 'estribos de vigas')), /E\.060 21\.5\.3 \(verificado en el texto de la norma\).*NO CUMPLE/);
   const r = resumenRegistro(R);
-  assert.ok(r.confirmadas >= 3 && r.supuestos.some((d) => /desplante/.test(d.elemento)));
+  assert.ok(r.porcentajeCitas >= 80, `citas verificadas ${r.porcentajeCitas} %`);
+  assert.ok(r.supuestos.some((d) => /desplante/.test(d.elemento)));
+  assert.ok(r.noCumple.some((d) => d.elemento === 'estribos de vigas'));
 });
 
 test('las preguntas encuentran su decisión', () => {
@@ -74,7 +79,7 @@ test('el chat lleva cada frase a justificar o al pedido, sin IA', async () => {
   const ctx = {memoria: {}};
   const pref = SKILLS.find((s) => s.name === 'preferencia_laminas');
   const consejo = await pref.run({texto: 'quiero mis láminas sin columnas'}, ctx);
-  assert.match(consejo.mensaje, /GE\.020/);
+  assert.match(consejo.mensaje, /E\.060 1\.2\.4/);
   assert.ok(consejo.opciones[0].recomendada && consejo.opciones.at(-1).args.opcion === 'dejar');
   const hecho = await pref.run(consejo.opciones[0].args, ctx);
   assert.match(hecho.mensaje, /Lo aplico cuando genere las láminas/);
@@ -83,4 +88,21 @@ test('el chat lleva cada frase a justificar o al pedido, sin IA', async () => {
   assert.equal(ctx.memoria.preferencias.length, 0);
   const sinLaminas = await SKILLS.find((s) => s.name === 'justificar').run({tema: 'viga'}, {memoria: {}});
   assert.equal(sinLaminas.ok, false);
+});
+
+test('estribos contra la E.060: vigas d/4, 2h y d/2; columnas b/3, 6 db y 100 mm', () => {
+  // Viga de 0.40 m: d = 0.34 m → d/4 = 0.085 y d/2 = 0.17: "8@0.10, Rto.@0.20" no cumple.
+  const v40 = verificarEstribosViga(0.4, '1@0.05, 8@0.10, Rto.@0.20 C/E');
+  assert.equal(v40.cumple, false);
+  assert.equal(v40.propuesta, '1@0.05, 10@0.075, Rto.@0.15 C/E');
+  assert.equal(verificarEstribosViga(0.4, v40.propuesta).cumple, true);
+  // Viga de 0.60 m: d/4 = 0.136 y d/2 = 0.27: la distribución del despacho cumple.
+  assert.equal(verificarEstribosViga(0.6, '1@0.05, 12@0.10, Rto.@0.20 C/E').cumple, true);
+  // Columna 0.30 con 5/8": 6 db = 0.095 m < 0.10 m.
+  const c30 = verificarEstribosColumna(0.3, '1@0.05, 9@0.10, Rto.@0.20 C/E');
+  assert.equal(c30.cumple, false);
+  assert.equal(verificarEstribosColumna(0.3, c30.propuesta).cumple, true);
+  // Df de zapatas menor que 0.80 m no cumple la E.050 art. 19.
+  const R = registroDeDecisiones({modelo: {cimentacion: {tipo: 'zapatas', hz: 0.5, df: 0.6, fuentes: {}}}});
+  assert.equal(R.find((d) => d.elemento === 'profundidad de desplante Df').verificacion.cumple, false);
 });

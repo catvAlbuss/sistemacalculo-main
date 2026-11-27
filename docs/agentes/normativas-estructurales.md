@@ -99,3 +99,35 @@ I–IV (γI 0.8 / 1.0 / 1.2 / 1.4).
 - ACI 318-25: [ACI 318 Portal](https://www.concrete.org/aci318) · [ENR](https://www.enr.com/articles/61066-aci-318-25-structural-concrete-code-update-adds-sustainability-guide-performance-based-wind-design) · [STRUCTURE](https://www.structuremag.org/article/aci-318-25-changes-to-anchorage-and-reinforcing-bar-provisions/)
 - ASCE 7-22 / IBC: [ICC – espectro de dos periodos](https://www.iccsafe.org/building-safety-journal/bsj-technical/is-continued-use-of-the-two-period-design-spectrum-in-the-equivalent-lateral-force-procedure-of-seismic-design-permitted-by-asce-7-22/) · [S.K. Ghosh](https://www.skghoshassociates.com/blog/understanding-the-multi-period-soil-modified-design-response-spectra-of-asce-7-22-key-insights-and-important-potential-consequences/) · [Simpson Strong-Tie](https://seblog.strongtie.com/2026/03/how-i-learned-to-stop-worrying-and-love-multi-period-seismic-design)
 - Eurocódigos: [JRC – segunda generación](https://eurocodes.jrc.ec.europa.eu/second-generation-eurocodes) · [JRC – cronograma](https://eurocodes.jrc.ec.europa.eu/2nd-generation-evolution/timeline-eurocodes-second-generation)
+
+---
+
+## 5. Citas verificadas en el texto (27/11/2026)
+
+Leídas en los PDF guardados en `storage/app/private/normas/` (privado): **E.060 DS 010-2009** y **E.050**
+publicadas en gob.pe (colección del RNE de la Municipalidad de Santa María del Mar). La "E.060 2019" que
+circula es una **propuesta** de SENCICO, no la norma vigente. La copia de la E.050 no indica si es la 2006 o
+la modificada por la RM 406-2018: confirmar su numeración. Detalle en `resources/js/ingenieria/criterios/normasVerificadas.js`.
+
+| Criterio | Artículo | Lo que dice |
+|---|---|---|
+| Contenido de los planos | E.060 1.2.4 | Normas, cargas vivas, f'c, acero, tamaño/ubicación/refuerzo de todos los elementos, anclajes y empalmes, juntas |
+| Recubrimientos | E.060 7.7.1 | 70 mm contra el suelo · 40 mm vigas y columnas · 20 mm losas |
+| Ganchos | E.060 7.1 | 180° + 4 db (≥ 65 mm) o 90° + 12 db |
+| Combinaciones | E.060 9.2.1 y 9.2.3 | 1.4CM+1.7CV · 1.25(CM+CV)±CS · 0.9CM±CS |
+| Peraltes mínimos | E.060 9.6.2.1 y Tabla 9.1 | Para no verificar deflexiones |
+| Cuantía de columnas | E.060 10.9.1 (y 21.6.3.1) | 1 % a 6 % de Ag |
+| Concreto sismorresistente | E.060 21.3.2.1 | f'c ≥ 21 MPa |
+| Acero sismorresistente | E.060 21.3.3 | A706; A615 grados 280/420 con condiciones |
+| Vigas de pórticos | E.060 21.5.1.3 · 21.5.2.1 · 21.5.2.3 | bw ≥ 250 mm y ≥ 0.25h · 2 barras corridas arriba y abajo · sin traslapes en nudos ni a < 2h |
+| Estribos de vigas | E.060 21.5.3 | 2h; primero ≤ 50 mm; s ≤ d/4, 8 db, 24 de, 300 mm; fuera ≤ d/2 |
+| Columnas de pórticos | E.060 21.6.3.2 · 21.6.4.2 · 21.6.4.5 | Traslapes en la mitad central · s ≤ b/3, 6 db, 100 mm · fuera ≤ 10 db y 250 mm |
+| EMS | E.050 art. 3, 12, 17, 19 | Obligatoriedad, informe, presión admisible, Df ≥ 0.80 m en zapatas; platea con viga perimetral ≥ 0.40 m |
+
+Corrección: el **21.4** de la E.060 es para sistemas de muros y duales tipo I; en **pórticos** rigen el
+**21.5** (vigas) y el **21.6** (columnas). El agente citaba 21.4 para pórticos.
+
+Hallazgo al verificar los valores: la distribución típica del despacho "1@0.05, 8@0.10, Rto.@0.20" **no
+cumple** en vigas de 0.40 m (d ≈ 0.34 m → d/4 = 0.085 m y d/2 = 0.17 m; según la norma 1@0.05, 10@0.075,
+Rto.@0.15), y "@0.10" en columnas con varillas de 5/8" pasa 6 db = 0.095 m. El agente lo informa con la
+distribución que cumple; cambiar el estándar del despacho lo decide el ingeniero.

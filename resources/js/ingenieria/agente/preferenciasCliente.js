@@ -7,9 +7,11 @@
 // en laminasPlantilla.js sobre los bloques de la lámina antes de componerla.
 
 import {L} from "../cad/primitives.js";
+import {VERIFICADAS} from "../criterios/normasVerificadas.js";
 
 const PLANTAS = ["cimentacion", "cimiento", "losa", "losaTecho", "tabiqueria"];
-const GE020 = {norma: "GE.020 art. 12", estado: "investigada"};
+// Lo que los planos deben contener como mínimo (E.060 1.2.4, verificado en el texto de la norma).
+const PLANOS = {norma: VERIFICADAS.planos.norma, estado: "confirmada", dice: VERIFICADAS.planos.dice};
 
 export const PEDIDOS = [
   {
@@ -17,7 +19,7 @@ export const PEDIDOS = [
     patron: /\bsin (las )?columnas\b|\b(quita|saca|elimina|borra|oculta)\w*\b.*\bcolumnas\b|\bno (dibujes|pongas|muestres)\b.*\bcolumnas\b/,
     deshacer: /\b(vuelve a poner|pon de nuevo|pon otra vez|restaura|regresa|devuelve)\w*\b.*\bcolumnas\b|\bcon (las )?columnas\b/,
     consejo: "Las columnas sostienen el edificio: su ubicación (planta de cimentación) y su sección y refuerzo (cuadro de columnas) tienen que estar en las láminas para construirlas y para la revisión de la licencia.",
-    cita: GE020, norma: "Los planos de estructuras definen cada elemento con su dimensión y refuerzo (GE.020 art. 12; refuerzo según E.060).",
+    cita: PLANOS, norma: "Los planos deben dar el tamaño, la localización y el refuerzo de TODOS los elementos estructurales (E.060 1.2.4 e).",
     opciones: [
       {id: "aligerado", texto: "Ocultarlas solo en la planta de aligerado (el resto queda igual)", recomendada: true,
         nota: "Columnas no dibujadas en la planta de aligerado (ver planta de cimentación y cuadro de columnas).", accion: {ocultar: [{capas: [L.COLUMNAS, L.COLUMNAS_ID], en: ["losa", "losaTecho"]}]}},
@@ -32,7 +34,7 @@ export const PEDIDOS = [
     patron: /\bsin (las )?cotas\b|\b(quita|saca|elimina|borra|oculta)\w*\b.*\bcotas\b|\bno (dibujes|pongas|muestres)\b.*\bcotas\b/,
     deshacer: /\b(vuelve a poner|pon de nuevo|restaura|regresa|devuelve)\w*\b.*\bcotas\b|\bcon (las )?cotas\b/,
     consejo: "Las cotas dan las luces entre ejes, las secciones y los niveles: sin ellas el maestro de obra no puede replantear ni armar.",
-    cita: GE020, norma: "Los planos de estructuras deben poder construirse sin medir sobre el papel (GE.020 art. 12).",
+    cita: PLANOS, norma: "Los planos deben dar el tamaño y la localización de todos los elementos (E.060 1.2.4 e): sin cotas no se puede replantear.",
     opciones: [
       {id: "detalles", texto: "Quitar solo las cotas de pórticos y cortes (las plantas conservan sus luces)", recomendada: true,
         nota: "Cotas de detalle omitidas: rigen las cotas de las plantas.", accion: {ocultar: [{capas: [L.COTAS_E, L.COTAS], en: ["portico", "corte", "escalera"]}]}},
@@ -45,7 +47,7 @@ export const PEDIDOS = [
     patron: /\bsin (los )?porticos\b|\b(quita|saca|elimina|borra|oculta)\w*\b.*\bporticos\b|\bno (dibujes|pongas)\b.*\bporticos\b/,
     deshacer: /\b(vuelve a poner|pon de nuevo|restaura|regresa|devuelve)\w*\b.*\bporticos\b|\bcon (los )?porticos\b/,
     consejo: "Los pórticos muestran en elevación las alturas, las vigas y su refuerzo (ganchos, confinamiento, empalmes). Sin ellos, el armado de vigas queda solo en el cuadro de vigas.",
-    cita: {norma: "E.060 cap. 21", estado: "investigada"}, norma: "El detallado sísmico de vigas (confinamiento, empalmes fuera de la zona 2h) debe quedar indicado (E.060 cap. 21).",
+    cita: {norma: "E.060 21.5.2.3 y 21.5.3", estado: "confirmada", dice: VERIFICADAS.estribosVigas.dice}, norma: "El confinamiento de 2h y los empalmes fuera de 2h de las vigas deben quedar indicados (E.060 21.5.2.3 y 21.5.3).",
     opciones: [
       {id: "quitar", texto: "Quitar los pórticos y dejar el cuadro de vigas con su refuerzo", recomendada: true,
         nota: "Pórticos omitidos: el refuerzo de vigas va en el cuadro de vigas.", accion: {quitar: ["portico"]}},
@@ -56,7 +58,7 @@ export const PEDIDOS = [
     patron: /\bsin (las )?tablas\b|\bsin (el )?(cuadro de )?(desencofrado|empalmes|longitudes)\b|\b(quita|saca|elimina)\w*\b.*\btablas\b/,
     deshacer: /\b(vuelve a poner|pon de nuevo|restaura|regresa|devuelve)\w*\b.*\btablas\b|\bcon (las )?tablas\b/,
     consejo: "Las longitudes de desarrollo y los empalmes dicen cuánto se traslapa y ancla cada varilla; el desencofrado, la especificación del ladrillo y las viguetas son tablas de apoyo.",
-    cita: {norma: "E.060 12.2 y 12.15", estado: "investigada"}, norma: "Desarrollo y empalmes del refuerzo (E.060 12.2 y 12.15).",
+    cita: {norma: "E.060 1.2.4 f, 12.2 y 12.15", estado: "confirmada", dice: "Los planos deben contener los detalles de anclajes y empalmes del refuerzo."}, norma: "Desarrollo y empalmes del refuerzo (E.060 12.2 y 12.15).",
     opciones: [
       {id: "apoyo", texto: "Quitar desencofrado, ladrillo y viguetas; dejar desarrollo y empalmes", recomendada: true,
         nota: "Tablas de desencofrado, ladrillo y viguetas omitidas.", accion: {quitar: ["desencofrado", "ladrillo", "cuadroViguetas"]}},
@@ -69,7 +71,7 @@ export const PEDIDOS = [
     patron: /\bsin (las )?(notas|especificaciones)\b|\b(quita|saca|elimina)\w*\b.*\b(notas|especificaciones)\b/,
     deshacer: /\b(vuelve a poner|pon de nuevo|restaura|regresa|devuelve)\w*\b.*\b(notas|especificaciones)\b|\bcon (las )?notas\b/,
     consejo: "Las notas dicen con qué se construye: f'c, fy, recubrimientos, sobrecargas y parámetros sísmicos. Sin ellas la lámina no se puede ejecutar ni aprobar.",
-    cita: {norma: "E.060 7.7.1 · E.020 · E.030", estado: "confirmada"}, norma: "Recubrimientos (E.060 7.7.1), sobrecargas (E.020) y parámetros sísmicos (E.030) van en los planos.",
+    cita: PLANOS, norma: "Los planos deben indicar las normas empleadas, las cargas vivas, f'c y el tipo de acero (E.060 1.2.4 a–d).",
     opciones: [
       {id: "quitar", texto: "Quitarlas de todas formas (la lámina no se podrá aprobar)", noAprobable: true,
         nota: null, accion: {quitar: ["notas"]}},

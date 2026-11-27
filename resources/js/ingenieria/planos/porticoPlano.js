@@ -363,8 +363,8 @@ export function planoPortico({eje, columnas, altura = 3, espesorLosa = 0.2, viga
   }
 
   // ---- Despiece de cada viga (E.060): acero corrido con ganchos de 90° en los apoyos extremos
-  // (12 db, 7.1), zona de confinamiento 2h acotada en el primer apoyo (21.4.4.4) y su llamada con la
-  // regla de empalmes (sin empalmes a menos de 2h de la cara de los apoyos, 21.4.4.3).
+  // (12 db, 7.1), zona de confinamiento 2h acotada en el primer apoyo (21.5.3.1) y su llamada con la
+  // regla de empalmes (sin empalmes a menos de 2h de la cara de los apoyos, 21.5.2.3).
   const armadoViga = criteriosMetrado(cimentacion?.tipo).vigas;
   const porCaraViga = Math.max(2, Math.ceil(armadoViga.barras / 2));
   const db = ({'1/2"': 0.0127, '5/8"': 0.015875, '3/4"': 0.01905, '1"': 0.0254})[armadoViga.barra] ?? 0.015875;
