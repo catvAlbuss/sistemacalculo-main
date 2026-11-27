@@ -72,3 +72,30 @@ test('el modelo real del motor se revisa sin errores', () => {
   const o = revisarGeometria({nodos: p.nodes, elementos: p.elements});
   assert.ok(o.verificaciones.length >= 7);
 });
+
+test('techo a dos aguas de un piso: los nudos del alero y la cumbrera son el mismo piso', () => {
+  const g = edificio({xs: [0, 4, 8], ys: [0, 4, 8], pisos: 1});
+  // Cumbrera en x = 4 a +4.5; aleros a +3.0 (las vigas del faldón quedan inclinadas).
+  for (const n of g.nodos) if (n.z > 0) n.z = n.x === 4 ? 4.5 : 3;
+  const o = revisarGeometria(g);
+  assert.equal(titulo(o, 'Geométrica vertical').estado, 'cumple', titulo(o, 'Geométrica vertical').detalle);
+  assert.equal(titulo(o, 'Discontinuidad del diafragma').estado, 'cumple');
+  assert.equal(titulo(o, 'Sistemas no paralelos').estado, 'cumple');
+  assert.deepEqual([o.Ia, o.Ip], [1, 1]);
+});
+
+test('piso débil con la resistencia a corte de las columnas (E.030 Tabla 8)', async () => {
+  const {revisarPisoDebil} = await import('../../resources/js/cad/engine/revisionE030.js');
+  const col = (piso, v2, v3) => ({piso, v2, v3});
+  // Un solo piso: la revisión de forma ya la da por cumplida.
+  const uno = revisarGeometria(edificio({xs: [0, 5], ys: [0, 4], pisos: 1}));
+  assert.equal(titulo(uno, 'Resistencia (piso débil)').estado, 'cumple');
+  assert.equal(revisarPisoDebil([col('Piso1', 10, 10)]), null);
+  // Piso 1 con 70 % de la resistencia del 2 en la dirección 3: piso débil (Ia = 0.75).
+  const r = revisarPisoDebil([col('Piso1', 20, 7), col('Piso1', 20, 7), col('Piso2', 20, 10), col('Piso2', 20, 10), col('Piso10', 1, 1)].slice(0, 4));
+  assert.equal(r.Ia, 0.75);
+  assert.equal(r.verificacion.estado, 'no_cumple');
+  assert.match(r.verificacion.detalle, /Piso1 tiene 70 %/);
+  assert.equal(revisarPisoDebil([col('Piso1', 10, 5), col('Piso2', 10, 10)]).Ia, 0.5);       // 50 %: extrema
+  assert.equal(revisarPisoDebil([col('Piso1', 12, 12), col('Piso2', 10, 10)]).verificacion.estado, 'cumple');
+});

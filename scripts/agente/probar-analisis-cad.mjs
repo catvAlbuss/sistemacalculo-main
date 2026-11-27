@@ -20,6 +20,8 @@ const CAPTURA = process.argv.find((a) => a.startsWith('--captura='))?.slice(10) 
 // --chat: con --captura, conversa con el agente del CAD por su panel (como el ingeniero) y fotografía el chat.
 // --ciclo: el ciclo automático que pide NovaCad (cicloAutomaticoAgente), contado en el chat.
 const CICLO = process.argv.includes('--ciclo');
+// --sin-diseno: solo análisis y revisión (para separar un análisis lento de un diseño lento).
+const SIN_DISENO = process.argv.includes('--sin-diseno');
 const CHAT = CICLO || process.argv.includes('--chat') || process.argv.includes('--chat-modelo') || process.argv.some((a) => a.startsWith('--pedidos='));
 // --chat-modelo: empieza pidiendo un modelo nuevo en una frase (modelo rápido) en vez del .e2k abierto.
 const PEDIDOS = process.argv.find((a) => a.startsWith('--pedidos='))?.slice(10).split('|') ?? (process.argv.includes('--chat-modelo')
@@ -85,6 +87,8 @@ ${sinOrigen(vista.cabeza)}${vista.estilos}${sinOrigen(vista.scripts)}</head>
         await espera(800);
         return fin('READY');
       }
+      const paso = (t) => { document.querySelector('#result').textContent = 'PASO ' + t; };
+      paso('análisis');
       cad._initSeismic();
       Object.assign(cad.seismicConfig, {numModes: 12, combination: 'CQC', direction: 'both', saInG: true, g: 9.81, useRigidDiaphragms: true, driftSystem: 'concreto', driftLimit: 0.007});
       await cad.runSeismicAnalysis();
@@ -92,9 +96,17 @@ ${sinOrigen(vista.cabeza)}${vista.estilos}${sinOrigen(vista.scripts)}</head>
       const casos = cad.seismicResultsByCase || {};
       if (!Object.keys(casos).length) return fin('FAIL sin resultados sísmicos: ' + window.__errores.join(' | ').slice(0, 300));
       // Diseño de todas las columnas con el armado que trae el .e2k (el del cuadro de columnas).
-      await cad.disenarTodasLasColumnas();
-      for (let i = 0; i < 300 && !(cad.rcColumnDesignResults || []).length; i++) await espera(200);
-      const columnas = (cad.rcColumnDesignResults || []).map((c) => [c.label, c.unsupported ? 'sin diseño: ' + c.unsupportedReason : [c.check?.base?.ratio, c.check?.top?.ratio].map((r) => (Number(r) || 0).toFixed(2)).join(' / '), c.geometry ? 'R-' + c.geometry.n2 + '-' + c.geometry.n3 : '']);
+      paso('diseño de columnas: fuerzas de barras');
+      window.addEventListener('column-design-progress', (e) => paso('diseño de columnas: ' + e.detail.listas + '/' + e.detail.total + ' P-M' + (e.detail.corriendo ? '' : ', corte')));
+      if (!${SIN_DISENO ? 'true' : 'false'}) {
+        // Los dos pasos de disenarTodasLasColumnas por separado, para saber cuál tarda.
+        await cad.openRcColumnDesignDialog((cad.shapes || []).filter((f) => /column/i.test(String(f.type || f.elementType || ''))));
+        paso('ajuste de armado: ' + (cad.rcColumnDesignResults || []).filter((c) => !c.unsupported).map((c) => c.label + ' ' + Math.max(Number(c.check?.base?.ratio) || 0, Number(c.check?.top?.ratio) || 0).toFixed(2)).join(', '));
+        await cad.ajustarArmadoColumnas();
+      }
+      paso('después del diseño');
+      for (let i = 0; i < 300 && !${SIN_DISENO ? 'true' : 'false'} && !(cad.rcColumnDesignResults || []).length; i++) await espera(200);
+      const columnas = (cad.rcColumnDesignResults || []).map((c) => [c.label, c.unsupported ? 'sin diseño: ' + c.unsupportedReason : [c.check?.base?.ratio, c.check?.top?.ratio].map((r) => (Number(r) || 0).toFixed(2)).join(' / '), c.geometry ? 'R-' + c.geometry.n2 + '-' + c.geometry.n3 : '', c.story ?? null, c.shear ? (c.shear.unsupported ? 'corte: ' + c.shear.unsupportedReason : 'Vn ' + [c.shear.shearV2?.vnProvided, c.shear.shearV3?.vnProvided].map((v) => Math.round(Number(v) || 0)).join(' / ')) : 'sin corte']);
       if (LIMITE < 1) await cad.ajustarArmadoColumnas({limite: LIMITE});
       const rev = cad.calcularRevisionAgente({});
       cad.revisionAgente = rev;
@@ -149,13 +161,13 @@ try {
     } catch (e) { console.log('Sin captura:', e.message); }
     await send('Runtime.evaluate', {expression: 'document.querySelector("#result").textContent = "PASS {}"'});
   } : undefined;
-  const r = await runBrowserFixture(browser, join(dir, 'x.html'), {profile: join(dir, 'perfil'), url, width: 1500, height: 950, webgl: true, timeoutMs: 600000, interact});
+  const r = await runBrowserFixture(browser, join(dir, 'x.html'), {profile: join(dir, 'perfil'), url, width: 1500, height: 950, webgl: true, timeoutMs: Number(process.env.ANALISIS_MAX_SEG ?? 600) * 1000, interact});
   if (CAPTURA) { console.log(r.startsWith('PASS') ? `Captura: ${CAPTURA}` : r.slice(0, 500)); process.exit(r.startsWith('PASS') ? 0 : 1); }
   if (!r.startsWith('PASS')) { console.log(r.slice(0, 2000)); process.exitCode = 1; }
   else {
     const d = JSON.parse(r.slice(5));
     console.log(`Modelo: ${d.nudos} nudos, ${d.barras} barras, ${d.areas} áreas · cotas de nudos ${d.cotas?.join(' / ')} m`);
-    for (const c of d.columnas) console.log(`  Columna ${c[0].padEnd(16)} ratio base/cabeza ${c[1]}  ${c[2]}`);
+    for (const c of d.columnas) console.log(`  Columna ${c[0].padEnd(16)} ratio base/cabeza ${c[1]}  ${c[2]} · piso ${c[3]} · ${c[4]}`);
     for (const [caso, c] of Object.entries(d.casos)) console.log(`Caso ${caso}: modos ${JSON.stringify(c.modos)} · deriva elástica máx ${c.derivaMax.toFixed(5)} · V ${JSON.stringify(c.cortante)}`);
     for (const t of Object.values(d.paquete?.columnas || {})) console.log(`  Al agente ${t.tipo}: ${t.n} varillas · D/C ${t.ratioOriginal} → ${t.ratio}${t.aumentado ? ' (aumentado)' : ''}${t.sinSolucion?.length ? ' SIN SOLUCIÓN' : ''}`);
     if (SALIDA_PAQUETE) { writeFileSync(SALIDA_PAQUETE, JSON.stringify(d.paquete, null, 1)); console.log(`  Paquete guardado: ${SALIDA_PAQUETE}`); }

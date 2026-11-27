@@ -64,13 +64,43 @@ export function espectroE030({Z, U, S, Tp, TL}, R) {
 // estructura: ctx.memoria.estructura (columnas con nodo/b/h/tipo, ejesNombrados con p/q, escala k).
 // modelo: ctx.memoria.modeloEstructural (niveles, entrepisos, techo, vigas por eje, losa, cimentación).
 // datos: datos del proyecto (zona, suelo, categoría). R0: coeficiente básico de reducción (E.030 Tabla 7).
+// Caras interiores del grafo plano de vigas (nudos con x, y): cada una es un paño cerrado por vigas.
+// Se recorre cada media arista girando siempre a la siguiente en sentido horario; las caras con área
+// positiva (antihorarias) son las interiores, la exterior queda negativa.
+export function carasDeVigas(puntos, vigas) {
+  const vecinos = new Map(puntos.map((p) => [p, []]));
+  for (const v of vigas) { vecinos.get(v.i)?.push(v.j); vecinos.get(v.j)?.push(v.i); }
+  for (const [p, lista] of vecinos) lista.sort((a, b) => Math.atan2(a.y - p.y, a.x - p.x) - Math.atan2(b.y - p.y, b.x - p.x));
+  const vistas = new Set(), caras = [];
+  const clave = (a, b) => `${a.nombre}>${b.nombre}`;
+  for (const v of vigas) {
+    for (const [a0, b0] of [[v.i, v.j], [v.j, v.i]]) {
+      if (vistas.has(clave(a0, b0))) continue;
+      const cara = [];
+      let a = a0, b = b0;
+      for (let n = 0; n < 64 && !vistas.has(clave(a, b)); n++) {
+        vistas.add(clave(a, b));
+        cara.push(a);
+        const lista = vecinos.get(b), i = lista.indexOf(a);
+        const c = lista[(i - 1 + lista.length) % lista.length];
+        a = b; b = c;
+      }
+      const area = cara.reduce((s, p, n) => { const q = cara[(n + 1) % cara.length]; return s + p.x * q.y - q.x * p.y; }, 0) / 2;
+      if (cara.length >= 3 && new Set(cara).size === cara.length && area > 0.5) caras.push(cara);
+    }
+  }
+  return caras;
+}
+
 export function modeloE2k({estructura, modelo, datos = {}, nombre = "modelo", R0 = 8}) {
   const supuestos = [], avisos = [];
   const k = Number(estructura?.escala) || 1;
   const columnas = (estructura?.columnas ?? []).filter((c) => c.nodo || (Number.isFinite(c.x) && Number.isFinite(c.y)));
   if (columnas.length < 2) throw new Error("Hacen falta al menos dos columnas leídas para armar el modelo de análisis.");
   const ejes = (estructura.ejesNombrados ?? []).filter((e) => e?.p && e?.q);
-  if (ejes.some((e) => e.inclinado)) avisos.push("Hay ejes inclinados: el modelo solo arma los ejes ortogonales; revisa los elementos sobre ejes inclinados.");
+  // Ejes inclinados (VINCHOS 14: Z´): sus vigas y losas también van al modelo; en ETABS no hay grilla
+  // cartesiana para ellos, así que solo faltan sus líneas de grilla.
+  if (ejes.some((e) => e.inclinado)) supuestos.push(`Ejes inclinados ${ejes.filter((e) => e.inclinado).map((e) => e.nombre).join(", ")}: sus vigas y paños van en el modelo (sin línea de grilla en ETABS).`);
 
   // ---- Puntos: un nudo por cruce de ejes con columna (en metros, origen en el menor x/y) ----
   const base = columnas.map((c) => c.nodo ?? {x: c.x, y: c.y});
@@ -138,14 +168,18 @@ export function modeloE2k({estructura, modelo, datos = {}, nombre = "modelo", R0
     return {b, h};
   };
   // Cada eje recto: su recta y el tramo que cubren sus columnas (las vigas no salen de ahí).
-  const ejesRectos = ejes.filter((e) => !e.inclinado).map((e) => {
+  const ejesRectos = ejes.map((e) => {
     const p = aM(e.p), q = aM(e.q), largo = Math.hypot(q.x - p.x, q.y - p.y);
     if (largo < 0.1) return null;
     const u = {x: (q.x - p.x) / largo, y: (q.y - p.y) / largo};
     const t = (pt) => (pt.x - p.x) * u.x + (pt.y - p.y) * u.y;
     const d = (pt) => Math.abs((pt.x - p.x) * u.y - (pt.y - p.y) * u.x);
-    const ts = puntos.filter((pt) => d(pt) < 0.15).map(t);
-    return ts.length >= 2 ? {nombre: e.nombre, p, u, t, d, t0: Math.min(...ts), t1: Math.max(...ts)} : null;
+    // Sobre el eje: cerca de su recta o rotulada con su nombre ("8/Z´"). En un eje quebrado (Z´ del
+    // módulo 14) la recta entre burbujas pasa a 0.35 m de sus columnas: manda el rótulo.
+    const rotulada = (pt) => pt.columnas?.some((c) => String(c.eje ?? "").split("/").includes(e.nombre));
+    const sobreEje = (pt) => d(pt) < 0.15 || rotulada(pt);
+    const ts = puntos.filter(sobreEje).map(t);
+    return ts.length >= 2 ? {nombre: e.nombre, p, u, t, d, sobreEje, t0: Math.min(...ts), t1: Math.max(...ts)} : null;
   }).filter(Boolean);
   // Nudos sin columna donde se cruzan dos ejes dentro de sus tramos: ahí se apoya una viga en otra
   // y se cierran los paños de losa (módulos con albañilería: no hay columna en cada cruce).
@@ -154,6 +188,9 @@ export function modeloE2k({estructura, modelo, datos = {}, nombre = "modelo", R0
       const A = ejesRectos[a], B = ejesRectos[b];
       const det = A.u.x * B.u.y - A.u.y * B.u.x;
       if (Math.abs(det) < 0.5) continue; // casi paralelos
+      // Ya hay una columna rotulada con los dos ejes ("10/Z´"): ese es el cruce (en un eje quebrado
+      // la recta entre burbujas lo pondría 0.3 m más allá, con un nudo falso).
+      if (puntos.some((pt) => pt.columnas.some((c) => { const r = String(c.eje ?? "").split("/"); return r.includes(A.nombre) && r.includes(B.nombre); }))) continue;
       const w = {x: B.p.x - A.p.x, y: B.p.y - A.p.y};
       const ta = (w.x * B.u.y - w.y * B.u.x) / det;
       const X = {x: r4(A.p.x + A.u.x * ta), y: r4(A.p.y + A.u.y * ta)};
@@ -165,7 +202,7 @@ export function modeloE2k({estructura, modelo, datos = {}, nombre = "modelo", R0
   const vigas = [];
   let sinSeccion = 0;
   for (const E of ejesRectos) {
-    const sobre = puntos.filter((pt) => E.d(pt) < 0.15 && E.t(pt) >= E.t0 - 0.05 && E.t(pt) <= E.t1 + 0.05).sort((a, b) => E.t(a) - E.t(b));
+    const sobre = puntos.filter((pt) => E.sobreEje(pt) && E.t(pt) >= E.t0 - 0.05 && E.t(pt) <= E.t1 + 0.05).sort((a, b) => E.t(a) - E.t(b));
     let sec = seccionVigaDe(E.nombre);
     if (!sec) { sec = {b: 0.25, h: 0.4}; sinSeccion++; }
     for (let i = 1; i < sobre.length; i++) {
@@ -226,6 +263,13 @@ export function modeloE2k({estructura, modelo, datos = {}, nombre = "modelo", R0
       // Paño cerrado por cuatro vigas (sus esquinas pueden ser cruces de vigas sin columna).
       if (esquinas.every(Boolean) && esquinas.every((e, n) => tieneViga(e, esquinas[(n + 1) % 4]))) paños.push(esquinas);
     }
+  }
+  // Paños con algún borde inclinado (ejes no ortogonales): caras cerradas del grafo de vigas. Las
+  // celdas rectangulares ya salieron de la grilla; aquí solo se agregan las que ella no ve.
+  for (const cara of carasDeVigas(puntos, vigas)) {
+    const inclinada = cara.some((a, n) => { const b = cara[(n + 1) % cara.length]; return Math.abs(b.x - a.x) > 0.02 && Math.abs(b.y - a.y) > 0.02; });
+    const clave = cara.map((pt) => pt.nombre).sort().join("|");
+    if (inclinada && cara.length <= 6 && !paños.some((q) => q.map((pt) => pt.nombre).sort().join("|") === clave)) paños.push(cara);
   }
   const espesor = Number(modelo?.losa?.espesor) || 0.2;
   const sinLosaTecho = niveles === 1 && modelo?.losaTecho === false;
@@ -325,7 +369,7 @@ export function modeloE2k({estructura, modelo, datos = {}, nombre = "modelo", R0
   const conLosa = paños.length && !sinLosaTecho;
   if (conLosa) {
     L.push("$ AREA CONNECTIVITIES");
-    paños.forEach((e, i) => L.push(`  AREA "F${i + 1}"  FLOOR  4  ${e.map((pt) => `"${pt.nombre}"`).join("  ")}  0  0  0  0  `));
+    paños.forEach((e, i) => L.push(`  AREA "F${i + 1}"  FLOOR  ${e.length}  ${e.map((pt) => `"${pt.nombre}"`).join("  ")}  ${e.map(() => "0").join("  ")}  `));
     L.push("");
   }
 
