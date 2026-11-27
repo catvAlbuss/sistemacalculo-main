@@ -625,7 +625,9 @@ export function planoAligerado({lectura, items = [], k = 1, espesorFijo = null, 
     const eje = recortar({x: reparto.x * cr, y: reparto.y * cr}, dir, Pin);
     if (eje) {
       const [a, b] = eje;
-      prim.push(banda(L.VIGUETAS, {x: a.x + dir.x * 0.08, y: a.y + dir.y * 0.08}, {x: b.x - dir.x * 0.08, y: b.y - dir.y * 0.08}, 0.03));
+      // El bastón es acero de refuerzo: en la capa de acero (el ingeniero lo dibuja así en VINCHOS 2 y 4
+      // y en ILO; en la de viguetas su acero quedaba sin contraparte).
+      prim.push(banda(L.ACERO_LONG, {x: a.x + dir.x * 0.08, y: a.y + dir.y * 0.08}, {x: b.x - dir.x * 0.08, y: b.y - dir.y * 0.08}, 0.03));
       for (const [p, s] of [[a, 1], [b, -1]]) prim.push(text(L.VIGUETAS, pt({x: p.x + dir.x * s * 0.55 + reparto.x * hp * 1.8, y: p.y + dir.y * s * 0.55 + reparto.y * hp * 1.8}), "1Ø3/8\"", hp * 0.8));
     }
     // Trazos de viguetas (pares) junto a cada apoyo, @0.40 a lo ancho del paño.

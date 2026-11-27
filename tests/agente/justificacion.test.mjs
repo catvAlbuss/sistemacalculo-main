@@ -126,3 +126,16 @@ test('informe de lectura: identifica, valida con la norma, pide lo que falta y r
   assert.match(inf.html, /<table>.*Fundamento/s);
   assert.match(inf.texto, /la revisa y firma el ingeniero \(E\.060 1\.2\.1\.2\)/);
 });
+
+test('pedidos de presentación: letra más chica o más grande, sin achurados, sin malla', () => {
+  assert.equal(reconocerPedido('hazme la letra más pequeña').pedido.id, 'tamano_texto');
+  assert.equal(reconocerPedido('quita los achurados').pedido.id, 'sin_achurado');
+  assert.equal(reconocerPedido('vuelve a poner la malla').deshacer, true);
+  const bloques = [{id: 'aligerado', tipo: 'losa', contenido: {primitivas: [
+    {type: 'text', layer: L.TEXTO, value: 'V-1', h: 0.2}, {type: 'hatch', layer: L.ACHURADO, points: [], solido: false},
+    {type: 'hatch', layer: L.CORTE, points: [], solido: true}, {type: 'line', layer: L.MALLA, a: [0, 0], b: [1, 0]}]}}];
+  const chica = aplicarPreferencias(bloques, [preferenciaDe(pedidoPorId('tamano_texto'), 'menor')]);
+  assert.equal(chica[0].contenido.primitivas[0].h, 0.16000000000000003);
+  const limpia = aplicarPreferencias(bloques, [preferenciaDe(pedidoPorId('sin_achurado'), 'quitar'), preferenciaDe(pedidoPorId('sin_malla'), 'quitar')]);
+  assert.deepEqual(limpia[0].contenido.primitivas.map((p) => p.type), ['text', 'hatch']); // la flecha rellena del corte queda
+});

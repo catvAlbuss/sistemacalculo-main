@@ -208,7 +208,9 @@ export function laminasConPlantilla({lectura, items, caja, k = 1, config, ciment
   // columnetas interiores; con zapatas, los muros y las vigas de cimentación corridas bajo el muro
   // paralelo (≤ 0.35 m). Medido el 25/11/2026 en 23 módulos: cimentación 62 → 66 % (planoCimentacion).
   const cim = planoCimentacion({lectura, items, caja, k, titulo: lectura.titulo}, {tipo: cimentacion, ...dp.cimentacion, malla: estructura.mallaCimentacion, muros: estructura.murosEnCimentacion !== false,
-    reacciones: estructura.reaccionesColumnas ?? null, qadmDelEms: dp.qadmDelEms, decidirMuro: estructura.decidirMuro ?? decidirMuroAprendido});
+    reacciones: estructura.reaccionesColumnas ?? null, qadmDelEms: dp.qadmDelEms, decidirMuro: estructura.decidirMuro ?? decidirMuroAprendido,
+    // Las caras de los muros en la cimentación solo con el criterio aprendido de un cliente (muro por muro).
+    murosCaras: Boolean(estructura.decidirMuro)});
   const cc = planoCimientoCorrido({lectura, items, caja, k}, {columnetas: lectura.columnetas ?? [], ...(dp.cimentacion.pisos ? {pisos: dp.cimentacion.pisos} : {})});
   const volados = estructura.volados ?? [];
   // Baños en losa maciza solo en losas de entrepiso (con baños encima); en un nivel la losa es techo.

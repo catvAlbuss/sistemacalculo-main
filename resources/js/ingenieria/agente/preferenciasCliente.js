@@ -77,6 +77,34 @@ export const PEDIDOS = [
         nota: null, accion: {quitar: ["notas"]}},
     ],
   },
+  {
+    id: "tamano_texto", titulo: "Tamaño de la letra", claves: ["letra", "texto", "textos", "tamano", "tamaño"],
+    patron: /\b(letra|letras|texto|textos|rotulos)\b.*\b(mas )?(pequen\w*|chic\w*|reduc\w*|achic\w*|grande\w*|agrand\w*|aument\w*)\b|\b(reduce|achica|agranda|aumenta)\w*\b.*\b(letra|letras|texto|textos)\b/,
+    deshacer: /\b(letra|texto)\w*\b.*\b(normal|original|como estaba)\b/,
+    consejo: "La letra debe leerse impresa a la escala de la lámina: en A1 a 1/50, de 2 a 3 mm en el papel. Más chica no se lee en obra; más grande tapa el dibujo.",
+    cita: null, norma: "Criterio de presentación (no lo fija una norma estructural).",
+    opciones: [
+      {id: "menor", texto: "Letra 20 % más pequeña", recomendada: true, nota: null, accion: {escalarTextos: 0.8}},
+      {id: "mucho_menor", texto: "Letra 35 % más pequeña", nota: null, accion: {escalarTextos: 0.65}},
+      {id: "mayor", texto: "Letra 20 % más grande", nota: null, accion: {escalarTextos: 1.2}},
+    ],
+  },
+  {
+    id: "sin_achurado", titulo: "Láminas sin achurados", claves: ["achurado", "achurados", "sombreado", "relleno"],
+    patron: /\bsin (los )?(achurados?|sombreados?|rellenos?)\b|\b(quita|saca|elimina)\w*\b.*\b(achurado|sombreado|relleno)\w*\b/,
+    deshacer: /\b(vuelve a poner|pon de nuevo|restaura|regresa|devuelve)\w*\b.*\b(achurado|sombreado|relleno)\w*\b/,
+    consejo: "El achurado distingue el concreto, los muros y el relleno en planta y en los cortes; sin él la lámina se lee peor, pero no pierde información estructural.",
+    cita: null, norma: "Criterio de presentación.",
+    opciones: [{id: "quitar", texto: "Quitar los achurados de las plantas y cortes", recomendada: true, nota: null, accion: {sinAchurado: true}}],
+  },
+  {
+    id: "sin_malla", titulo: "Láminas sin la malla dibujada", claves: ["malla", "parrilla"],
+    patron: /\bsin (la )?(malla|parrilla)\b|\b(quita|saca|elimina)\w*\b.*\b(malla|parrilla)\b/,
+    deshacer: /\b(vuelve a poner|pon de nuevo|restaura|regresa|devuelve)\w*\b.*\b(malla|parrilla)\b/,
+    consejo: "La malla dibujada muestra la distribución del acero; si se quita, el acero queda indicado en las llamadas (Ø y separación), que siguen en la lámina.",
+    cita: {norma: VERIFICADAS.planos.norma, estado: "confirmada", dice: VERIFICADAS.planos.dice}, norma: "El refuerzo debe quedar indicado (E.060 1.2.4 e): con la llamada basta.",
+    opciones: [{id: "quitar", texto: "Quitar la malla y dejar las llamadas del acero", recomendada: true, nota: "Malla no dibujada: el refuerzo va en las llamadas.", accion: {ocultar: [{capas: [L.MALLA], en: ["cimentacion", "losa", "losaTecho", "detalleLosa"]}]}}],
+  },
 ];
 
 const sinTildes = (s) => String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
@@ -108,9 +136,16 @@ export function aplicarPreferencias(bloques, preferencias = []) {
   if (!preferencias?.length) return bloques;
   const quitar = preferencias.flatMap((p) => p.accion?.quitar ?? []);
   const ocultar = preferencias.flatMap((p) => p.accion?.ocultar ?? []);
+  // Reducir o agrandar la letra y quitar achurados: en todos los bloques.
+  const escala = preferencias.reduce((f, p) => f * (Number(p.accion?.escalarTextos) || 1), 1);
+  const sinAchurado = preferencias.some((p) => p.accion?.sinAchurado);
   return bloques.filter((b) => !quitar.includes(b.id) && !quitar.includes(b.tipo)).map((b) => {
     const capas = ocultar.filter((o) => o.en.includes(b.tipo) || o.en.includes(b.id)).flatMap((o) => o.capas);
-    return capas.length && b.contenido?.primitivas ? {...b, contenido: {...b.contenido, primitivas: b.contenido.primitivas.filter((q) => !capas.includes(q.layer))}} : b;
+    if (!b.contenido?.primitivas || (!capas.length && escala === 1 && !sinAchurado)) return b;
+    const primitivas = b.contenido.primitivas
+      .filter((q) => !capas.includes(q.layer) && !(sinAchurado && q.type === "hatch" && !q.solido))
+      .map((q) => (escala !== 1 && q.type === "text" ? {...q, h: q.h * escala} : q));
+    return {...b, contenido: {...b.contenido, primitivas}};
   });
 }
 
