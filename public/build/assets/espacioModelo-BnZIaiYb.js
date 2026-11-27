@@ -1,0 +1,1 @@
+function i(t,e){var a,o,c,l,n,u;try{const r=(c=(o=(a=e==null?void 0:e.tables)==null?void 0:a.blockTable)==null?void 0:o.modelSpace)==null?void 0:c.objectId;return!r||e.currentSpaceId===r?!1:!!((u=(n=(l=t.acdbHostApplicationServices)==null?void 0:l.call(t))==null?void 0:n.layoutManager)!=null&&u.setCurrentLayoutBtrId(r,e))}catch{return!1}}export{i as irAlModelo};
