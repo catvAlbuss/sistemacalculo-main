@@ -177,7 +177,7 @@ const RO_PORTICOS = 8;
 // qadm: presión admisible del EMS en t/m² (Datos del proyecto). resultados: lo que da Análisis Estructural
 // ({Tx, Ty, Vx, Vy, derivaX, derivaY} en s, tonf y adimensional) — E.030-2026 art. 9.2 pide T, cortante
 // basal y deriva en los planos; sin análisis queda indicado como pendiente, sin inventar valores.
-export function notasTecnicas({sismo = {}, df = null, hz = null, cimentacion = "platea", conCimiento = true, conAlbanileria = true, altura = null, losaTecho = true, qadm = null, resultados = null} = {}) {
+export function notasTecnicas({sismo = {}, df = null, hz = null, cimentacion = "platea", conCimiento = true, conAlbanileria = true, altura = null, losaTecho = true, qadm = null, resultados = null, pedidosCliente = []} = {}) {
   const p = sismo ?? {};
   const falta = (q) => `${q} = POR DEFINIR (completar en Datos del proyecto)`;
   const sismicos = [p.Z !== undefined && `Z=${f2(p.Z)}`, p.U !== undefined && `U=${f1(p.U)}`, p.S !== undefined && `S=${f2(p.S)}`, p.Tp !== undefined && `Tp=${f2(p.Tp)}`, p.TL !== undefined && `TL=${f1(p.TL)}`].filter(Boolean);
@@ -196,11 +196,14 @@ export function notasTecnicas({sismo = {}, df = null, hz = null, cimentacion = "
       Number(qadm) > 0 ? `Presión admisible q adm=${(Number(qadm) / 10).toFixed(2)} kg/cm² (Estudio de Mecánica de Suelos).` : "Presión admisible: verificar el Estudio de Mecánica de Suelos.",
       sismicos.length ? `Parámetros sísmicos: ${sismicos.join(", ")}` : "Parámetros sísmicos: POR DEFINIR (zona, suelo y categoría).",
     ]],
-    ["4) RECUBRIMIENTOS", ["Platea, zapatas y vigas de cimentación: 7.5 cm.", "Columnas y vigas peraltadas: 4 cm.", "Vigas chatas, losas aligeradas y macizas: 2 cm."]],
+    ["4) RECUBRIMIENTOS (E.060 7.7.1)", ["Platea, zapatas y vigas de cimentación: 7.5 cm.", "Columnas y vigas peraltadas: 4 cm.", "Vigas chatas, losas aligeradas y macizas: 2 cm."]],
     ["5) SOBRECARGAS (E.020)", sobrecargas(p.categoria, losaTecho)],
     ["6) JUNTA SÍSMICA (E.030)", juntaSismica(altura)],
     ...(conAlbanileria ? [["7) ALBAÑILERÍA", ["Ladrillo tipo IV 9x13x24 cm, 30% de vacíos; f'm=65 kg/cm².", "Mortero 1:5 (cemento:arena); junta de 1.5 cm."]]] : []),
-    ["NOTA:", ["- De existir discrepancias entre los planos y el terreno, consultar al proyectista.", "- Las juntas de construcción van en zonas de cortante bajo, con resina epóxica.", "- Los paños grandes de losa se vacían en forma alternada."]],
+    ["NOTA:", ["- De existir discrepancias entre los planos y el terreno, consultar al proyectista.", "- Las juntas de construcción van en zonas de cortante bajo, con resina epóxica.", "- Los paños grandes de losa se vacían en forma alternada.",
+      // Normas que rigen el diseño, con su versión: lo que el revisor pide ver en la lámina.
+      "- Normas: E.020 (2006), E.030 (ver parámetros), E.050 (2018), E.060 (2009), E.070 (2006) del RNE.",
+      ...pedidosCliente.map((t) => `- A pedido del propietario: ${t}`)]],
     ["RESUMEN DE PARÁMETROS SÍSMICOS (E.030)", null],
     ["", [
       p.Z !== undefined ? `Z=${f2(p.Z)}(ZONA ${p.zona})` : falta("Z"),

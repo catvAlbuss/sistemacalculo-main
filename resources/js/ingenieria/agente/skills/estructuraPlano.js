@@ -22,6 +22,8 @@ import {buscarUbicacion, textoUbicacion, categoriaPorUso} from "../../criterios/
 import {numeroModulo, vistasDelModulo, formatoDeReferencia, memoriaParaModulo} from "../referenciasProyecto.js";
 import {datosTecnicosFaltantes, firmaDeGeneracion} from '../contratoDibujo.js';
 import {cargarModeloCliente, decidirMuroDeContexto} from './aprendizajeDibujo.js';
+import {preferenciasDe, registroDe} from './justificacion.js';
+import {resumenRegistro} from '../../criterios/justificacion.js';
 import {revisarContraNorma, textoRevisorNorma} from '../../laminas/revisorNorma.js';
 
 const r2 = (value) => Math.round(value * 100) / 100;
@@ -643,6 +645,8 @@ export const ESTRUCTURA_SKILLS = [
         decisiones: ctx.memoria.consultas?.elegido ?? {}, decisionesSesion: ctx.memoria.decisionesSesion ?? [],
         disenoColumnas: ctx.memoria.disenoColumnas ?? null, reaccionesColumnas: ctx.memoria.reaccionesColumnas ?? null,
         resultadosSismicos: ctx.memoria.resultadosSismicos ?? null,
+        // Un pedido del cliente ("sin columnas en el aligerado") cambia el dibujo: entra en la firma.
+        preferencias: preferenciasDe(ctx).map((p) => `${p.pedido}:${p.opcion}`),
         modeloCliente: ctx.memoria.modeloCliente?.activo ? {muestras: ctx.memoria.modeloCliente.muestrasCliente, fecha: ctx.memoria.modeloCliente.fecha} : null});
       if (!args.conservar && ctx.memoria.ultimaGeneracion?.clave === clave && ctx.memoria.ultimaGeneracion.firma === firma
           && (ctx.generaciones?.()[clave] ?? 0) > 0) return {
@@ -914,6 +918,8 @@ async function generarLaminas(args, ctx, {e, guardados, invalidos, quitadas}) {
         const volados = planta2 ? voladosDesdePlanta({lectura: planta2.lectura, items, k: planta2.k, caja: planta2.caja}) : [];
         const r = laminasConPlantilla({lectura, items, caja: e.caja, k, config: plantilla.config, cimentacion: args.cimentacion ?? cimentacionElegida ?? cimentacionAprendida, datos, estructura: {
           formatoReferencia: formatoDeReferencia(ctx.referenciaActual?.()?.referencia),
+          // Pedidos del cliente aceptados ("sin columnas en el aligerado"…): se aplican y se anotan.
+          preferencias: preferenciasDe(ctx),
           niveles, losaTecho, espesorLosa: espLosa, textosOcultos: ctx.readPlan().textosOcultos, plantasNiveles, plantaAzotea, volados,
           ...(respondido("techoDosAguas") ? {techoDosAguas: elegido.techoDosAguas} : {}),
           // Biblioteca de pórticos del despacho (opcional): si el contexto la trae, los pórticos se
@@ -1007,6 +1013,7 @@ async function generarLaminas(args, ctx, {e, guardados, invalidos, quitadas}) {
           : `losa aligerada e=${s.aligerado.espesor.toFixed(2)} m${textoMacizas(s.losas)}${m.vigas.some((v) => v.tipo === "V VARIABLE") ? ", pasillo en volado" : ""}`;
         const notasColocadas = (r.secciones ?? []).filter((s) => s.tipo === 'notas');
         const cuadrosColocados = (r.secciones ?? []).filter((s) => s.tipo === 'cuadroColumnas');
+        const justificado = resumenRegistro(registroDe(ctx));
         const resumenCorto = [
           `Listo: láminas ${lista(r.laminas.map((l) => l.codigo))} de ${r.proyecto}${s.niveles > 1 ? ` (${s.niveles} niveles)` : ""}.`,
           `• Cimentación: ${s.cimentacion} (Hz ${s.hz.toFixed(2)} m, Df ${s.df.toFixed(2)} m) · ${losaTxt}${m.escalera ? ` · escalera de ${m.escalera.contrapasos} contrapasos` : ""}.`,
@@ -1014,6 +1021,9 @@ async function generarLaminas(args, ctx, {e, guardados, invalidos, quitadas}) {
           ...(notasColocadas.length ? [`• Especificaciones y resumen de parámetros sísmicos: ${[...new Set(notasColocadas.map((s) => s.lamina))].join(', ')}. Estos parámetros no constituyen un análisis sísmico.`] : []),
           ...(cuadrosColocados.length ? [`• Cuadro de columnas: ${[...new Set(cuadrosColocados.map((s) => s.lamina))].join(', ')}.`] : []),
           `• Contra la norma (15 puntos de revisión): ${revisionNorma.puntaje} %${revisionNorma.faltan.length ? `; falta: ${revisionNorma.faltan.map((x) => x.falta || x.titulo).join("; ")}` : ""}.`,
+          // Cada decisión con su norma y su fuente (criterios/justificacion.js): pregúntame "¿por qué…?".
+          `• Fundamento: ${justificado.texto} Pregúntame "¿por qué…?" por cualquiera.`,
+          ...(preferenciasDe(ctx).length ? [`• A pedido tuyo: ${preferenciasDe(ctx).map((x) => x.opcionTexto.toLowerCase()).join("; ")} (anotado en las notas).`] : []),
         ].join("\n");
         return {
           ok: true,

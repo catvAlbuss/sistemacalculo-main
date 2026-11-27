@@ -9,6 +9,7 @@ import {INTERACCION_SKILLS} from "./interaccion.js";
 import {EDICION_SKILLS} from "./edicion.js";
 import {ANALISIS_SKILLS} from "./analisisEstructural.js";
 import {APRENDIZAJE_SKILLS} from "./aprendizajeDibujo.js";
+import {JUSTIFICACION_SKILLS} from "./justificacion.js";
 
 const r2 = (value) => Math.round(value * 100) / 100;
 const num = (value, fallback) => (Number.isFinite(Number(value)) ? Number(value) : fallback);
@@ -119,6 +120,7 @@ export const SKILLS = [
   ...ESTRUCTURA_SKILLS.filter((skill) => skill.name !== "zapatas_desde_plano"),
   ...ANALISIS_SKILLS,
   ...APRENDIZAJE_SKILLS,
+  ...JUSTIFICACION_SKILLS,
   ...INTERACCION_SKILLS,
   ...EDICION_SKILLS,
 ];

@@ -10,6 +10,7 @@ import {SKILLS, toolDefinitions} from "./skills/index.js";
 import {memoriaDelAgente} from "./conocimiento.js";
 import {estadoDeSesion} from "./estadoAgente.js";
 import {datosDelTexto} from "../criterios/ubicacion.js";
+import {reconocerPedido} from "./preferenciasCliente.js";
 import {limitacionDelPedido} from './contratoDibujo.js';
 import {REVISION_TRAS_ACCION, controlDeEscrituras} from './cicloEjecucion.js';
 
@@ -175,7 +176,12 @@ export function rutaDirecta(texto) {
   if (/\b(ordena|ordenar|acomoda|acomodar|alinea|alinear)\b.*\b(lamina|laminas|textos|rotulos|dibujo|plano)\b|\bdesordenad/.test(t)) return {tool: "ordenar_lamina", args: {}};
   if (/\bencimad/.test(t)) return {tool: "revisar_laminas", args: /\b(corrige|corregir|separa|arregla|quita)/.test(t) ? {corregir: true} : {}};
   // "¿Por qué platea?", "¿por qué losa maciza?": la explicación de la propuesta, sin costo.
-  if (/^[¿]?\s*(por que|porque)\b.*\b(platea|zapatas?|losa|maciza|aligerad\w*|cimentacion|espesor|columnas?|placas?|vigas?|porticos?)\b/.test(t)) return {tool: "proponer_estructura", args: {}};
+  // Pedidos del cliente sobre las láminas ("sin columnas", "quita las cotas"): se aconseja y se ejecuta.
+  if (reconocerPedido(texto)) return {tool: "preferencia_laminas", args: {texto}};
+  // "¿Por qué platea?", "justifica la viga", "¿en qué norma…?": la decisión con su norma y su fuente.
+  if (/^[¿]?\s*(por que|porque)\b|\b(justific\w*|fundament\w*|en que norma|que norma|segun que norma|de donde (sale|salio|sacaste))\b/.test(t)) {
+    return {tool: "justificar", args: {tema: t.replace(/^[¿]?\s*(por que|porque)\s+|\b(justifica\w*|fundamenta\w*)\s+/g, "").replace(/[?¿]/g, "").trim()}};
+  }
   if (/\b(paso a paso|guiame|guia(me)? la|construye|construir|construyamos)\b/.test(t) && !/\bcasa|vivienda\b/.test(t)) return {tool: "construir_estructura", args: {accion: "iniciar"}};
   if (/^[¿]?\s*(en que vamos|que falta|que (llevas|tenemos|decidiste|hiciste)|estado del proyecto|resumen del proyecto)\b/.test(t)) return {tool: "estado_proyecto", args: {}};
   // Revisión de las láminas contra la norma (revisorNorma.js).
