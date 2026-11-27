@@ -426,10 +426,13 @@ export function planoCimentacion({lectura, items, caja, k = 1, titulo = ""}, opc
       // Con zapatas siguen (en ILO 3, VINCHOS 7 y el colegio coinciden con lo del ingeniero), y también
       // si el criterio aprendido de un cliente decide muro por muro.
       if (tipo === "platea" && o.murosCaras !== true) continue;
-      if (!conPieza && segs.every(([a, b]) => dibujar(a, b))) prim.push(pline(L.MUROS_E, g.pts.map(pt), g.cerrada === true));
+      // Con zapatas, bajo el muro va la viga de cimentación (en ILO del ancho del muro): se dibuja como
+      // tal, no como muro (la clase "muro" no tenía contraparte en 16 plantas).
+      const capa = o.murosCaras === true ? L.MUROS_E : L.VIGAS_CIM;
+      if (!conPieza && segs.every(([a, b]) => dibujar(a, b))) prim.push(pline(capa, g.pts.map(pt), g.cerrada === true));
       else for (const [a, b] of segs) {
         const i = siguiente(a, b);
-        if (dibujar(a, b)) prim.push({...line(L.MUROS_E, pt(a), pt(b)), ...(i !== null ? {pieza: `muro-cim:${i}`} : {})});
+        if (dibujar(a, b)) prim.push({...line(capa, pt(a), pt(b)), ...(i !== null ? {pieza: `muro-cim:${i}`} : {})});
       }
     }
   }
