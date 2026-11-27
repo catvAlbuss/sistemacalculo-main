@@ -16,6 +16,7 @@ import { installCadFontMapping } from './cadFonts.js'
 import { installNovaCadAbout } from './product/installAbout.js'
 import { installNovaCadLabels } from './product/labels.js'
 import { instalarRecorteXclip, recorteDeInsercion } from './visor/recorteXclip.js'
+import { instalarXclipEnDxf } from './visor/xclipDxf.js'
 import { installDescomponer } from './product/descomponer.js'
 
 // Desde cad-simple-viewer 1.7 el visor ya no registra un lector DWG: sin esto
@@ -28,6 +29,9 @@ AcDbDatabaseConverterManager.instance.register(AcDbFileType.DWG, new AcDbLibreDw
 // Bloques recortados con XCLIP (p. ej. el plano de ubicación del rótulo): el visor dibujaba
 // el terreno completo alrededor de las láminas. Ver visor/recorteXclip.js.
 instalarRecorteXclip({AcDbLibreDwgConverter, AcDbBlockReference})
+// Y en los DXF: al guardar (Exportar DXF, copia de recuperación) el recorte se escribe como en
+// AutoCAD y al abrir un DXF se vuelve a aplicar; sin esto el plano se reabría con el terreno entero.
+instalarXclipEnDxf({AcDbDatabase: dataModel.AcDbDatabase, AcDbNativeDxfConverter: dataModel.AcDbNativeDxfConverter, AcDbBlockReference})
 
 // Configurar workers (parsers DXF/DWG y render de MText)
 const originalCreateInstance = AcApDocManager.createInstance.bind(AcApDocManager)
