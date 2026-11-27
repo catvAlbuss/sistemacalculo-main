@@ -120,3 +120,13 @@ test('zapatas con las reacciones del análisis y el qadm del EMS', async () => {
   // Sin reacción: área tributaria como antes.
   assert.equal(predimensionarZapatas([cols[0]], {qadm: 10}).zapatas[0].fuente, undefined);
 });
+
+test('buscar armado: sin solución en una llamada y con bisección cuando hay que subir mucho', async () => {
+  const opciones = Array.from({length: 30}, (_, k) => ({total: 8 + 2 * k}));
+  const imposible = await buscarArmado(opciones, async () => 3.46, {nAntes: 6, ratioAntes: 3.46});
+  assert.equal(imposible.opcion, null);
+  assert.equal(imposible.llamadas, 2);              // la propuesta y el mayor
+  const duro = await buscarArmado(opciones, async (o) => 60 / o.total, {nAntes: 6, ratioAntes: 1.5});
+  assert.equal(duro.opcion.total, 60);              // el menor que cumple
+  assert.ok(duro.llamadas <= 8, `llamadas ${duro.llamadas}`);
+});

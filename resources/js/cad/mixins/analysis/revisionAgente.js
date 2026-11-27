@@ -1,7 +1,7 @@
 // mixins/analysis/revisionAgente.js — "Revisión del agente (E.030)": reúne el modelo, los resultados del
 // análisis sísmico y del diseño y los pasa al motor de verificaciones (engine/revisionE030.js). La vista
 // es modals/revision-agente-modal.blade.php (evento open-revision-agente-modal).
-import {revisarModelo, revisarResultados, revisarIrregularidades, revisarGeometria, revisarDiseno, resumirRevision, rDelEspectro, mensajesExplicacion} from "../../engine/revisionE030.js";
+import {revisarModelo, revisarResultados, revisarIrregularidades, revisarGeometria, revisarPisoDebil, revisarDiseno, resumirRevision, rDelEspectro, mensajesExplicacion} from "../../engine/revisionE030.js";
 import {nodeHasRestraints} from "../../model/nodeSupports.js";
 import {DISENO_DEL_AGENTE, buscarArmado, paqueteParaAgente, ratioDe, totalDePatron, tipoDeSeccion} from "../../engine/disenoAgente.js";
 import {armadosMayores} from "../../../ingenieria/diseno/patronColumna.js";
@@ -76,6 +76,12 @@ export const revisionAgenteMixin = {
       // Por la forma (Tablas 8 y 9) con la geometría del análisis; el retiro con el desplazamiento inelástico.
       const geometria = revisarGeometria({nodos: this.seismicLastPayload?.nodes || [], elementos: this.seismicLastPayload?.elements || [], desplazamientoMaximo: this._desplazamientoInelasticoMaximo(direcciones, 0.75 * (R ?? 8))});
       irregularidad = {...irregularidad, verificaciones: [...irregularidad.verificaciones, ...geometria.verificaciones], Ia: Math.min(irregularidad.Ia, geometria.Ia), Ip: Math.min(irregularidad.Ip, geometria.Ip)};
+      // Piso débil con la resistencia a corte de las columnas ya diseñadas (Vn del motor de corte).
+      const debil = revisarPisoDebil((this.rcColumnDesignResults || []).map((c) => ({piso: c.story ?? /\(([^)]+)\)\s*$/.exec(String(c.label ?? ""))?.[1], v2: c.shear?.shearV2?.vnProvided, v3: c.shear?.shearV3?.vnProvided})));
+      if (debil) {
+        irregularidad.verificaciones = irregularidad.verificaciones.map((x) => (x.titulo === "Resistencia (piso débil)" ? debil.verificacion : x));
+        irregularidad.Ia = Math.min(irregularidad.Ia, debil.Ia);
+      }
       irregularidad.irregular = irregularidad.Ia < 1 || irregularidad.Ip < 1;
       const regularidad = opciones.regularidad || "auto";
       const regular = regularidad === "auto" ? !irregularidad.irregular : regularidad === "regular";

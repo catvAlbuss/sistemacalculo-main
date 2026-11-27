@@ -31,8 +31,14 @@ export async function buscarArmado(opciones, evaluar, {nAntes, ratioAntes, limit
     return ratios.get(k);
   };
   if (await ratioEn(i) > limite) {
-    while (i + 1 < opciones.length) { i++; if (await ratioEn(i) <= limite) break; }
-    if (ratios.get(i) > limite) return {opcion: null, ratio: ratios.get(i), mayor: opciones[i], llamadas};
+    // Primero el mayor (4 % de cuantía): si ni ese cumple, no hay armado — una llamada, no recorrer
+    // todos (VINCHOS 3: C1 con ratio 3.46 subía de dos en dos varillas y tardaba minutos).
+    const ultimo = opciones.length - 1;
+    if (await ratioEn(ultimo) > limite) return {opcion: null, ratio: ratios.get(ultimo), mayor: opciones[ultimo], llamadas};
+    // Bisección entre el que no cumple (i) y el que sí (ultimo): el ratio baja con más acero.
+    let lo = i, hi = ultimo;
+    while (hi - lo > 1) { const m = (lo + hi) >> 1; if (await ratioEn(m) <= limite) hi = m; else lo = m; }
+    i = hi;
   }
   while (i > 0 && await ratioEn(i - 1) <= limite) i--;
   return {opcion: opciones[i], ratio: ratios.get(i), llamadas};

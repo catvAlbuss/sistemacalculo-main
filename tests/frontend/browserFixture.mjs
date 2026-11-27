@@ -27,8 +27,11 @@ export async function runBrowserFixture(browser,file,{profile,theme='light',widt
   await send('Page.bringToFront');await send('Page.navigate',{url:url||pathToFileURL(file).href});
   let interacted=false;
   const deadline=Date.now()+timeoutMs;
-  while(Date.now()<deadline){const result=await send('Runtime.evaluate',{expression:'document.querySelector("#result")?.textContent',returnByValue:true});const status=result.result?.value;if(status?.startsWith('PASS')||status?.startsWith('FAIL'))return status;if(status==='READY'&&interact&&!interacted){interacted=true;await interact(send)}await pause(100)}
-  throw Error('Fixture did not finish');
+  // Una página ocupada (diseño de muchas columnas) puede tardar más de 10 s en responder una consulta:
+  // se vuelve a preguntar hasta el plazo total en vez de abortar.
+  let ultimo=null;
+  while(Date.now()<deadline){let result;try{result=await send('Runtime.evaluate',{expression:'document.querySelector("#result")?.textContent',returnByValue:true})}catch(error){if(/CDP timeout/.test(error.message))continue;throw error}const status=result.result?.value;ultimo=status;if(status?.startsWith('PASS')||status?.startsWith('FAIL'))return status;if(status==='READY'&&interact&&!interacted){interacted=true;await interact(send)}await pause(100)}
+  throw Error(`Fixture did not finish${ultimo?` (último estado: ${String(ultimo).slice(0,200)})`:''}`);
  }finally{
   if(ws?.readyState===WebSocket.OPEN){await send('Browser.close',{},null).catch(()=>{});ws.close()}
   for(let i=0;i<20&&child.exitCode===null;i++)await pause(50);
